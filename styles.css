@@ -1,0 +1,96 @@
+/* Import Roboto font */
+@import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+
+.llm-popup {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  max-width: 80vw;
+  max-height: 70vh;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  z-index: 999999 !important;
+  font-family: "Segoe UI", "Roboto", "Helvetica", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  to { opacity:1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Popup header */
+.llm-popup-header {
+  background: #1976d2; /* Material Indigo blue */
+  color: white;
+  padding: 12px 16px;
+  font-size: 18px;
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Close button as Material icon */
+.llm-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 24px;
+  color: white;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+.llm-close-btn:hover {
+  color: #ff5252;
+}
+
+/* Content area */
+.llm-popup-content {
+  padding: 16px;
+  overflow-y: auto;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Use bit of monospace font for LLM output */
+.llm-popup-content pre {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+.llm-copy-container {
+  margin-top: 10px;
+}
+
+.llm-copy-btn {
+  padding: 5px 10px;
+  border: 1px solid #888;
+  background: #eee;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.llm-copy-btn:hover {
+  background: #ddd;
+}
+
+.llm-copy-status {
+  font-size: 0.9em;
+  color: green;
+}
+.llm-highlight {
+  outline: 2px solid red !important;  /* red border */
+  background-color: rgba(255, 0, 0, 0.1);  /* subtle red background */
+}
+
