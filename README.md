@@ -8,7 +8,7 @@
 
 - **Summarize Anything:** ALT+hover to highlight, then ALT+Click any element on a web page to select it, then summarize with just one click on the icon.
 - **Custom Prompts:** Use your own prompt for the LLM, or stick with the smart default.
-- **Choose Your Model:** Select from popular OpenRouter models or enter your own. You can use :nitro or :floos shortcuts.
+- **Choose Your Model:** Select from popular OpenRouter models or enter your own. You can use `:nitro` or `:floor` shortcuts.
 - **Instant Results:** See the summary in a beautiful popup, with easy Copy and Close buttons.
 - **Secure:** Your API key is stored only in your browser, never sent anywhere except OpenRouter.ai.
 
