@@ -1,6 +1,6 @@
 # OpenRouter Summarizer
 
-**Summarize any web page content in one click using OpenRouter.ai APIs**
+**Summarize any web page content in two clicks using OpenRouter.ai APIs**
 
 ---
 
