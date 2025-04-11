@@ -16,8 +16,6 @@
 
 ## 🛠️ How It Works
 
-[Watch the Video](media/or-summ-video-11.mp4)
-
 1. **Install the Extension.**
 2. **Set Up Your API Key:**
    - On first install, the Options page opens automatically.
