@@ -1,69 +1,149 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="utf-8" />
-<title>Use OpenRouter.ai to Summarize Pages</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f9f9f9;
-}
-.container {
-  max-width: 600px; background: #fff; margin: 40px auto; padding: 30px 20px;
-  border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-h4 { text-align: center; margin-bottom: 30px; }
-label { font-size: 14px; font-weight: bold; display: block; margin-bottom: 6px; }
-input[type="text"], textarea, select {
-  width: 100%; padding: 10px; font-size: 14px;
-  border: 1px solid #ccc; border-radius: 4px; background: #f5f5f5;
-  box-sizing: border-box; margin-bottom: 20px; resize: vertical;
-}
-button {
-  background: #009688; color:white; font-weight:bold; padding:12px 20px;
-  border:none; border-radius:4px; cursor:pointer; transition:0.3s;
-}
-button:hover { background:#00796b; }
-#status { margin-left:15px; font-weight:500; color:#009688; }
-</style>
+  <meta charset="UTF-8">
+  <title>OpenRouter Summarizer Options</title>
+  <style>
+    body { background: #eaf2fb; padding: 3em 0; }
+    .container {
+      background: #fff;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 32px 32px 24px 32px;
+      border-radius: 16px;
+      box-shadow: 0 4px 32px rgba(80,110,140,0.19);
+      border: 1.5px solid #d5e0ee;
+    }
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 1.5em;
+      font-size: 1.55em;
+      color: #19577a;
+      font-weight: 500;
+      letter-spacing: 1px;
+    }
+    label { font-weight: bold; }
+    .radio-group label { font-weight:normal; margin-right:30px; }
+    .section { margin-bottom: 19px; }
+    input[type="button"], button, input[type="submit"] {
+      font-size: 1em;
+      background: #1968a8;
+      color: #fff;
+      padding: 0.45em 1.3em;
+      border-radius: 4px;
+      border: none;
+      margin-right: 8px;
+      cursor: pointer;
+    }
+    select, input[type="text"], input[type="password"] {
+      font-size: 1em;
+      padding: 0.28em 0.45em;
+      border-radius: 2.5px;
+      border: 1px solid #b5cde3;
+      margin-top: 2px;
+    }
+    #status {
+      margin-left: 20px;
+      color: green;
+    }
+    .translate-section {
+      margin-top: 10px;
+      background: #f3f9ff;
+      padding: 13px 16px 10px 16px;
+      border-radius: 6px;
+      border: 1px solid #d1e5fa;
+      font-size: 0.99em;
+    }
+    .translate-controls {
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .translate-controls label {
+      margin: 0 7px 0 0;
+      font-weight: normal;
+    }
+    .translate-controls select {
+      min-width: 110px;
+    }
+    .expnote {
+      color: #4a5c8a;
+      margin-top: 6px;
+      font-size: 0.97em;
+      margin-left: 2px;
+      margin-bottom: 4px;
+    }
+  </style>
 </head>
-
 <body>
-<div class="container">
-  <h4>Use OpenRouter.ai to Summarize Pages</h4>
+  <div class="container">
+    <h1>OpenRouter Summarizer – Options</h1>
+    <div class="section">
+      <label for="apiKey">OpenRouter API Key:</label><br>
+      <input type="password" id="apiKey" style="width:350px;" autocomplete="off" />
+    </div>
 
-  <label>OpenRouter API Key</label>
-  <input type="text" id="apiKey" placeholder="Enter your API key" />
+    <div class="section">
+      <label for="modelDropdown">Model:</label><br>
+      <select id="modelDropdown">
+        <option value="">-- choose a model --</option>
+        <option value="openrouter/optimus-alpha">openrouter/optimus-alpha</option>
+        <option value="google/gemini-2.0-flash-lite-001">google/gemini-2.0-flash-lite-001</option>
+        <option value="meta-llama/llama-4-maverick">meta-llama/llama-4-maverick</option>
+        <option value="meta-llama/llama-4-scout">meta-llama/llama-4-scout</option>
+        <option value="qwen/qwq-32b">qwen/qwq-32b</option>
+        <option value="mistral/ministral-8b">mistral/ministral-8b</option>
+        <option value="x-ai/grok-3-mini-beta">x-ai/grok-3-mini-beta</option>
+        <option value="x-ai/grok-3-mini-beta">x-ai/grok-3-mini-beta</option>
+        <option value="deepseek/deepseek-chat-v3-0324:nitro">deepseek/deepseek-chat-v3-0324</option>
+        <option value="deepseek/deepseek-r1:nitro">deepseek/deepseek-r1</option>
+      </select>
+      <input type="text" id="modelInput" style="width:250px;" placeholder="Or enter any model name" />
+    </div>
 
-  <label>Select a Model</label>
-  <select id="modelDropdown">
-    <option value="">-- Choose a model --</option>
-    <option value="meta-llama/llama-3.2-1b-instruct">meta-llama/llama-3.2-1b-instruct (default)</option>
-    <option value="openrouter/optimus-alpha">openrouter/optimus-alpha</option>
-    <option value="deepseek/deepseek-chat-v3-0324">deepseek/deepseek-chat-v3-0324</option>
-    <option value="google/gemini-2.0-flash-lite-001">google/gemini-2.0-flash-lite-001</option>
-    <option value="anthropic/claude-3.7-sonnet">anthropic/claude-3.7-sonnet</option>
-  </select>
+    <div class="section">
+      <label>Number of summary bullet points:</label>
+      <div id="bulletCountRadios" class="radio-group">
+        <label><input type="radio" name="bulletCount" value="3">3</label>
+        <label><input type="radio" name="bulletCount" value="4">4</label>
+        <label><input type="radio" name="bulletCount" value="5">5</label>
+        <label><input type="radio" name="bulletCount" value="6">6</label>
+        <label><input type="radio" name="bulletCount" value="7">7</label>
+        <label><input type="radio" name="bulletCount" value="8">8</label>
+      </div>
+    </div>
 
-  <label>Custom or Selected Model Name</label>
-  <input type="text" id="modelInput" placeholder="Custom model name or selected above" />
+    <div class="section translate-section">
+      <div class="expnote">
+        We will ask the LLM to translate the summary if you check this box and select a language.
+      </div>
+      <div class="translate-controls">
+        <input type="checkbox" id="translate" />
+        <label for="translate">Translate results</label>
+        <select id="translateLanguage">
+          <option value="english">English</option>
+          <option value="spanish">Spanish</option>
+          <option value="french">French</option>
+          <option value="mandarin">Mandarin</option>
+          <option value="arabic">Arabic</option>
+          <option value="hebrew">Hebrew</option>
+          <option value="russian">Russian</option>
+        </select>
+      </div>
+    </div>
 
-  <label>Prompt Template</label>
-  <textarea id="promptInput" placeholder="Write your prompt template here..."></textarea>
+    <div class="section">
+      <label><input type="checkbox" id="debug"> Debug logging</label>
+    </div>
 
-  <label>
-    <input type="checkbox" id="debug" />
-    Enable debug mode (show console logs)
-  </label>
-
-  <div style="text-align:center;">
-    <button id="save" type="button">Save</button>
-    <span id="status"></span>
+    <div class="section">
+      <button id="save">Save</button>
+      <span id="status"></span>
+    </div>
   </div>
-</div>
-<script src="options.js"></script>
+  <script src="options.js"></script>
 </body>
 </html>
 
