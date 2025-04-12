@@ -14,6 +14,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
     if (!model || model.trim() === '') {
       updates.model = "google/gemini-2.0-flash-lite-001";
+      console.log('Model not set, assigning the default of google/gemini-2.0-flash-lite-001.');
     }
 
     if (!prompt || prompt.trim() === '') {
