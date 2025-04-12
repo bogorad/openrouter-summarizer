@@ -13,7 +13,7 @@ chrome.runtime.onInstalled.addListener(() => {
     const updates = {};
 
     if (!model || model.trim() === '') {
-      updates.model = "meta-llama/llama-3.2-1b-instruct";
+      updates.model = "google/gemini-2.0-flash-lite-001";
     }
 
     if (!prompt || prompt.trim() === '') {
