@@ -5,11 +5,12 @@
   transform: translate(-50%, -50%) !important;
   max-width: 80vw;
   max-height: 80vh;
-  overflow: auto;
+  overflow: auto; /* Changed from scroll to auto */
   background: #f5f6fa;
   border: 1px solid #ccd4df;
   border-radius: 12px;
-  /* margin for content everywhere (matches buttons/header) */
+  /* Overall padding for content areas (top is handled by header margin OR this padding) */
+  /* Let's keep the 12px top padding from the original styles.css */
   padding: 12px 21px 18px 21px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.16);
   z-index: 999999;
@@ -24,15 +25,43 @@
 .llm-popup-header {
   background: #2196F3;
   color: #fff;
-  margin: 0 12px 18px 12px;
-  padding: 14px 0 10px 0;
+  /* Use negative margins to extend background to parent padding edges */
+  /* Top margin compensates for parent's top padding (12px) */
+  /* Left/Right margins compensate for parent's horizontal padding (21px) */
+  /* Bottom margin creates space before content */
+  margin: -12px -21px 18px -21px;
+  /* Add internal padding to align text with content (matching parent's 21px) */
+  padding: 14px 21px 10px 21px;
   font-weight: bold;
   font-size: 1.22em;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  /* Match parent's top border radius */
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  /* Ensure bottom corners are square */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   text-align: center;
   letter-spacing: 0.5px;
   box-shadow: 0 2px 7px 0px rgba(25,104,168,0.04);
+}
+
+/* No specific padding needed here, inherits from .llm-popup */
+.llm-popup-content {
+  margin-top: 0; /* Remove default margins if any */
+}
+
+.llm-popup-content ul {
+  list-style-type: disc;
+  /* Adjust padding as needed for bullet indentation */
+  padding-left: 1.5em;
+  margin: 0.5em 0; /* Keep vertical spacing */
+}
+
+.llm-popup-content li {
+  margin-bottom: 0.4em;
+  /* Internal padding for list items */
+  padding: 0.4em 0.7em;
+  border-radius: 4px;
 }
 
 .llm-copy-btn {
@@ -43,8 +72,52 @@
   color: #fff !important;
   border-radius: 4px;
   padding: 6px 12px;
-  margin: 10px 5px 0 0;
+  margin: 10px 5px 0 0; /* Keep original margin for spacing between buttons */
   cursor: pointer;
   transition: background 0.16s;
 }
 
+.llm-copy-btn:hover, .llm-copy-btn:focus {
+  background-color: #1769aa;
+}
+
+/* Center the button container */
+/* This targets the div added dynamically in showPopup */
+.llm-popup > div:has(> .llm-copy-btn) {
+  margin-top: 10px;
+  text-align: center;
+  /* No specific padding needed, should align within parent's padding */
+}
+
+/* Styles from content.js injection (keep these) */
+.llm-highlight {
+  outline: 2px solid orange !important;
+}
+.llm-highlight-preview {
+  outline: 2px dashed #1976d2 !important;
+  background-color: rgba(25, 118, 210, 0.08) !important;
+}
+.llm-floating-icon {
+  position: absolute;
+  z-index: 1000000;
+  width: 32px;
+  height: 32px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  border: 1px solid #1976d2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.llm-floating-icon:hover {
+  box-shadow: 0 4px 16px rgba(25,118,210,0.25);
+  border-color: #2196F3;
+}
+.llm-floating-icon img {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
