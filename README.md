@@ -9,7 +9,6 @@ _Now with native LLM-generated HTML formatting in summaries!_
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize with a single icon click.
 - **Rich Formatting:** Summaries display with bold, italics, and other HTML formatting as returned by the LLM for clarity and readability.
-- **Custom Prompts:** Use your own summarization prompt, or stick with the smart default.
 - **Choose Your Model:** Select from popular OpenRouter models, or enter any compatible string. Supports `:nitro` and `:floor` shortcuts.
 - **Translation:** Optionally translate summaries into popular languages (English, Spanish, French, Mandarin, Arabic, Hebrew, Russian, and more).
 - **Bullet Count:** Choose the number of summary bullet points (3–8).
@@ -25,7 +24,7 @@ _Now with native LLM-generated HTML formatting in summaries!_
 2. **Set Up Your API Key:**
     - On first install, the Options page opens.
     - Enter your [OpenRouter.ai](https://openrouter.ai/) API key.
-    - Select or input a model (defaults to the cheapest paid option).
+    - Select or input a model (defaults to one of the cheapest paid options).
     - Optionally, adjust bullet count and translation language.
 3. **Select Content:**
     - Hold <kbd>ALT</kbd>, hover to highlight any DOM element (text, article, paragraph, etc.).
