@@ -32,6 +32,7 @@ format this summary as a json array of strings.`;
   if (translate) {
     const langName = LANGUAGE_DISPLAY[translateLanguage.toLowerCase()] || translateLanguage;
     prompt += ` \ntranslate the summary you created into ${langName}. drop the original summary, only return the translated summary.`;
+    if (DEBUG) console.log('Transnation to ' + langName + ' requested');
   }
   prompt += ` 
 do not add any comments. do not output your deliberations. 
@@ -48,7 +49,7 @@ let DEBUG = false;
 
 chrome.storage.sync.get(['debug'], (result) => {
   DEBUG = !!result.debug;
-  if (DEBUG) console.log('[LLM] Debug mode enabled');
+  if (DEBUG) console.log('[LLM] Debug mode enabled', modelOutput);
 });
 
 // ALT highlighting and icon logic
@@ -282,7 +283,8 @@ function showPopup(content) {
 // Extract JSON array from LLM response
 function tryExtractJSONArray(text) {
   let output = text.trim();
-  const codeFenceRegex = /^```(?:json[^\n]*)?\n([\s\S]+?)\n```$/im;
+  if (DEBUG) console.log('[LLM output]' + output);
+  const codeFenceRegex = /```(?:json[^\n]*)?\n([\s\S]+?)\n```/im;
   const match = output.match(codeFenceRegex);
   if (match && match[1]) {
     output = match[1].trim();
