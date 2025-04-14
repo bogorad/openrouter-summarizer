@@ -332,7 +332,7 @@ function sendToLLM(selectedText, apiKey, model, systemPrompt) {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://yourdomain.com',
+      'HTTP-Referer': 'https://github.com/bogorad/openrouter-summarizer',
       'X-Title': 'OpenRouterSummarizer'
     },
     body: JSON.stringify(payload)
