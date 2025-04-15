@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.0
+# OpenRouter Summarizer v2.0.1
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**  
 _Now with Markdown rendering in chat and flexible model/language options!_
@@ -153,7 +153,7 @@ A: Yes. Your API key and settings stay in your browser storage. Selected text/HT
 A: When you click "Chat" on a summary, the original HTML you selected and the summary text are passed to the chat tab. This context is included with your *first* chat message to the LLM, allowing you to ask relevant follow-up questions.
 
 **Q: Can I customize the models and languages in the Options?**  
-A: Yes! Version 2.0 introduces editable lists for both models and translation languages. Add any valid OpenRouter model ID or any target language name.
+A: Yes! Version 2.0.1 introduces editable lists for both models and translation languages. Add any valid OpenRouter model ID or any target language name.
 
 **Q: Is rendering Markdown from the LLM safe?**  
 A: We use the `marked` library to convert Markdown to HTML. While generally safe for standard Markdown, it's always wise to be cautious about unexpected or complex outputs from LLMs. The library is configured for standard GFM and breaks, and does not execute embedded scripts by default.
