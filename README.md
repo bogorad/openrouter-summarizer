@@ -152,6 +152,9 @@ A: Yes. Your API key and settings stay in your browser storage. Selected text/HT
 **Q: How does the Chat feature work?**  
 A: When you click "Chat" on a summary, the original HTML you selected and the summary text are passed to the chat tab. This context is included with your *first* chat message to the LLM, allowing you to ask relevant follow-up questions.
 
+**Q: Can I mix and match models in chat?**
+A: Yes! Your summary is done via the default model, and each message in the chat is done via the currently selected model in the dropdown. So, it you aren't satisfied with the current model's behavior, you can try another one.
+
 **Q: Can I customize the models and languages in the Options?**  
 A: Yes! Version 2.0.1 introduces editable lists for both models and translation languages. Add any valid OpenRouter model ID or any target language name.
 
