@@ -26,15 +26,16 @@ just provide the requested json array as result.`;
   return prompt;
 }
 
+// --- State Variables ---
 let selectedElement = null;
 let lastHighlighted = null;
-let altKeyDown = false;
+let altKeyDown = false; // <<< Our target state variable
 let previewHighlighted = null;
 let floatingIcon = null;
 let DEBUG = false;
-let lastSummary = '';          // Stores last summary as plain text
-let lastSummaryHtml = '';      // Stores last summary as HTML for popup/chat context
-let lastModelUsed = '';        // Stores model string used for the *last successful* summary
+let lastSummary = '';
+let lastSummaryHtml = '';
+let lastModelUsed = '';
 
 // --- Initialization ---
 chrome.storage.sync.get(['debug'], (result) => {
@@ -42,121 +43,199 @@ chrome.storage.sync.get(['debug'], (result) => {
   if (DEBUG) console.log('[LLM Content] Debug mode enabled');
 });
 
-// --- Event Listeners for ALT Key, Mouse Movement, Clicks ---
-window.addEventListener('keydown', (e) => { if (e.key === 'Alt') altKeyDown = true; });
-window.addEventListener('keyup', (e) => {
-  if (e.key === 'Alt') {
-    altKeyDown = false;
-    if (previewHighlighted) {
-      previewHighlighted.classList.remove('llm-highlight-preview');
-      previewHighlighted = null;
+// --- Helper Function to Reset Alt State ---
+function resetAltState() {
+    // Only log/act if state actually needs resetting
+    if (altKeyDown || previewHighlighted) {
+        if (DEBUG) console.log('[LLM Content Alt State] Resetting Alt key state and clearing preview.');
+        altKeyDown = false;
+        if (previewHighlighted) {
+            // Check if the element still exists in the DOM before trying to modify it
+            if (document.body.contains(previewHighlighted)) {
+                previewHighlighted.classList.remove('llm-highlight-preview');
+            }
+            previewHighlighted = null;
+        }
     }
-  }
+}
+
+// --- Event Listeners for ALT Key, Focus, Visibility ---
+
+// Keydown: Set alt flag
+window.addEventListener('keydown', (e) => {
+    // Only set if Alt is pressed and wasn't already considered down
+    if (e.key === 'Alt' && !altKeyDown) {
+        // Check if the active element is an input/textarea to avoid interfering
+        // with standard Alt shortcuts in text fields (like Alt+Backspace)
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+             if (DEBUG) console.log('[LLM Content Alt State] Ignoring Alt down in input field.');
+             return;
+        }
+
+        altKeyDown = true;
+        if (DEBUG) console.log('[LLM Content Alt State] Alt key down.');
+    }
 });
+
+// Keyup: Reset alt flag
+window.addEventListener('keyup', (e) => {
+    if (e.key === 'Alt') {
+        // Always reset on Alt keyup, regardless of previous state
+        if (DEBUG) console.log('[LLM Content Alt State] Alt key up.');
+        resetAltState();
+    }
+});
+
+// Blur: Reset alt flag when window loses focus (covers Alt+Tab away)
+window.addEventListener('blur', () => {
+    if (DEBUG) console.log('[LLM Content Alt State] Window blurred.');
+    resetAltState();
+});
+
+// Visibility Change: Reset alt flag when tab becomes hidden
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        if (DEBUG) console.log('[LLM Content Alt State] Document hidden.');
+        resetAltState();
+    }
+});
+
+
+// --- Mouse Listeners (Highlighting & Selection) ---
+
+// Mouseout: Clear preview if mouse leaves window while Alt might be down
 window.addEventListener('mouseout', (e) => {
-  // If mouse leaves the window while ALT is down, clear preview
   if (!e.relatedTarget && previewHighlighted) {
-    previewHighlighted.classList.remove('llm-highlight-preview');
+    if (DEBUG) console.log('[LLM Content] Mouse left window, clearing preview.');
+    // Don't reset altKeyDown here, just the visual preview
+    if (document.body.contains(previewHighlighted)) { // Check existence
+        previewHighlighted.classList.remove('llm-highlight-preview');
+    }
     previewHighlighted = null;
   }
 });
 
+// Mousemove: Handle preview highlighting
 document.addEventListener('mousemove', (e) => {
+  // If Alt key state is not considered active, ensure preview is cleared and stop
   if (!altKeyDown) {
     if (previewHighlighted) {
-      previewHighlighted.classList.remove('llm-highlight-preview');
-      previewHighlighted = null;
+        if (document.body.contains(previewHighlighted)) { // Check existence
+             previewHighlighted.classList.remove('llm-highlight-preview');
+        }
+        previewHighlighted = null;
     }
     return;
   }
 
+  // --- Alt key IS considered active ---
   let target = document.elementFromPoint(e.clientX, e.clientY);
 
   // Ignore elements within our UI or invalid targets
   if (!target || target.closest('.summarizer-popup') || target.closest('.summarizer-btn') || target.classList.contains('llm-floating-icon')) {
-    if (previewHighlighted) {
-      previewHighlighted.classList.remove('llm-highlight-preview');
-      previewHighlighted = null;
+    if (previewHighlighted) { // If hovering over invalid target, remove preview from previous valid one
+        if (document.body.contains(previewHighlighted)) {
+            previewHighlighted.classList.remove('llm-highlight-preview');
+        }
+        previewHighlighted = null;
     }
-    return;
+    return; // Stop processing for invalid targets
   }
 
   // Avoid highlighting the body/html directly unless it's the only option
   if ((target === document.body || target === document.documentElement) && document.elementsFromPoint(e.clientX, e.clientY).length > 1) {
-      const deeperTarget = document.elementsFromPoint(e.clientX, e.clientY)[1]; // Try the element underneath
+      const deeperTarget = document.elementsFromPoint(e.clientX, e.clientY)[1];
       if (deeperTarget && !deeperTarget.closest('.summarizer-popup') && !deeperTarget.closest('.summarizer-btn') && !deeperTarget.classList.contains('llm-floating-icon')) {
           target = deeperTarget;
       } else {
-          // If the element underneath is still invalid, remove highlight
-          if (previewHighlighted) {
-              previewHighlighted.classList.remove('llm-highlight-preview');
+          if (previewHighlighted) { // Remove preview if deeper target is also invalid
+              if (document.body.contains(previewHighlighted)) {
+                 previewHighlighted.classList.remove('llm-highlight-preview');
+              }
               previewHighlighted = null;
           }
           return;
       }
   }
 
-
-  // Don't double-highlight the selected element
+  // Don't double-highlight the selected element during preview
   if (target === selectedElement) {
-    if (previewHighlighted && previewHighlighted !== selectedElement) {
-      previewHighlighted.classList.remove('llm-highlight-preview');
-      previewHighlighted = null;
+    if (previewHighlighted && previewHighlighted !== selectedElement) { // Clear preview if it was on a different element
+        if (document.body.contains(previewHighlighted)) {
+            previewHighlighted.classList.remove('llm-highlight-preview');
+        }
+        previewHighlighted = null;
     }
-    return;
+    return; // Don't apply preview style to already selected element
   }
 
   // Update preview highlight if target changed
   if (previewHighlighted !== target) {
-     if (previewHighlighted) {
-        previewHighlighted.classList.remove('llm-highlight-preview');
+     if (previewHighlighted) { // Remove from old target
+         if (document.body.contains(previewHighlighted)) {
+            previewHighlighted.classList.remove('llm-highlight-preview');
+         }
      }
-     previewHighlighted = target;
-     if (previewHighlighted) { // Ensure target is valid
+     previewHighlighted = target; // Set new target
+     if (previewHighlighted) { // Add to new target (check target isn't null)
         previewHighlighted.classList.add('llm-highlight-preview');
      }
   }
 }, true); // Use capture phase
 
+// Mousedown: Handle element selection and deselection
 document.addEventListener('mousedown', e => {
   // Ignore clicks on the floating icon itself
   if (e.target.closest('.llm-floating-icon')) return;
 
   // --- ALT+Click logic ---
-  if (e.altKey && e.button === 0) { // Primary button (left click)
+  if (e.altKey && e.button === 0) {
     e.preventDefault();
-    e.stopPropagation(); // Prevent triggering other listeners if possible
+    e.stopPropagation();
 
-    if (previewHighlighted) {
-      previewHighlighted.classList.remove('llm-highlight-preview');
-      previewHighlighted = null;
-    }
-    removeFloatingIcon();
-
+    // Use the target from the mousedown event directly
     const clickedTarget = e.target;
+
+    // If a preview was active, remove its style (should ideally be handled by mousemove/blur already)
+    if (previewHighlighted) {
+        if (document.body.contains(previewHighlighted)) {
+            previewHighlighted.classList.remove('llm-highlight-preview');
+        }
+        previewHighlighted = null;
+    }
+    removeFloatingIcon(); // Remove any existing icon
 
     // Deselect if clicking the currently selected element
     if (selectedElement === clickedTarget) {
-      selectedElement.classList.remove('llm-highlight');
+      if (document.body.contains(selectedElement)) {
+          selectedElement.classList.remove('llm-highlight');
+      }
       selectedElement = null;
       lastHighlighted = null;
       removeFloatingIcon();
       if (DEBUG) console.log('[LLM Content] Deselected element via Alt+Click on same element.');
     } else {
       // Select the new element
-      if (lastHighlighted) {
+      if (lastHighlighted && document.body.contains(lastHighlighted)) {
         lastHighlighted.classList.remove('llm-highlight');
       }
-      selectedElement = clickedTarget;
-      lastHighlighted = clickedTarget;
-      if (selectedElement) {
-        selectedElement.classList.add('llm-highlight');
-        createFloatingIcon(e.pageX, e.pageY);
-        if (DEBUG) console.log('[LLM Content] Selected element:', selectedElement);
+      // Ensure clicked target is valid before selecting
+      if (clickedTarget && !clickedTarget.closest('.summarizer-popup')) {
+          selectedElement = clickedTarget;
+          lastHighlighted = clickedTarget;
+          selectedElement.classList.add('llm-highlight');
+          createFloatingIcon(e.pageX, e.pageY);
+          if (DEBUG) console.log('[LLM Content] Selected element:', selectedElement);
       } else {
-          if (DEBUG) console.warn('[LLM Content] Alt+Click detected but target was null?');
+          if (DEBUG) console.warn('[LLM Content] Alt+Click detected but target was invalid or inside popup.');
+          selectedElement = null; // Ensure nothing is selected
+          lastHighlighted = null;
       }
     }
+    // Explicitly set altKeyDown = true here? No, rely on keydown listener.
+    // But ensure the preview state is clean.
+    previewHighlighted = null;
     return; // Handled Alt+Click
   }
 
@@ -164,20 +243,17 @@ document.addEventListener('mousedown', e => {
   if (!e.altKey && e.button === 0) {
       // Check if the click is outside the selected element, AND outside the floating icon, AND outside the popup
       if (selectedElement &&
-          !selectedElement.contains(e.target) &&         // Click wasn't *inside* the selected element
-          !e.target.closest('.llm-floating-icon') && // Click wasn't on the floating icon
-          !e.target.closest('.summarizer-popup')) {    // Click wasn't inside the popup
-          // If all conditions are true, then the click was truly "outside" our active UI elements. Deselect.
+          !selectedElement.contains(e.target) &&
+          !e.target.closest('.llm-floating-icon') &&
+          !e.target.closest('.summarizer-popup')) {
           if (DEBUG) console.log('[LLM Content] Click outside selected element, icon, AND popup detected. Deselecting.');
-          selectedElement.classList.remove('llm-highlight');
+          if (document.body.contains(selectedElement)) {
+             selectedElement.classList.remove('llm-highlight');
+          }
           selectedElement = null;
           lastHighlighted = null;
           removeFloatingIcon();
-          // Optional: Close the popup when deselecting?
-          // const existingPopup = document.querySelector('.summarizer-popup');
-          // if (existingPopup) existingPopup.remove();
       } else {
-          // If the click was inside the selected element, or on the icon, or inside the popup, do nothing (don't deselect).
           if (DEBUG && selectedElement) console.log('[LLM Content] Regular click detected, but it was inside selected element, icon, or popup. No deselection.');
       }
   }
@@ -262,7 +338,7 @@ function createFloatingIcon(clickX, clickY) {
         e.stopPropagation();
         if (DEBUG) console.log('[LLM Content] Floating icon dismissed via Escape.');
         removeFloatingIcon();
-        if (selectedElement) {
+        if (selectedElement && document.body.contains(selectedElement)) {
             selectedElement.classList.remove('llm-highlight');
             selectedElement = null;
             lastHighlighted = null;
@@ -271,8 +347,6 @@ function createFloatingIcon(clickX, clickY) {
   });
 
   document.body.appendChild(floatingIcon);
-  // Only focus if appropriate (might be disruptive)
-  // floatingIcon.focus();
 }
 
 // --- Popup Display ---
@@ -420,7 +494,6 @@ function openChatWithContext() {
           // Step 4: Callback after attempting to open tab (optional handling)
           if (chrome.runtime.lastError) {
               console.error('[LLM Chat Context] Error requesting chat tab open:', chrome.runtime.lastError);
-              // Alert user that opening failed, but context might be set
               alert(`Error opening chat tab: ${chrome.runtime.lastError.message}. Context might be ready if you open chat manually.`);
           } else {
               if (DEBUG) console.log('[LLM Chat Context] Background acknowledged openChatTab request. Response:', openResponse);
@@ -429,7 +502,6 @@ function openChatWithContext() {
               if (existingPopup) existingPopup.remove();
           }
       });
-      // *** Line 422 (chrome.tabs.create) was removed from here ***
 
     } else {
       console.error('[LLM Chat Context] Background script did not confirm context storage. Response:', response);
@@ -459,11 +531,9 @@ function tryExtractJSONArray(text) {
         return arr;
     } else {
         if (DEBUG) console.warn('[LLM Raw Output] Parsed JSON is not an array of strings:', arr);
-        // Fall through to regex attempt if structure is wrong
     }
   } catch (e) {
       if (DEBUG) console.log('[LLM Raw Output] Initial JSON.parse failed:', e.message);
-      // JSON parse failed, try regex for array-like structure as fallback
   }
 
   // Fallback: Regex to find the most likely array structure
@@ -484,7 +554,6 @@ function tryExtractJSONArray(text) {
       }
   }
 
-  // If all attempts fail
   console.error('[LLM Error] Failed to extract valid JSON array from LLM response.');
   throw new Error('Invalid JSON array format received from LLM.');
 }
@@ -493,11 +562,8 @@ function renderJSONArrayList(arr) {
   const ul = document.createElement('ul');
   arr.forEach((item) => {
     const li = document.createElement('li');
-    // Basic sanitization: Allow only safe tags (b, i, em, strong, ul, ol, li)
-    // This is NOT foolproof security, but prevents basic script injection.
-    // A more robust approach would use a proper sanitizer library if available in content scripts.
-    const allowedTags = /<\/?(b|i|em|strong|ul|ol|li)>/gi;
-    li.innerHTML = item.replace(/<(?!\/?(b|i|em|strong|ul|ol|li)\b)[^>]*>/gi, ''); // Strip disallowed tags
+    // Basic sanitization (already present)
+    li.innerHTML = item.replace(/<(?!\/?(b|i|em|strong|ul|ol|li)\b)[^>]*>/gi, '');
     ul.appendChild(li);
   });
   return ul;
@@ -505,7 +571,7 @@ function renderJSONArrayList(arr) {
 
 function sendToLLM(selectedHtml, apiKey, model, systemPrompt) {
   if (DEBUG) console.log(`[LLM Request] Sending to model: ${model} with prompt:`, systemPrompt);
-  showPopup('Thinking...'); // Show initial status
+  showPopup('Thinking...');
 
   const payload = {
     model,
@@ -513,8 +579,6 @@ function sendToLLM(selectedHtml, apiKey, model, systemPrompt) {
       { role: "system", content: systemPrompt },
       { role: "user", content: selectedHtml }
     ],
-    // structured_outputs: "true" // This seems non-standard for OpenAI/OpenRouter chat API? Remove unless specifically supported.
-    // If you need JSON reliably, ensure the prompt *requests* JSON format.
   };
 
   fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -529,29 +593,22 @@ function sendToLLM(selectedHtml, apiKey, model, systemPrompt) {
   })
   .then(response => {
       if (!response.ok) {
-          // Try to get error message from response body
-          return response.text().then(text => {
-              throw new Error(`API Error: ${response.status} ${response.statusText} - ${text}`);
-          });
+          return response.text().then(text => { throw new Error(`API Error: ${response.status} ${response.statusText} - ${text}`); });
       }
       return response.json();
   })
   .then(data => {
       if (DEBUG) console.log('[LLM Response] Received data:', data);
       const modelOutput = data.choices?.[0]?.message?.content;
-
-      if (!modelOutput) {
-          throw new Error('No response content received from LLM.');
-      }
+      if (!modelOutput) { throw new Error('No response content received from LLM.'); }
 
       let arr = null;
       try {
         arr = tryExtractJSONArray(modelOutput);
         const listEl = renderJSONArrayList(arr);
-        lastModelUsed = model; // Successfully got summary, store the model used
-        showPopup(listEl); // Display the formatted list
+        lastModelUsed = model; // Store model used for successful summary
+        showPopup(listEl);
       } catch (e) {
-        // If JSON extraction failed, show the raw output (or part of it) as an error
         showPopup(`Intermittent LLM error or invalid format. LLM Raw Output:\n"${modelOutput.substring(0, 200)}${modelOutput.length > 200 ? '...' : ''}"`);
         console.error('[LLM Error] Failed to process LLM response:', e);
         if (DEBUG) console.log('[LLM Error] Raw output causing failure:', modelOutput);
@@ -559,7 +616,6 @@ function sendToLLM(selectedHtml, apiKey, model, systemPrompt) {
     })
   .catch(err => {
       console.error('[LLM Fetch Error]', err);
-      // Display the error in the popup
       showPopup(`Error: ${err.message}`);
   });
 }
@@ -575,12 +631,10 @@ function processSelectedElement() {
     const model = config.model;
     const bulletCount = config.bulletCount || 5;
     const translate = !!config.translate;
-    const translateLanguage = config.translateLanguage || "english";
+    const translateLanguage = config.translateLanguage || "english"; // Should use "none" or language name now
 
     if (!apiKey || !model) {
       showPopup('Error: API key or model not configured. Please check Options.');
-      // Consider opening options page automatically?
-      // chrome.runtime.sendMessage({ action: "openOptionsPage" }); // Requires listener in background
       return;
     }
 
@@ -589,6 +643,7 @@ function processSelectedElement() {
         showPopup('Error: Selected element has no content.');
         return;
     }
+    // Pass the correct language value ('none' or name) to getSystemPrompt
     const systemPrompt = getSystemPrompt(bulletCount, translate, translateLanguage);
 
     sendToLLM(htmlContent, apiKey, model, systemPrompt);
@@ -602,5 +657,4 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     processSelectedElement();
     sendResponse({status: "processing"}); // Optional: acknowledge
   }
-  // Add other message handlers if needed
 });
