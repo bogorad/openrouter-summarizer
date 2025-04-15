@@ -5,7 +5,7 @@ _Now with Markdown rendering in chat and flexible model/language options!_
 
 ---
 
-## ✨ What's New (v2.0)
+## ✨ What's New (v2.0.1)
 
 *   **Interactive Chat:** After getting a summary, click "Chat" to open a dedicated chat tab. Ask follow-up questions using the original page content and summary as context!
 *   **Markdown Rendering:** Chat responses from the LLM are now rendered with full Markdown support (bold, italics, lists, code blocks, etc.) for enhanced readability.
