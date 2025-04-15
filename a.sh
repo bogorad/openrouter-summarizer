@@ -1,3 +1,9 @@
+#!/bin/sh
+# shar archive for OpenRouter Summarizer chat.js (v2.1+)
+# Fixes initial summary Markdown rendering by stripping code fences.
+
+echo "Creating chat.js..."
+cat << 'EOF' > chat.js
 // This JS handles chat.html UI, message rendering, and communication with the background script for LLM streaming.
 
 // ==== GLOBAL STATE ====
@@ -176,3 +182,8 @@ function handleDownloadJson() { if (DEBUG) console.log('[LLM Chat Export] Downlo
 // ==== Ctrl+Enter Listener Setup ====
 function setupCtrlEnterListener() { if (!chatInput) { console.error("Cannot setup Ctrl+Enter: Textarea not found."); return; } if (DEBUG) console.log('[LLM Chat] Setting up Ctrl+Enter listener.'); chatInput.addEventListener('keydown', (event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { if (DEBUG) console.log('[LLM Chat] Ctrl+Enter detected.'); event.preventDefault(); if (sendButton && !sendButton.disabled) { if (DEBUG) console.log('[LLM Chat] Clicking Send button programmatically.'); sendButton.click(); } else { if (DEBUG) console.log('[LLM Chat] Send button not available or disabled.'); } } }); }
 
+EOF
+
+echo "Done creating/updating chat files."
+
+exit 0
