@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "OpenRouter Summarizer",
-  "version": "1.1",
-  "manifest_version": 3,
-  "description": "Summarize web pages with OpenRouter.ai",
+  "version": "2.0.1",
+  "description": "Summarize web pages with OpenRouter.ai using your chosen model.",
   "permissions": [
     "activeTab",
     "contextMenus",
     "scripting",
-    "storage"
+    "storage" // This single permission covers sync, local, AND session storage.
+    // "storage.session" <-- REMOVED THIS INVALID ENTRY
   ],
   "host_permissions": [
     "<all_urls>"
@@ -31,13 +31,17 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [ "icons/*"],
+      "resources": [
+        "icons/*",
+        "options.css",
+        "chat.css",
+        "marked.min.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
   "action": {
-    // "default_popup": "popup.html",
-    "default_title": "Summarize Selected Element",
+    "default_title": "Summarize Selected Element (OpenRouter)",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
