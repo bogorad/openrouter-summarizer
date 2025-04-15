@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>OpenRouter Summarizer Options</title>
-    <link rel="stylesheet" href="options.css">
+    <link rel="stylesheet" href="options.css"> <!-- Link to the CSS -->
 </head>
 <body>
 
@@ -45,16 +45,17 @@
         </div>
     </div>
 
-    <!-- Language Selection Section -->
+    <!-- Translation Options Section -->
     <div class="section">
         <h2>Translation Options</h2>
-        <p>Select a language to translate the summary into, or choose "No translation needed". You can add/edit languages below.</p>
+        <p>Select a language to translate the summary into, or choose "No translation needed".</p>
         <div id="languageSelectionArea">
             <p>Loading languages...</p>
         </div>
         <button id="addLangBtn" class="button add-button">Add Another Language</button>
         <p class="note">Enter the target language name (e.g., "Spanish", "Mandarin Chinese", "German"). The extension will pass this name to the LLM.</p>
     </div>
+
 
     <!-- Other Settings Section -->
     <div class="section">
@@ -65,10 +66,46 @@
         </div>
     </div>
 
+    <!-- Advanced Options / Prompt Customization Section (MOVED & COLLAPSIBLE) -->
+    <div class="section">
+        <h2 class="collapsible-header" id="advancedOptionsToggle" role="button" tabindex="0" aria-expanded="false">
+            Advanced Options <span class="toggle-indicator">►</span>
+        </h2>
+        <div class="collapsible-content" id="advancedOptionsContent">
+            <!-- Content moved inside here -->
+            <h3>Prompt Customization</h3>
+            <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle formatting instructions section.</p>
+            <div class="prompt-display-area">
+                <div class="prompt-label">Intro:</div>
+                <div class="prompt-part prompt-preamble" id="promptPreamble">
+                    <!-- Preamble text will be loaded by JS -->
+                </div>
+
+                <div class="prompt-label">You can customize this part:</div>
+                <textarea id="promptFormatInstructions" rows="6" class="prompt-part prompt-editable" spellcheck="false">
+                    <!-- Editable instructions loaded/defaulted by JS -->
+                </textarea>
+
+                <div class="prompt-label">Language (appears if translation selected):</div>
+                <div class="prompt-part prompt-translation-preview" id="promptTranslationPreview">
+                    <!-- Translation instructions preview loaded by JS -->
+                </div>
+
+                 <div class="prompt-label">Outro:</div>
+                <div class="prompt-part prompt-postamble" id="promptPostamble">
+                    <!-- Postamble text will be loaded by JS -->
+                </div>
+            </div>
+             <p class="note">The preamble and postamble are fixed. The translation instructions appear dynamically based on your language selection.</p>
+             <!-- End of moved content -->
+        </div>
+    </div>
+    <!-- End Advanced Options Section -->
+
+
     <!-- Actions Area -->
     <div class="actions">
         <button id="save" class="button save-button">Save Options</button>
-        <!-- Add the Reset Button -->
         <button id="resetDefaultsBtn" class="button reset-button">Reset to Defaults</button>
         <span id="status" class="status-message"></span>
     </div>
