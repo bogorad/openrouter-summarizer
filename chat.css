@@ -17,6 +17,20 @@ body {
     display: flex; flex-direction: column; height: 100%; overflow: hidden;
 }
 
+/* --- Info Banner --- */
+.info-banner {
+    padding: 8px 10px; background-color: #e3f2fd; color: #0d47a1;
+    font-size: 0.9em; text-align: center; border-bottom: 1px solid #bbdefb;
+    flex-shrink: 0; width: 80vw; max-width: 800px; margin: 0 auto;
+}
+
+/* --- Error Display --- */
+#errorDisplay {
+    display: none; color: red; background-color: #ffebee; padding: 10px;
+    border: 1px solid red; border-radius: 4px; margin: 10px auto;
+    width: 80vw; max-width: 800px;
+}
+
 /* --- Messages Area --- */
 .chat-messages {
     flex: 1 1 auto; padding: 16px 0; overflow-y: auto; background: #f5f6fa;
@@ -82,7 +96,6 @@ body {
 .export-button:active { background-color: #455a64; }
 .export-button:disabled { background-color: #bdbdbd; cursor: not-allowed; }
 
-
 /* --- Model Selector Area --- */
 .model-selector-area {
     padding: 10px 0; background: #e9f1fc; border-bottom: 1px solid #bfd8f5;
@@ -134,17 +147,10 @@ body {
 .loading-indicator span:nth-child(1) { animation-delay: -0.32s; }
 .loading-indicator span:nth-child(2) { animation-delay: -0.16s; }
 @keyframes blinker { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-#errorDisplay {
-    /* Styles moved here from JS */
-    display: none; /* Initially hidden */
-    color: red; background-color: #ffebee; padding: 10px;
-    border: 1px solid red; border-radius: 4px; margin: 10px auto;
-    width: 80vw; max-width: 800px;
-}
 
 /* --- Responsive --- */
 @media (max-width: 850px) {
-    .chat-messages-inner, .model-selector-area, .input-row, #errorDisplay, .loading-indicator, .export-actions {
+    .chat-messages-inner, .model-selector-area, .input-row, #errorDisplay, .loading-indicator, .export-actions, .info-banner { /* Added .info-banner */
         width: 96vw; /* Use more viewport width */
     }
 }
@@ -156,4 +162,5 @@ body {
     #chatForm button[type="submit"] { padding: 8px 15px; font-size: 0.95em; }
     .export-actions { gap: 10px; }
     .export-button { padding: 5px 10px; font-size: 0.85em; }
+    .info-banner { font-size: 0.85em; padding: 6px 8px; }
 }
