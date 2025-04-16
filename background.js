@@ -1,5 +1,8 @@
 /* background.js */
-const DEFAULT_PROMPT = "Summarize this article in 5 bullet points. Ignore HTML tags. Do not comment on output."; // This default is less relevant now
+// v2.2.7 - Added immediate sendResponse({}) workaround for llmChatStream listener.
+
+// Default prompt (less relevant now as it's stored via options)
+const DEFAULT_PROMPT = "Summarize this article in 5 bullet points. Ignore HTML tags. Do not comment on output.";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -8,12 +11,12 @@ chrome.runtime.onInstalled.addListener(() => {
     contexts: ["all"]
   });
 
-  // Simplified initial setup - relies more on options page defaults now
+  // Simplified initial setup - check API key, let options page handle defaults
   chrome.storage.sync.get(['apiKey', 'debug'], data => {
     const debug = !!data.debug;
     if (!data.apiKey) {
         if (debug) console.log('[LLM Background] API key not found on install/update, opening options.');
-        // Only open options if API key is missing, assume other defaults handled by options.js
+        // Only open options if API key is missing
         chrome.runtime.openOptionsPage();
     } else {
         if (debug) console.log('[LLM Background] API key found.');
@@ -24,19 +27,29 @@ chrome.runtime.onInstalled.addListener(() => {
 // context menu click event
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "sendToLLM") {
-    chrome.tabs.sendMessage(tab.id, { action: "processSelection" });
+    // Ensure tab.id exists before sending message
+    if (tab && tab.id) {
+        chrome.tabs.sendMessage(tab.id, { action: "processSelection" });
+    } else {
+        console.warn("[LLM Background] Context menu clicked but tab ID is missing.");
+    }
   }
 });
 
 // toolbar icon click event
 chrome.action.onClicked.addListener((tab) => {
-  if (!tab.id) return;
+  if (!tab || !tab.id) {
+      console.warn("[LLM Background] Toolbar icon clicked but tab ID is missing.");
+      return;
+  }
   chrome.tabs.sendMessage(tab.id, { action: "processSelection" });
 });
 
 
-// Handle "getChatContext" request from chat.html
+// Handle various messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+
+  // --- Get Chat Context ---
   if (request.action === "getChatContext") {
     chrome.storage.sync.get(['debug'], syncData => {
         const DEBUG = !!syncData.debug;
@@ -46,7 +59,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const storedContext = sessionData.chatContext || {};
             if (DEBUG) console.log('[LLM Background] Retrieved context from session storage:', storedContext);
 
-            // Retrieve models list (sync storage) separately - Assuming options.js saves simple array of IDs now
+            // Retrieve models list (sync storage)
             chrome.storage.sync.get(['models'], function(config) {
                 // Provide default models if none are saved - these should match options.js defaults
                  const DEFAULT_MODELS_WITH_LABELS = [
@@ -57,19 +70,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     { id: "openai/gpt-4.1-nano", label: "GPT-4.1 Nano" },
                     { id: "anthropic/claude-3.7-sonnet", label: "Claude 3.7 Sonnet" }
                 ];
-                // Use saved models if available and valid, otherwise use defaults
                 let modelsToSend = [];
+                // Use saved models (array of strings) if available and valid
                 if (Array.isArray(config.models) && config.models.length > 0 && config.models.every(m => typeof m === 'string')) {
-                     // Map saved IDs to objects with labels (find from defaults or use ID as label)
+                     // Map saved IDs to objects with labels
                      modelsToSend = config.models.map(id => {
                          const defaultModel = DEFAULT_MODELS_WITH_LABELS.find(m => m.id === id);
                          return { id: id, label: defaultModel ? defaultModel.label : id };
                      });
+                     if (DEBUG) console.log('[LLM Background] Using models from storage for chat dropdown:', modelsToSend);
                 } else {
                      modelsToSend = DEFAULT_MODELS_WITH_LABELS; // Fallback to full default list
                      if (DEBUG) console.log('[LLM Background] No valid models found in storage, using defaults for chat dropdown.');
                 }
-
 
                 const responsePayload = {
                     domSnippet: storedContext.domSnippet,
@@ -80,20 +93,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
                 if (DEBUG) console.log('[LLM Background] Sending context payload to chat.js:', responsePayload);
                 sendResponse(responsePayload);
-
             });
         });
     });
     return true; // Indicate async response
   }
 
-  // Streaming chat logic with LLM
+  // --- LLM Streaming ---
   if (request.action === "llmChatStream") {
     handleLLMStream(request, sender);
-    return true; // Will respond async with tokens
+    // --- WORKAROUND: Call sendResponse immediately even though we return false ---
+    // Try adding this to see if it prevents the error, even if redundant.
+    sendResponse({});
+    // --- END WORKAROUND ---
+    return false; // Explicitly return false (or nothing) as we use tabs.sendMessage
   }
 
-  // Listener to store context passed from content script before opening chat
+  // --- Set Chat Context ---
   if (request.action === "setChatContext") {
     chrome.storage.sync.get(['debug'], syncData => {
         const DEBUG = !!syncData.debug;
@@ -118,76 +134,94 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Indicate async response needed
   }
 
-    // Listener to open chat tab
-    if (request.action === "openChatTab") {
-        chrome.storage.sync.get(['debug'], syncData => {
-            const DEBUG = !!syncData.debug;
-            const chatUrl = chrome.runtime.getURL('chat.html');
-            if (DEBUG) console.log(`[LLM Background] Received request to open chat tab: ${chatUrl}`);
+  // --- Open Chat Tab ---
+  if (request.action === "openChatTab") {
+    chrome.storage.sync.get(['debug'], syncData => {
+        const DEBUG = !!syncData.debug;
+        const chatUrl = chrome.runtime.getURL('chat.html');
+        if (DEBUG) console.log(`[LLM Background] Received request to open chat tab: ${chatUrl}`);
 
-            chrome.tabs.create({ url: chatUrl }, (newTab) => {
-                if (chrome.runtime.lastError) {
-                    if (DEBUG) console.error('[LLM Background] Error opening chat tab:', chrome.runtime.lastError);
-                    sendResponse({ status: "error", message: chrome.runtime.lastError.message });
-                } else {
-                     if (DEBUG) console.log(`[LLM Background] Chat tab opened successfully. ID: ${newTab.id}`);
-                     sendResponse({ status: "opened", tabId: newTab.id });
-                }
-            });
+        chrome.tabs.create({ url: chatUrl }, (newTab) => {
+            if (chrome.runtime.lastError) {
+                if (DEBUG) console.error('[LLM Background] Error opening chat tab:', chrome.runtime.lastError);
+                sendResponse({ status: "error", message: chrome.runtime.lastError.message });
+            } else {
+                 if (DEBUG) console.log(`[LLM Background] Chat tab opened successfully. ID: ${newTab.id}`);
+                 sendResponse({ status: "opened", tabId: newTab.id });
+            }
         });
-        return true;
-    }
+    });
+    return true; // Indicate async response is needed
+  }
 
-    // Default fall-through for unhandled messages
-    // sendResponse({}); // Optional: acknowledge other messages
-    // return false; // Indicate synchronous handling if not handled above
+  // --- Open Options Page ---
+  if (request.action === "openOptionsPage") {
+      chrome.storage.sync.get(['debug'], syncData => {
+          const DEBUG = !!syncData.debug;
+          if (DEBUG) console.log(`[LLM Background] Received request to open options page.`);
+          chrome.runtime.openOptionsPage();
+          sendResponse({ status: "options page opened" }); // Acknowledge
+      });
+      return true; // Indicate async response because of storage.sync.get
+  }
+  // --- END NEW ---
+
+
+  // Optional: Default fall-through for unhandled messages
+  // console.log("[LLM Background] Received unhandled message:", request);
+  // sendResponse({}); // Acknowledge if needed
+  return false; // Indicate synchronous handling if not handled above
 });
 
 
-// STREAMING LLM HANDLER (MODIFIED)
+// --- STREAMING LLM HANDLER ---
 async function handleLLMStream(request, sender) {
     chrome.storage.sync.get(['apiKey', 'debug'], async (config) => {
         const apiKey = config.apiKey;
         const DEBUG = !!config.debug;
         if (DEBUG) console.log('[LLM Background Stream] Handling stream request for model:', request.model);
-        if (DEBUG) console.log('[LLM Background Stream] Received messages:', request.messages); // Log received messages
+        if (DEBUG) console.log('[LLM Background Stream] Received messages:', request.messages);
 
         if (!apiKey) {
             if (DEBUG) console.error('[LLM Background Stream] API key not set.');
-            chrome.tabs.sendMessage(sender.tab.id, {
-                action: "llmChatStreamError",
-                error: "API key not set. Please configure it in the extension options."
-            });
+            if (sender && sender.tab && sender.tab.id) {
+                chrome.tabs.sendMessage(sender.tab.id, {
+                    action: "llmChatStreamError",
+                    error: "API key not set. Please configure it in the extension options."
+                });
+            } else {
+                 console.error('[LLM Background Stream] Cannot send API key error: sender tab ID missing.');
+            }
             return;
         }
 
-        // --- CORRECTED PAYLOAD PREPARATION ---
-        // Prepare messages for OpenRouter API - include system, user, assistant roles
+        // Prepare messages for OpenRouter API
         const apiMessages = request.messages
-            .filter(m => m && m.role && m.content) // Basic validation
-            .filter(m => ['system', 'user', 'assistant'].includes(m.role)) // Ensure valid roles
-            .map(m => ({ // Ensure only role and content are sent
+            .filter(m => m && m.role && m.content)
+            .filter(m => ['system', 'user', 'assistant'].includes(m.role))
+            .map(m => ({
                 role: m.role,
                 content: m.content
             }));
 
         if (apiMessages.length === 0) {
              console.error('[LLM Background Stream] No valid messages to send after filtering.');
-             chrome.tabs.sendMessage(sender.tab.id, {
-                 action: "llmChatStreamError",
-                 error: "Internal error: No valid messages to send."
-             });
+             if (sender && sender.tab && sender.tab.id) {
+                 chrome.tabs.sendMessage(sender.tab.id, {
+                     action: "llmChatStreamError",
+                     error: "Internal error: No valid messages to send."
+                 });
+             }
              return;
         }
 
         const payload = {
             model: request.model,
-            messages: apiMessages, // Use the filtered and mapped messages
+            messages: apiMessages,
             stream: true
         };
-        // --- END CORRECTION ---
 
-         if (DEBUG) console.log('[LLM Background Stream] Sending payload to OpenRouter:', JSON.stringify(payload)); // Stringify for better logging
+         if (DEBUG) console.log('[LLM Background Stream] Sending payload to OpenRouter:', JSON.stringify(payload));
 
         try {
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -215,6 +249,30 @@ async function handleLLMStream(request, sender) {
             let streamEnded = false;
 
             while (!streamEnded) {
+                // Check if sender tab still exists before reading/sending
+                let tabExists = false;
+                if (sender && sender.tab && sender.tab.id) {
+                    try {
+                        await chrome.tabs.get(sender.tab.id);
+                        tabExists = true;
+                    } catch (e) {
+                        // Tab doesn't exist
+                        if (DEBUG) console.log(`[LLM Background Stream] Sender tab ${sender.tab.id} closed. Aborting stream read.`);
+                        streamEnded = true; // Stop reading
+                        // Cleanly close the reader if possible (optional)
+                        try { reader.cancel(); } catch (cancelError) {}
+                        break; // Exit loop
+                    }
+                } else {
+                     if (DEBUG) console.log(`[LLM Background Stream] Sender tab information missing. Aborting stream read.`);
+                     streamEnded = true;
+                     try { reader.cancel(); } catch (cancelError) {}
+                     break;
+                }
+
+                // Proceed only if tab exists
+                if (!tabExists) continue; // Should be caught by break, but for safety
+
                 const { done, value } = await reader.read();
                 if (done) {
                    if (DEBUG) console.log('[LLM Background Stream] Stream finished (reader done).');
@@ -223,7 +281,6 @@ async function handleLLMStream(request, sender) {
                 }
 
                 buffer += decoder.decode(value, { stream: true });
-                // if (DEBUG) console.log('[LLM Background Stream] Received chunk, buffer size:', buffer.length); // Can be noisy
 
                 let lines = buffer.split("\n");
                 buffer = lines.pop(); // Keep potential incomplete line
@@ -245,32 +302,49 @@ async function handleLLMStream(request, sender) {
                         let delta = parsed.choices?.[0]?.delta?.content || "";
                         if (parsed.model) modelName = parsed.model;
 
-                        if (delta) {
-                            // if (DEBUG) console.log('[LLM Background Stream] Sending delta chunk to chat tab:', delta); // Can be noisy
-                            chrome.tabs.sendMessage(sender.tab.id, {
-                                action: "llmChatStreamChunk",
-                                delta: delta
-                            });
+                        // Send chunk only if delta exists and tab still exists
+                        if (delta && sender && sender.tab && sender.tab.id) {
+                             // No need to check tab existence again here, done at start of loop
+                             chrome.tabs.sendMessage(sender.tab.id, {
+                                 action: "llmChatStreamChunk",
+                                 delta: delta
+                             });
                         }
                     } catch (e) {
                         if (DEBUG) console.warn('[LLM Background Stream] Skipping non-JSON data line:', data, 'Error:', e);
                     }
                 }
                  if (streamEnded) break;
-            }
+            } // end while loop
 
+             // Send final DONE notification only if the tab still exists
              if (DEBUG) console.log('[LLM Background Stream] Sending final stream DONE notification.');
-             chrome.tabs.sendMessage(sender.tab.id, {
-                 action: "llmChatStreamDone",
-                 model: modelName
-             });
+             if (sender && sender.tab && sender.tab.id) {
+                 try {
+                     await chrome.tabs.get(sender.tab.id); // Check one last time
+                     chrome.tabs.sendMessage(sender.tab.id, {
+                         action: "llmChatStreamDone",
+                         model: modelName
+                     });
+                 } catch (e) {
+                      if (DEBUG) console.log(`[LLM Background Stream] Sender tab ${sender.tab.id} closed before sending DONE.`);
+                 }
+             }
 
         } catch (e) {
              if (DEBUG) console.error('[LLM Background Stream] Fetch/Stream Error:', e);
-             chrome.tabs.sendMessage(sender.tab.id, {
-                 action: "llmChatStreamError",
-                 error: String(e)
-             });
+             // Send error only if tab still exists
+             if (sender && sender.tab && sender.tab.id) {
+                  try {
+                      await chrome.tabs.get(sender.tab.id);
+                      chrome.tabs.sendMessage(sender.tab.id, {
+                          action: "llmChatStreamError",
+                          error: String(e)
+                      });
+                  } catch (tabError) {
+                       if (DEBUG) console.log(`[LLM Background Stream] Sender tab ${sender.tab.id} closed before sending error.`);
+                  }
+             }
         }
     });
-}
+} // end handleLLMStream

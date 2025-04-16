@@ -254,6 +254,7 @@ function scrollToBottom() { if (chatMessages) { setTimeout(() => { chatMessages.
 function focusInput() { setTimeout(() => { if (chatInput) { chatInput.focus(); if (DEBUG) console.log('[LLM Chat] Focused input.'); } else { console.error("Cannot focus: #chatInput not found."); } }, 150); }
 
 // ==== CHAT FORM HANDLING (MODIFIED - Includes snippet injection) ====
+// ==== CHAT FORM HANDLING (REVISED - Remove snippet prepending) ====
 function handleFormSubmit(e) {
     if (e) e.preventDefault();
     if (DEBUG) console.log('[LLM Chat] Form submit triggered.');
@@ -285,7 +286,6 @@ function handleFormSubmit(e) {
     messagesWrap.appendChild(modelLabelDiv);
     let streamContainer = document.createElement("div");
     streamContainer.className = 'msg assistant';
-    // Use a span for the streaming content
     streamContainer.innerHTML = `<span class="assistant-inner" id="activeStreamSpan"></span>`;
     messagesWrap.appendChild(streamContainer);
     currentStreamMsgSpan = streamContainer.querySelector('#activeStreamSpan');
@@ -300,30 +300,23 @@ function handleFormSubmit(e) {
 
     if (isFirstUserTurn && chatContext.domSnippet && chatContext.summary) {
         // First turn: Include system prompt, DOM snippet, and RAW JSON summary string
-        apiMessages.push({ role: "system", content: "You are a helpful assistant. Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <i>." });
-        apiMessages.push({ role: "user", content: `Original HTML Snippet:\n\`\`\`html\n${chatContext.domSnippet}\n\`\`\`\n\nInitial Summary (JSON Array of HTML strings):\n${chatContext.summary}` }); // Use raw JSON string
+        if (DEBUG) console.log("[LLM Chat] Preparing messages for FIRST turn.");
+        apiMessages.push({ role: "system", content: "Be specific, concise, you are on a fact-finding missoin, not on a social chat. Format responses using simple HTML like <b> and <i>." });
+        // Send snippet and summary context ONLY on the first turn
+        apiMessages.push({ role: "user", content: `Context:\nOriginal HTML Snippet:\n\`\`\`html\n${chatContext.domSnippet}\n\`\`\`\n\nInitial Summary (JSON Array of HTML strings):\n${chatContext.summary}` });
         apiMessages.push({ role: "user", content: text }); // The user's actual first question
     } else {
-        // Subsequent turns: Send recent history AND prepend original snippet context
-        const historyLimit = 10;
-        const recentHistory = messages.slice(-historyLimit)
-                              .filter(m => typeof m.content === 'string') // Only include messages with string content for history
+        // Subsequent turns: Send recent history ONLY
+        if (DEBUG) console.log("[LLM Chat] Preparing messages for SUBSEQUENT turn (no snippet prepended).");
+        const historyLimit = 10; // Or adjust as needed
+        // Filter out the initial message if its content is an array (it's not useful history)
+        // Map to the required format and filter roles
+        apiMessages = messages.slice(-historyLimit)
+                              .filter(m => typeof m.content === 'string') // Exclude the initial summary array message
                               .map(m => ({ role: m.role, content: m.content }))
-                              .filter(m => m.role === 'user' || m.role === 'assistant');
+                              .filter(m => m.role === 'user' || m.role === 'assistant'); // Only user/assistant history
 
-        // Prepend the original snippet context if available
-        if (chatContext.domSnippet) {
-             if (DEBUG) console.log("[LLM Chat] Prepending DOM snippet to history for subsequent turn.");
-             // Using 'user' role for consistency with first turn, though 'system' might also work.
-             // Keep the prefix concise.
-             apiMessages = [
-                 { role: "user", content: `Context - Original HTML Snippet:\n\`\`\`html\n${chatContext.domSnippet}\n\`\`\`` },
-                 ...recentHistory
-             ];
-        } else {
-             apiMessages = recentHistory; // Send history without snippet if context is missing
-        }
-        // Add the current user's message to the end
+        // Add the current user's message to the end of the history
         apiMessages.push({ role: "user", content: text });
     }
 

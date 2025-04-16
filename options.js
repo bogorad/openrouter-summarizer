@@ -1,4 +1,6 @@
 /* options.js */
+// v2.3.2 - Added options validation on load.
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const apiKeyInput = document.getElementById('apiKey');
@@ -37,21 +39,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const NUM_TO_WORD = { 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
 
     // --- Centralized Prompt Definitions ---
-    // These are the single source of truth for the default prompt structure.
-    // They are used directly by options.js for UI preview and saved to storage for content.js.
-    const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions'; // User's customization
+    const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
     const PROMPT_STORAGE_KEY_PREAMBLE = 'prompt_preamble_template';
     const PROMPT_STORAGE_KEY_POSTAMBLE = 'prompt_postamble_text';
     const PROMPT_STORAGE_KEY_TRANSLATION = 'prompt_translation_template';
-    const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions'; // The default for the customizable part
+    const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
 
     const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article_text.
-Using US English, prepare a summary of article_text containing approximately \${bulletWord} points.`; // Placeholder for bullet count word
+Using US English, prepare a summary of article_text containing approximately \${bulletWord} points.`;
     const DEFAULT_POSTAMBLE_TEXT = `Format the entire result as a single JSON array of strings.
 Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<i>Point 3:</i> With italics."]
 Do not add any comments before or after the JSON array. Do not output your deliberations.
 Just provide the JSON array string as the result. Ensure the output is valid JSON.`;
-    const DEFAULT_TRANSLATION_TEMPLATE = `Translate the JSON array of HTML strings you created into \${langName}. Drop the original summary, only return the translated JSON array. Ensure the translated strings retain the same HTML formatting (only <b> and <i> tags allowed). Ensure the output is valid JSON.`; // Placeholder for language name
+    const DEFAULT_TRANSLATION_TEMPLATE = `Translate the JSON array of HTML strings you created into \${langName}. Drop the original summary, only return the translated JSON array. Ensure the translated strings retain the same HTML formatting (only <b> and <i> tags allowed). Ensure the output is valid JSON.`;
     const DEFAULT_FORMAT_INSTRUCTIONS = `Each point should be a concise HTML string, starting with a bold tag-like marker and a colon, followed by the description.
 You may use ONLY the following HTML tags for emphasis: <b> for bold and <i> for italics. Do not use any other HTML tags (like <p>, <ul>, <li>, <br>, etc.).
 For example: "<b>Key Finding:</b> The market showed <i>significant</i> growth in Q3."
@@ -69,7 +69,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
     // --- Functions ---
 
-    // --- Model Selection Functions (Unchanged) ---
+    // --- Model Selection Functions ---
     function renderModelOptions() {
         if (!modelSelectionArea) return;
         modelSelectionArea.innerHTML = '';
@@ -139,7 +139,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
     // --- End Model Selection Functions ---
 
 
-    // --- Language Selection Functions (Unchanged) ---
+    // --- Language Selection Functions ---
     function renderLanguageOptions() {
         if (!languageSelectionArea) return;
         languageSelectionArea.innerHTML = '';
@@ -176,14 +176,13 @@ After providing bullet points for article summary, add a bonus one - your insigh
      }
     // --- End Language Selection Functions ---
 
-    // --- Prompt Preview Function (Uses local constants) ---
+    // --- Prompt Preview Function ---
     function updatePromptPreview() {
         console.log("Updating prompt preview...");
         let bulletCount = DEFAULT_BULLET_COUNT;
         document.querySelectorAll('input[name="bulletCount"]').forEach(radio => { if (radio.checked) bulletCount = radio.value; });
         const bulletWord = NUM_TO_WORD[bulletCount] || "five";
 
-        // Use local constants for preview rendering
         if (promptPreambleDiv) promptPreambleDiv.textContent = DEFAULT_PREAMBLE_TEMPLATE.replace('${bulletWord}', bulletWord);
         if (promptPostambleDiv) promptPostambleDiv.textContent = DEFAULT_POSTAMBLE_TEXT;
 
@@ -198,23 +197,82 @@ After providing bullet points for article summary, add a bonus one - your insigh
         }
         if (promptTranslationPreviewDiv) promptTranslationPreviewDiv.textContent = translationText;
 
-        // Update textarea value from state (in case of reset or load)
         if (promptFormatInstructionsTextarea) promptFormatInstructionsTextarea.value = currentCustomFormatInstructions;
     }
 
 
-    /** Loads settings and populates the form. */
+    /** Loads settings and populates the form, WITH VALIDATION. */
     function loadSettings() {
         console.log("Loading settings...");
-        // Fetch user settings AND the default format instructions (as it might differ from the hardcoded one if saved previously)
-        chrome.storage.sync.get([
+        const keysToFetch = [
             'apiKey', 'model', 'models', 'debug', 'bulletCount',
             'translate', 'translateLanguage', 'availableLanguages',
-            PROMPT_STORAGE_KEY_CUSTOM_FORMAT, // User's custom instructions
-            PROMPT_STORAGE_KEY_DEFAULT_FORMAT // Saved default instructions
-        ], (data) => {
-            console.log("Loaded data:", data);
-            if (apiKeyInput) apiKeyInput.value = data.apiKey || '';
+            PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
+            PROMPT_STORAGE_KEY_PREAMBLE,
+            PROMPT_STORAGE_KEY_POSTAMBLE,
+            PROMPT_STORAGE_KEY_TRANSLATION,
+            PROMPT_STORAGE_KEY_DEFAULT_FORMAT
+        ];
+
+        chrome.storage.sync.get(keysToFetch, (data) => {
+            // --- Start of Async Callback ---
+            if (chrome.runtime.lastError) {
+                console.error("Error loading settings:", chrome.runtime.lastError);
+                statusMessage.textContent = `Error loading settings: ${chrome.runtime.lastError.message}`;
+                statusMessage.className = 'status-message error';
+                alert(`Critical Error loading settings:\n${chrome.runtime.lastError.message}\n\nPlease try saving the options again.`);
+            } else {
+                console.log("Loaded data:", data);
+            }
+
+            // --- Validate loaded settings ---
+            let validationErrors = [];
+            const loadedApiKey = data.apiKey;
+            const loadedModel = data.model;
+            const loadedModels = data.models;
+            const loadedPreamble = data[PROMPT_STORAGE_KEY_PREAMBLE];
+            const loadedPostamble = data[PROMPT_STORAGE_KEY_POSTAMBLE];
+            const loadedDefaultFormat = data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT];
+            const loadedTranslate = data.translate;
+            const loadedTranslationTemplate = data[PROMPT_STORAGE_KEY_TRANSLATION];
+
+            if (!loadedApiKey || typeof loadedApiKey !== 'string' || loadedApiKey.trim() === '') {
+                validationErrors.push("API Key is missing.");
+            }
+            if (!loadedModel || typeof loadedModel !== 'string' || loadedModel.trim() === '') {
+                validationErrors.push("Default Model selection is missing.");
+            }
+            // Ensure models is an array of non-empty strings
+            if (!Array.isArray(loadedModels) || loadedModels.length === 0 || !loadedModels.every(m => typeof m === 'string' && m.trim() !== '')) {
+                validationErrors.push("Models list is missing, empty, or invalid (should be array of strings).");
+            }
+            if (!loadedPreamble || typeof loadedPreamble !== 'string' || loadedPreamble.trim() === '') {
+                validationErrors.push("Core Prompt Preamble is missing from storage.");
+            }
+            if (!loadedPostamble || typeof loadedPostamble !== 'string' || loadedPostamble.trim() === '') {
+                validationErrors.push("Core Prompt Postamble is missing from storage.");
+            }
+            if (!loadedDefaultFormat || typeof loadedDefaultFormat !== 'string' || loadedDefaultFormat.trim() === '') {
+                validationErrors.push("Core Default Format Instructions are missing from storage.");
+            }
+            if (loadedTranslate === true && (!loadedTranslationTemplate || typeof loadedTranslationTemplate !== 'string' || loadedTranslationTemplate.trim() === '')) {
+                validationErrors.push("Translation Template is missing from storage (required when translation is enabled).");
+            }
+
+            if (validationErrors.length > 0) {
+                console.warn("[Options Load] Validation failed for stored settings:", validationErrors);
+                let errorMsg = "Warning: Problems detected with stored settings!\n\n";
+                errorMsg += validationErrors.join("\n");
+                errorMsg += "\n\nPlease review the options below and click 'Save Options' to store potentially corrected or default values.";
+                alert(errorMsg);
+                statusMessage.textContent = `Validation issues found! Review and Save.`;
+                statusMessage.className = 'status-message error';
+            }
+            // --- END: Validation ---
+
+
+            // --- Populate UI (using loaded data or defaults) ---
+            if (apiKeyInput) apiKeyInput.value = loadedApiKey || '';
             if (debugCheckbox) debugCheckbox.checked = !!data.debug || DEFAULT_DEBUG_MODE;
 
             let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
@@ -222,30 +280,48 @@ After providing bullet points for article summary, add a bonus one - your insigh
             bulletCountRadios.forEach(radio => { if (radio.value === countValue) { radio.checked = true; bulletSet = true; } else { radio.checked = false; } });
             if (!bulletSet) { const defaultBulletRadio = document.querySelector(`input[name="bulletCount"][value="${DEFAULT_BULLET_COUNT}"]`); if (defaultBulletRadio) defaultBulletRadio.checked = true; }
 
-            currentModels = (Array.isArray(data.models) && data.models.length > 0) ? data.models.filter(m => typeof m === 'string' && m.trim() !== '') : [...DEFAULT_MODELS];
-            if (currentModels.length === 0) { currentModels = [...DEFAULT_MODELS]; }
-            const storedSelectedModel = data.model;
-            if (storedSelectedModel && currentModels.includes(storedSelectedModel)) { currentSelectedModel = storedSelectedModel; }
-            else if (currentModels.length > 0) { currentSelectedModel = currentModels[0]; }
-            else { currentSelectedModel = ''; }
+            // Use loaded models if valid, otherwise defaults
+            currentModels = (Array.isArray(loadedModels) && loadedModels.length > 0 && loadedModels.every(m => typeof m === 'string'))
+                            ? loadedModels.filter(m => m.trim() !== '')
+                            : [...DEFAULT_MODELS];
+            if (currentModels.length === 0) currentModels = [...DEFAULT_MODELS];
+
+            const storedSelectedModel = loadedModel;
+            if (storedSelectedModel && currentModels.includes(storedSelectedModel)) {
+                currentSelectedModel = storedSelectedModel;
+            } else if (currentModels.length > 0) {
+                currentSelectedModel = currentModels[0];
+            } else {
+                currentSelectedModel = '';
+            }
             renderModelOptions();
 
-            currentAvailableLanguages = (Array.isArray(data.availableLanguages) && data.availableLanguages.length > 0) ? data.availableLanguages.filter(l => typeof l === 'string') : [...DEFAULT_LANGUAGES];
-             if (currentAvailableLanguages.length === 0 && (!Array.isArray(data.availableLanguages) || data.availableLanguages.length === 0)) { currentAvailableLanguages = [...DEFAULT_LANGUAGES]; }
+            // Use loaded languages if valid, otherwise defaults
+            currentAvailableLanguages = (Array.isArray(data.availableLanguages) && data.availableLanguages.length > 0 && data.availableLanguages.every(l => typeof l === 'string'))
+                                        ? data.availableLanguages
+                                        : [...DEFAULT_LANGUAGES];
+            if (currentAvailableLanguages.length === 0) currentAvailableLanguages = [...DEFAULT_LANGUAGES];
+
             const storedTranslate = ('translate' in data) ? !!data.translate : false;
             const storedLang = data.translateLanguage;
-            if (!storedTranslate || storedLang === NO_TRANSLATION_VALUE) { currentSelectedLanguageValue = NO_TRANSLATION_VALUE; }
-            else if (storedLang && currentAvailableLanguages.includes(storedLang)) { currentSelectedLanguageValue = storedLang; }
-            else { currentSelectedLanguageValue = NO_TRANSLATION_VALUE; if (storedTranslate && storedLang) { console.warn(`Stored language "${storedLang}" not found.`); } }
+            if (!storedTranslate || storedLang === NO_TRANSLATION_VALUE) {
+                currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
+            } else if (storedLang && currentAvailableLanguages.includes(storedLang)) {
+                currentSelectedLanguageValue = storedLang;
+            } else {
+                currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
+                if (storedTranslate && storedLang) { console.warn(`Stored language "${storedLang}" not found in available list.`); }
+            }
             renderLanguageOptions();
 
-            // Load custom instructions, falling back to the SAVED default, then the HARDCODED default
-            const savedDefaultFormat = data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] || DEFAULT_FORMAT_INSTRUCTIONS;
+            // Load custom instructions, falling back to the LOADED default, then the HARDCODED default
+            const savedDefaultFormat = loadedDefaultFormat || DEFAULT_FORMAT_INSTRUCTIONS;
             currentCustomFormatInstructions = data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] || savedDefaultFormat;
             if (promptFormatInstructionsTextarea) { promptFormatInstructionsTextarea.value = currentCustomFormatInstructions; }
 
-            updatePromptPreview(); // Update preview after all settings loaded
-            console.log("Settings loaded.");
+            updatePromptPreview();
+            console.log("Settings loaded and UI populated.");
+            // --- End of Async Callback ---
         });
      }
 
@@ -269,17 +345,14 @@ After providing bullet points for article summary, add a bonus one - your insigh
         else { finalTranslate = false; finalTranslateLanguage = NO_TRANSLATION_VALUE; }
 
         const settingsToSave = {
-            // User settings
             apiKey, model: finalSelectedModel, models: modelsToSave, debug, bulletCount,
             translate: finalTranslate, translateLanguage: finalTranslateLanguage,
             availableLanguages: languagesToSave,
-            [PROMPT_STORAGE_KEY_CUSTOM_FORMAT]: customFormatInstructionsToSave, // Save user's edits
-
-            // Save the default prompt components defined in this file
+            [PROMPT_STORAGE_KEY_CUSTOM_FORMAT]: customFormatInstructionsToSave,
             [PROMPT_STORAGE_KEY_PREAMBLE]: DEFAULT_PREAMBLE_TEMPLATE,
             [PROMPT_STORAGE_KEY_POSTAMBLE]: DEFAULT_POSTAMBLE_TEXT,
             [PROMPT_STORAGE_KEY_TRANSLATION]: DEFAULT_TRANSLATION_TEMPLATE,
-            [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS // Save the current default
+            [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS
         };
         console.log("Saving data:", settingsToSave);
         chrome.storage.sync.set(settingsToSave, () => {
@@ -292,25 +365,21 @@ After providing bullet points for article summary, add a bonus one - your insigh
     /** Resets settings to defaults (excluding API key). */
     function resetToDefaults() {
         console.log("Resetting options to defaults (excluding API key)...");
-        // 1. Reset State Variables
         currentModels = [...DEFAULT_MODELS]; currentSelectedModel = DEFAULT_SELECTED_MODEL;
         currentAvailableLanguages = [...DEFAULT_LANGUAGES]; currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-        currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS; // Reset textarea state to default
-        // 2. Update UI Elements
+        currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
         renderModelOptions(); renderLanguageOptions();
         bulletCountRadios.forEach(radio => { radio.checked = (radio.value === DEFAULT_BULLET_COUNT); });
         if (debugCheckbox) debugCheckbox.checked = DEFAULT_DEBUG_MODE;
-        updatePromptPreview(); // Update prompt display including resetting textarea to default
-        // 3. Save the Reset State (preserves API key from input field, saves default prompts)
-        saveSettings(); // This now saves the default prompt components too
-        // 4. Update Status Message
+        updatePromptPreview();
+        saveSettings();
         if (statusMessage) {
             statusMessage.textContent = 'Defaults Reset & Saved!'; statusMessage.className = 'status-message success';
             setTimeout(() => { statusMessage.textContent = ''; statusMessage.className = 'status-message'; }, 2500);
         }
     }
 
-    // --- Collapsible Section Logic (Unchanged) ---
+    // --- Collapsible Section Logic ---
     function setupCollapsible() {
         if (!advancedOptionsToggle || !advancedOptionsContent) {
              console.warn("Collapsible elements not found."); return;
@@ -333,7 +402,6 @@ After providing bullet points for article summary, add a bonus one - your insigh
     if (addLangBtn) addLangBtn.addEventListener('click', addLanguage);
     if (resetButton) resetButton.addEventListener('click', () => { if (confirm("Are you sure you want to reset all options (except API key) to their defaults? This will also reset the prompt customization.")) { resetToDefaults(); } });
     bulletCountRadios.forEach(radio => { radio.addEventListener('change', updatePromptPreview); });
-    // Add listener to update state when textarea changes (needed for reset logic)
     if (promptFormatInstructionsTextarea) {
         promptFormatInstructionsTextarea.addEventListener('input', (event) => {
             currentCustomFormatInstructions = event.target.value;
@@ -342,7 +410,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
 
     // --- Initial Load & Setup ---
-    loadSettings(); // Load settings first
+    loadSettings(); // Load settings first (now includes validation)
     setupCollapsible(); // Then setup the collapsible section interaction
 
 });
