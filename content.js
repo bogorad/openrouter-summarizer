@@ -190,7 +190,7 @@ try { // Keep top-level try-catch
 
         fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com/bogorad/openrouter-summarizer', 'X-Title': 'OpenRouterSummarizer' },
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://github.com/bogorad/openrouter-summarizer', 'X-Title': 'OR-Summarizer' },
             body: JSON.stringify(payload)
         })
         .then(response => {
