@@ -230,7 +230,7 @@ async function handleLLMStream(request, sender) {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://github.com/bogorad/openrouter-summarizer', // Replace if you have a specific URL
-                    'X-Title': 'ORSummarizer-Chat'
+                    'X-Title': 'OR-Summ'
                 },
                 body: JSON.stringify(payload)
             });

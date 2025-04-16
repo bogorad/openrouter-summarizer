@@ -1,16 +1,17 @@
 /* chat.js */
-// v2.2.8 - Re-implements snippet context injection on subsequent turns, with truncation.
+// v2.3.3 - Added JSON detection and processing for assistant responses during chat.
 
 // ==== GLOBAL STATE ====
 let models = []; // Will store array of {id: string, label: string} objects
 let selectedModelId = "";
-// chatContext.summary will now store the RAW JSON STRING received
+// chatContext.summary will now store the RAW JSON STRING received initially
 let chatContext = { domSnippet: null, summary: null, summaryModel: null };
 // messages[0].content might be an ARRAY of strings if initial summary parsed correctly
+// messages[n>0].content will be a STRING (either original Markdown/text or processed text from JSON)
 let messages = []; // Holds {role, content, model?} objects
 let streaming = false;
 let currentStreamMsgSpan = null;
-let currentStreamRawContent = "";
+let currentStreamRawContent = ""; // Accumulates raw chunks during streaming
 let currentStreamModel = "";
 let DEBUG = false;
 let chatMessagesInnerDiv = null;
@@ -91,17 +92,12 @@ function initializeChat() {
                 let initialContent;
                 let parseError = false;
                 try {
-                    let jsonStringToParse = chatContext.summary;
-                    const jsonFenceMatch = chatContext.summary.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-                    if (jsonFenceMatch && jsonFenceMatch[1]) {
-                        jsonStringToParse = jsonFenceMatch[1].trim();
-                        if (DEBUG) console.log('[LLM Chat Init] Stripped JSON fences from initial summary.');
-                    } else {
-                         if (DEBUG) console.log('[LLM Chat Init] No JSON fences detected in initial summary.');
-                    }
-                    initialContent = JSON.parse(jsonStringToParse);
+                    let jsonStringToParse = stripCodeFences(chatContext.summary); // Use helper
+                    initialContent = tryParseJson(jsonStringToParse); // Use helper
 
-                    if (!Array.isArray(initialContent)) { throw new Error('Parsed summary is not an array.'); }
+                    if (initialContent === null || !Array.isArray(initialContent)) {
+                        throw new Error('Parsed summary is not a valid array.');
+                    }
                     if (initialContent.some(item => typeof item !== 'string')) {
                          console.warn('[LLM Chat Init] Initial summary array contains non-string elements.');
                          initialContent = initialContent.map(item => String(item));
@@ -109,10 +105,12 @@ function initializeChat() {
                     if (DEBUG) console.log('[LLM Chat Init] Successfully parsed initial summary JSON into array:', initialContent);
                 } catch (e) {
                     console.error("[LLM Chat Init] Failed to parse initial summary JSON:", e);
-                    initialContent = [`<Error: Could not display initial summary. Parsing failed for: ${chatContext.summary.substring(0, 100)}...>`];
+                    // Store the raw summary string as content if parsing fails
+                    initialContent = `<Error: Could not display initial summary. Parsing failed. Raw data follows:>\n${chatContext.summary}`;
                     parseError = true;
                 }
 
+                // Store the parsed array (or error string) for the first message
                 messages = [{ role: "assistant", content: initialContent, model: chatContext.summaryModel }];
                 renderMessages();
                 if (parseError) { showError('Failed to parse the initial summary data. Displaying raw data.', false); }
@@ -198,32 +196,37 @@ function renderMessages() {
                 const contentSpan = document.createElement('span');
                 contentSpan.className = 'assistant-inner';
 
+                // Special handling for the *first* message if it was parsed as an array
                 if (index === 0 && Array.isArray(msg.content)) {
                     if (DEBUG) console.log('[LLM Chat Render] Rendering initial summary from array:', msg.content);
                     try {
+                        // Render the initial summary array as an HTML list
                         const listHtml = '<ul>' + msg.content.map(item => `<li>${item}</li>`).join('') + '</ul>';
                         contentSpan.innerHTML = listHtml;
                     } catch (e) {
                          console.error("[LLM Chat Render] Error creating list HTML for initial summary:", e);
                          contentSpan.textContent = "Error displaying initial summary.";
                     }
-                } else if (typeof msg.content === 'string') {
-                    if (DEBUG) console.log('[LLM Chat Render] Rendering subsequent assistant message with marked:', msg.content.substring(0, 100) + '...');
+                }
+                // Handle all other messages (including first if it failed parsing) as strings
+                else if (typeof msg.content === 'string') {
+                    if (DEBUG) console.log(`[LLM Chat Render] Rendering message index ${index} with marked:`, msg.content.substring(0, 100) + '...');
                     if (typeof marked !== 'undefined') {
                         try {
+                            // Render using marked (handles Markdown and basic HTML)
                             contentSpan.innerHTML = marked.parse(msg.content);
                         } catch (e) {
-                            console.error("[LLM Chat Render] Error parsing assistant message with marked:", e);
-                            contentSpan.textContent = msg.content;
-                            contentSpan.innerHTML = contentSpan.innerHTML.replace(/\n/g, '<br>');
+                            console.error(`[LLM Chat Render] Error parsing message index ${index} with marked:`, e);
+                            contentSpan.textContent = msg.content; // Fallback to text
+                            contentSpan.innerHTML = contentSpan.innerHTML.replace(/\n/g, '<br>'); // Basic newline conversion
                         }
                     } else {
-                        console.warn("[LLM Chat Render] Marked library not loaded, using basic newline conversion for assistant message.");
+                        console.warn("[LLM Chat Render] Marked library not loaded, using basic newline conversion.");
                         contentSpan.textContent = msg.content;
                         contentSpan.innerHTML = contentSpan.innerHTML.replace(/\n/g, '<br>');
                     }
                 } else {
-                     console.warn("[LLM Chat Render] Unexpected content type for assistant message:", msg.content);
+                     console.warn(`[LLM Chat Render] Unexpected content type for message index ${index}:`, msg.content);
                      contentSpan.textContent = "[Error: Unexpected message format]";
                 }
 
@@ -233,7 +236,7 @@ function renderMessages() {
 
             } else if (msg.role === 'user') {
                 msgDiv.classList.add('user');
-                msgDiv.textContent = msg.content;
+                msgDiv.textContent = msg.content; // User messages are plain text
                 wrap.appendChild(msgDiv);
             }
         });
@@ -291,15 +294,17 @@ function handleFormSubmit(e) {
     if (isFirstUserTurn && chatContext.domSnippet && chatContext.summary) {
         // First turn: Include system prompt, FULL DOM snippet, and RAW JSON summary string
         if (DEBUG) console.log("[LLM Chat] Preparing messages for FIRST turn.");
-        apiMessages.push({ role: "system", content: "You are a helpful assistant. Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <i>." });
+        apiMessages.push({ role: "system", content: "Be specific, concise, you are on a fact-finding missoin, not on a social chat. Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <i>. If asked to elaborate on a previous structured response, try to provide the elaboration as natural text or Markdown, not necessarily repeating the JSON structure unless it makes sense for clarity." });
         apiMessages.push({ role: "user", content: `Context:\nOriginal HTML Snippet:\n\`\`\`html\n${chatContext.domSnippet}\n\`\`\`\n\nInitial Summary (JSON Array of HTML strings):\n${chatContext.summary}` });
         apiMessages.push({ role: "user", content: text }); // The user's actual first question
     } else {
         // Subsequent turns: Send recent history AND prepend TRUNCATED original snippet context
         if (DEBUG) console.log("[LLM Chat] Preparing messages for SUBSEQUENT turn (injecting truncated snippet).");
         const historyLimit = 10; // Or adjust as needed
+
+        // Filter history: Exclude the initial summary if it was an array, keep only strings
         const recentHistory = messages.slice(-historyLimit)
-                              .filter(m => typeof m.content === 'string') // Exclude the initial summary array message
+                              .filter(m => typeof m.content === 'string') // IMPORTANT: Only include string content
                               .map(m => ({ role: m.role, content: m.content }))
                               .filter(m => m.role === 'user' || m.role === 'assistant'); // Only user/assistant history
 
@@ -313,11 +318,17 @@ function handleFormSubmit(e) {
                  if (DEBUG) console.log(`[LLM Chat] Snippet truncated to ${SNIPPET_TRUNCATION_LIMIT} chars.`);
              }
              apiMessages = [
+                 // Add system prompt hint here too for subsequent turns
+                 { role: "system", content: "You are a helpful assistant. Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <i>. If asked to elaborate on a previous structured response, try to provide the elaboration as natural text or Markdown, not necessarily repeating the JSON structure unless it makes sense for clarity." },
                  { role: "user", content: `Context - Original HTML Snippet (may be truncated):\n\`\`\`html\n${snippetForContext}${truncated ? '\n[...truncated]' : ''}\n\`\`\`` },
                  ...recentHistory
              ];
         } else {
-             apiMessages = recentHistory; // Send history without snippet if context is missing
+             apiMessages = [
+                 // Add system prompt hint even if no snippet
+                 { role: "system", content: "You are a helpful assistant. Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <i>. If asked to elaborate on a previous structured response, try to provide the elaboration as natural text or Markdown, not necessarily repeating the JSON structure unless it makes sense for clarity." },
+                 ...recentHistory // Send history without snippet if context is missing
+             ];
         }
 
         // Add the current user's message to the end of the history
@@ -339,10 +350,18 @@ function setupStreamListeners() {
             case "llmChatStreamChunk":
                 if (streaming && currentStreamMsgSpan && typeof req.delta === 'string') {
                     currentStreamRawContent += req.delta;
+                    // Render incrementally using marked
                     if (typeof marked !== 'undefined') {
-                        currentStreamMsgSpan.innerHTML = marked.parse(currentStreamRawContent);
+                        try {
+                            // Attempt to render the raw content as it comes
+                            currentStreamMsgSpan.innerHTML = marked.parse(currentStreamRawContent);
+                        } catch (e) {
+                            // Fallback if marked fails during streaming
+                            console.warn("[LLM Chat Stream] Marked parsing error during chunking:", e);
+                            currentStreamMsgSpan.textContent = currentStreamRawContent;
+                        }
                     } else {
-                        currentStreamMsgSpan.textContent = currentStreamRawContent;
+                        currentStreamMsgSpan.textContent = currentStreamRawContent; // Fallback if marked not loaded
                     }
                     scrollToBottom();
                 } else if (DEBUG) {
@@ -352,22 +371,48 @@ function setupStreamListeners() {
             case "llmChatStreamDone":
                 if (streaming) {
                     if (DEBUG) console.log('[LLM Chat] Stream finished. Model reported:', req.model);
-                    // Check if content is empty and potentially show a message
-                    if (!currentStreamRawContent.trim()) {
-                         console.warn(`[LLM Chat] Model ${req.model || currentStreamModel} returned an empty response.`);
-                         // Optionally add a system message instead of an empty assistant one
-                         // messages.push({ role: "system", content: `(Model ${req.model || currentStreamModel} returned an empty response)`});
-                         // Or just push the empty response as before:
-                         messages.push({ role: "assistant", content: currentStreamRawContent, model: req.model || currentStreamModel });
+                    if (DEBUG) console.log('[LLM Chat] Raw content received:', currentStreamRawContent);
+
+                    let processedContent = currentStreamRawContent; // Default to raw content
+                    let wasProcessed = false;
+
+                    // --- Try to process potential JSON ---
+                    const strippedContent = stripCodeFences(currentStreamRawContent);
+                    const parsedJson = tryParseJson(strippedContent);
+
+                    if (parsedJson !== null) {
+                        if (DEBUG) console.log('[LLM Chat] Detected JSON response, attempting to extract text.');
+                        const extractedText = extractTextFromJson(parsedJson);
+                        if (extractedText !== null) {
+                            processedContent = extractedText; // Use the extracted text
+                            wasProcessed = true;
+                            if (DEBUG) console.log('[LLM Chat] Successfully extracted text from JSON:', processedContent.substring(0,100)+'...');
+                        } else {
+                            if (DEBUG) console.warn('[LLM Chat] Could not extract text from parsed JSON structure. Storing raw.');
+                            // Keep processedContent as currentStreamRawContent
+                        }
                     } else {
-                         messages.push({ role: "assistant", content: currentStreamRawContent, model: req.model || currentStreamModel });
+                         if (DEBUG) console.log('[LLM Chat] Response not detected as JSON or failed parsing. Storing raw.');
+                         // Keep processedContent as currentStreamRawContent
                     }
+                    // --- End JSON processing ---
+
+                    // Check if content is empty after potential processing
+                    if (!processedContent.trim()) {
+                         console.warn(`[LLM Chat] Model ${req.model || currentStreamModel} returned an empty or non-processable response.`);
+                         // Store an empty string or a placeholder message
+                         messages.push({ role: "assistant", content: "(Model returned empty response)", model: req.model || currentStreamModel });
+                    } else {
+                         // Store the processed (or raw if processing failed/skipped) content
+                         messages.push({ role: "assistant", content: processedContent, model: req.model || currentStreamModel });
+                    }
+
                     streaming = false;
                     currentStreamMsgSpan = null;
                     currentStreamRawContent = "";
                     currentStreamModel = "";
                     showLoadingIndicator(false);
-                    renderMessages();
+                    renderMessages(); // Re-render with the final, potentially processed message
                     focusInput();
                 } else if (DEBUG) {
                     console.warn('[LLM Chat] Received stream DONE but not streaming.');
@@ -377,6 +422,7 @@ function setupStreamListeners() {
                 console.error('[LLM Chat] Stream Error from background:', req.error);
                 showError(`LLM Error: ${req.error || "Unknown failure"}`, false);
                 if (streaming) {
+                    // Clean up temporary streaming elements
                     const tempLabel = document.querySelector('.assistant-model-label:last-of-type');
                     const tempMsg = document.querySelector('.msg.assistant:last-of-type');
                     if (tempMsg && tempMsg.querySelector('#activeStreamSpan')) {
@@ -396,6 +442,87 @@ function setupStreamListeners() {
     messageListenerAttached = true;
 }
 
+// ==== JSON Processing Helper Functions ====
+
+/**
+ * Removes optional ```json ... ``` or ``` ... ``` fences.
+ * @param {string} text - The raw text potentially containing fences.
+ * @returns {string} - The text inside the fences, or the original text if no fences found.
+ */
+function stripCodeFences(text) {
+    if (typeof text !== 'string') return text;
+    const match = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+    return match && match[1] ? match[1].trim() : text.trim();
+}
+
+/**
+ * Attempts to parse a string as JSON.
+ * @param {string} text - The string to parse.
+ * @returns {object | array | null} - The parsed JSON object/array, or null if parsing fails.
+ */
+function tryParseJson(text) {
+    if (typeof text !== 'string' || (!text.startsWith('[') && !text.startsWith('{'))) {
+        return null; // Quick check for potential JSON
+    }
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        if (DEBUG) console.log('[LLM Chat JSON] Parsing failed:', e.message);
+        return null;
+    }
+}
+
+/**
+ * Extracts readable text from common JSON structures returned by the LLM.
+ * @param {object | array} jsonData - The parsed JSON data.
+ * @returns {string | null} - A formatted string, or null if the structure is unrecognized.
+ */
+function extractTextFromJson(jsonData) {
+    if (Array.isArray(jsonData)) {
+        // Case 1: Array of strings
+        if (jsonData.every(item => typeof item === 'string')) {
+            if (DEBUG) console.log('[LLM Chat JSON] Handling array of strings.');
+            return jsonData.join('\n\n'); // Join strings with double newline for paragraph breaks
+        }
+        // Case 2: Array of objects (like {point, elaboration})
+        else if (jsonData.every(item => typeof item === 'object' && item !== null)) {
+             if (DEBUG) console.log('[LLM Chat JSON] Handling array of objects.');
+             let result = [];
+             for (const item of jsonData) {
+                 let pointText = item.point || item.title || item.header || '';
+                 let elaborationText = item.elaboration || item.details || item.content || item.text || '';
+
+                 // Try to find any string property if standard keys fail
+                 if (!pointText && !elaborationText) {
+                     for (const key in item) {
+                         if (typeof item[key] === 'string') {
+                             if (!pointText) pointText = item[key];
+                             else if (!elaborationText) elaborationText = item[key];
+                             else break; // Found two strings, good enough
+                         }
+                     }
+                 }
+
+                 let formattedItem = "";
+                 if (pointText) {
+                     // Assume pointText might already contain Markdown (like **)
+                     formattedItem += `${pointText}`;
+                 }
+                 if (elaborationText) {
+                     formattedItem += (pointText ? `\n${elaborationText}` : `${elaborationText}`);
+                 }
+                 if (formattedItem) {
+                     result.push(formattedItem);
+                 }
+             }
+             return result.join('\n\n'); // Join formatted items with double newline
+        }
+    }
+    // Add more cases here if needed for other JSON structures
+    if (DEBUG) console.warn('[LLM Chat JSON] Unrecognized JSON structure:', jsonData);
+    return null; // Structure not recognized
+}
+
 
 // ==== UI UTILITIES ====
 function showLoadingIndicator(show) { const existingIndicator = document.getElementById('loadingIndicator'); if (existingIndicator) existingIndicator.remove(); if (show && chatMessagesInnerDiv) { const indicator = document.createElement('div'); indicator.id = 'loadingIndicator'; indicator.className = 'loading-indicator'; indicator.innerHTML = '<span></span><span></span><span></span>'; chatMessagesInnerDiv.appendChild(indicator); scrollToBottom(); } }
@@ -412,30 +539,24 @@ function formatChatAsMarkdown() {
         } else if (msg.role === 'assistant') {
             const modelInfo = msg.model ? ` (Model: ${msg.model})` : '';
             markdownContent += `**Assistant${modelInfo}:**\n`;
+
+            // Special handling for the first message if it's the initial summary array
             if (index === 0 && Array.isArray(msg.content)) {
                 if (DEBUG) console.log("[Export MD] Formatting initial summary array:", msg.content);
                 msg.content.forEach((item, itemIndex) => {
+                    // Convert simple <b> and <i> back to Markdown for export
                     let mdItem = String(item)
                                      .replace(/<b>(.*?)<\/b>/gi, '**$1**')
                                      .replace(/<i>(.*?)<\/i>/gi, '*$1*');
                     markdownContent += `${itemIndex + 1}. ${mdItem}\n`;
                 });
                 markdownContent += '\n';
-            } else if (typeof msg.content === 'string') {
-                if (DEBUG) console.log("[Export MD] Formatting subsequent assistant message:", msg.content.substring(0,100)+'...');
-                let mdContent = msg.content;
-                mdContent = msg.content.replace(/<b>(.*?)<\/b>/gi, '**$1**')
-                                       .replace(/<i>(.*?)<\/i>/gi, '*$1*');
-                // Note: TurndownService is not included by default, this check will likely fail unless added separately
-                if (typeof TurndownService !== 'undefined') {
-                     try {
-                         const turndownService = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' });
-                         mdContent = turndownService.turndown(msg.content);
-                     } catch(e) {
-                         console.warn("[Export MD] Turndown conversion failed, using basic replacement:", e);
-                     }
-                }
-                markdownContent += `${mdContent}\n\n`;
+            }
+            // Handle all other messages as strings (they should be processed text now)
+            else if (typeof msg.content === 'string') {
+                if (DEBUG) console.log(`[Export MD] Formatting message index ${index}:`, msg.content.substring(0,100)+'...');
+                // Content is already processed text/Markdown, just append it
+                markdownContent += `${msg.content}\n\n`;
             } else {
                  markdownContent += `[Error: Could not format message content]\n\n`;
             }
@@ -450,6 +571,7 @@ function handleDownloadJson() {
     if (DEBUG) console.log('[LLM Chat Export] Download JSON clicked.');
     if (messages.length === 0) { showError("Cannot download: Chat history is empty.", false); return; }
     try {
+        // Export the messages array as is (content will be processed strings or initial array)
         const jsonContent = JSON.stringify(messages, null, 2);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         triggerDownload(jsonContent, `chat_export_${timestamp}.json`, 'application/json');
