@@ -11,6 +11,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **Improved Chat Context Persistence:** The original HTML snippet is now consistently passed along with chat history in the background, ensuring the LLM retains context for follow-up questions about the source material throughout the conversation.
 *   **Markdown Chat Responses:** Chat responses continue to render full Markdown (bold, italics, lists, code blocks, etc.) via the `marked` library for enhanced readability.
 *   **Centralized Prompt Management:** Prompt templates are now managed internally for better consistency (developer-facing change).
+*   **Options Validation:** The extension now checks for essential settings (like API Key, selected Model, and core prompt components) before attempting a summary. If issues are found, it prompts the user to open the Options page. *(New)*
 
 *(Previous updates from v2.1 still included):*
 *   **Interactive Chat:** After getting a summary, click "Chat" to open a dedicated chat tab.
@@ -18,6 +19,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **Chat Export:** Copy/Download as Markdown (`.md`), Download raw data as JSON (`.json`).
 *   **Keyboard Shortcuts:** `Ctrl+Enter` / `Cmd+Enter` to send chat messages.
 *   **Improved Stability:** Better Alt+Tab handling.
+*   **Refined Chat Context Handling:** Optimized context passing to avoid potential token limits and improve reliability with various models on follow-up questions.
 
 ---
 

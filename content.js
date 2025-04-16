@@ -1,6 +1,6 @@
 /* content.js */
 // == OpenRouter Summarizer Content Script ==
-// v2.3.0 - Centralized prompt definitions, async loading.
+// v2.3.1 - Added options validation on execution.
 
 console.log('[LLM Content] Script Start');
 
@@ -15,13 +15,7 @@ try { // Keep top-level try-catch
     };
     const numToWord = { 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
 
-    // --- REMOVED Local Prompt Constants ---
-    // const DEFAULT_FORMAT_INSTRUCTIONS = ... (Removed)
-    // const PROMPT_PREAMBLE_TEXT = ... (Removed)
-    // const PROMPT_TRANSLATION_TEXT = ... (Removed)
-    // const PROMPT_POSTAMBLE_TEXT = ... (Removed)
-
-    // --- Storage Keys (Mirrored from options.js for clarity) ---
+    // --- Storage Keys ---
     const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
     const PROMPT_STORAGE_KEY_PREAMBLE = 'prompt_preamble_template';
     const PROMPT_STORAGE_KEY_POSTAMBLE = 'prompt_postamble_text';
@@ -29,7 +23,7 @@ try { // Keep top-level try-catch
     const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
 
 
-    // --- Prompt Assembly Function (MODIFIED to accept templates/defaults) ---
+    // --- Prompt Assembly Function ---
     function getSystemPrompt(
         bulletCount,
         translate,
@@ -77,25 +71,25 @@ try { // Keep top-level try-catch
       if (DEBUG) console.log('[LLM Content] Initial Debug mode:', DEBUG);
     });
 
-    // --- Helper Function to Reset Alt State (Unchanged) ---
+    // --- Helper Function to Reset Alt State ---
     function resetAltState() { if (altKeyDown || previewHighlighted) { if (DEBUG) console.log('[LLM Content Alt State] Resetting Alt state.'); altKeyDown = false; if (previewHighlighted) { if (document.body.contains(previewHighlighted)) { previewHighlighted.classList.remove('llm-highlight-preview'); } previewHighlighted = null; } } }
 
-    // --- Event Listeners for ALT Key, Focus, Visibility (Unchanged) ---
+    // --- Event Listeners for ALT Key, Focus, Visibility ---
     window.addEventListener('keydown', (e) => { if (e.key === 'Alt' && !altKeyDown) { const activeEl = document.activeElement; if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) { if (DEBUG) console.log('[LLM Content Alt State] Ignoring Alt down in input.'); return; } altKeyDown = true; if (DEBUG) console.log('[LLM Content Alt State] Alt key down.'); } });
     window.addEventListener('keyup', (e) => { if (e.key === 'Alt') { if (DEBUG) console.log('[LLM Content Alt State] Alt key up.'); resetAltState(); } });
     window.addEventListener('blur', () => { if (DEBUG) console.log('[LLM Content Alt State] Window blurred.'); resetAltState(); });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { if (DEBUG) console.log('[LLM Content Alt State] Document hidden.'); resetAltState(); } });
 
-    // --- Mouse Listeners (Highlighting & Selection) (Unchanged) ---
+    // --- Mouse Listeners (Highlighting & Selection) ---
     window.addEventListener('mouseout', (e) => { if (!e.relatedTarget && previewHighlighted) { if (DEBUG) console.log('[LLM Content] Mouse left window.'); if (document.body.contains(previewHighlighted)) { previewHighlighted.classList.remove('llm-highlight-preview'); } previewHighlighted = null; } });
     document.addEventListener('mousemove', (e) => { if (!altKeyDown) { if (previewHighlighted) { if (document.body.contains(previewHighlighted)) { previewHighlighted.classList.remove('llm-highlight-preview'); } previewHighlighted = null; } return; } let target = document.elementFromPoint(e.clientX, e.clientY); if (!target || target.closest('.summarizer-popup') || target.closest('.summarizer-btn') || target.classList.contains('llm-floating-icon')) { if (previewHighlighted) { if (document.body.contains(previewHighlighted)) { previewHighlighted.classList.remove('llm-highlight-preview'); } previewHighlighted = null; } return; } if ((target === document.body || target === document.documentElement) && document.elementsFromPoint(e.clientX, e.clientY).length > 1) { const deeperTarget = document.elementsFromPoint(e.clientX, e.clientY)[1]; if (deeperTarget && !deeperTarget.closest('.summarizer-popup') && !deeperTarget.closest('.summarizer-btn') && !deeperTarget.classList.contains('llm-floating-icon')) { target = deeperTarget; } else { if (previewHighlighted) { if (document.body.contains(previewHighlighted)) { previewHighlighted.classList.remove('llm-highlight-preview'); } previewHighlighted = null; } return; } } if (target === selectedElement) { if (previewHighlighted && previewHighlighted !== selectedElement) { if (document.body.contains(previewHighlighted)) { previewHighlighted.classList.remove('llm-highlight-preview'); } previewHighlighted = null; } return; } if (previewHighlighted !== target) { if (previewHighlighted) { if (document.body.contains(previewHighlighted)) { previewHighlighted.classList.remove('llm-highlight-preview'); } } previewHighlighted = target; if (previewHighlighted) { previewHighlighted.classList.add('llm-highlight-preview'); } } }, true);
     document.addEventListener('mousedown', e => { if (e.target.closest('.llm-floating-icon')) return; if (e.altKey && e.button === 0) { e.preventDefault(); e.stopPropagation(); const clickedTarget = e.target; if (previewHighlighted) { if (document.body.contains(previewHighlighted)) { previewHighlighted.classList.remove('llm-highlight-preview'); } previewHighlighted = null; } removeFloatingIcon(); if (selectedElement === clickedTarget) { if (document.body.contains(selectedElement)) { selectedElement.classList.remove('llm-highlight'); } selectedElement = null; lastHighlighted = null; removeFloatingIcon(); if (DEBUG) console.log('[LLM Content] Deselected element.'); } else { if (lastHighlighted && document.body.contains(lastHighlighted)) { lastHighlighted.classList.remove('llm-highlight'); } if (clickedTarget && !clickedTarget.closest('.summarizer-popup')) { selectedElement = clickedTarget; lastHighlighted = clickedTarget; selectedElement.classList.add('llm-highlight'); createFloatingIcon(e.pageX, e.pageY); if (DEBUG) console.log('[LLM Content] Selected element:', selectedElement); } else { if (DEBUG) console.warn('[LLM Content] Alt+Click target invalid.'); selectedElement = null; lastHighlighted = null; } } previewHighlighted = null; return; } if (!e.altKey && e.button === 0) { if (selectedElement && !selectedElement.contains(e.target) && !e.target.closest('.llm-floating-icon') && !e.target.closest('.summarizer-popup')) { if (DEBUG) console.log('[LLM Content] Click outside detected. Deselecting.'); if (document.body.contains(selectedElement)) { selectedElement.classList.remove('llm-highlight'); } selectedElement = null; lastHighlighted = null; removeFloatingIcon(); } else { if (DEBUG && selectedElement) console.log('[LLM Content] Regular click inside detected.'); } } }, true);
 
-    // --- Floating Icon (Unchanged) ---
+    // --- Floating Icon ---
     function removeFloatingIcon() { if (floatingIcon && floatingIcon.parentNode) { floatingIcon.parentNode.removeChild(floatingIcon); floatingIcon = null; } }
     function createFloatingIcon(clickX, clickY) { removeFloatingIcon(); floatingIcon = document.createElement('div'); floatingIcon.className = 'llm-floating-icon'; floatingIcon.setAttribute('aria-label', 'Summarize this element'); floatingIcon.setAttribute('role', 'button'); floatingIcon.setAttribute('tabindex', '0'); floatingIcon.title = 'Summarize this element (Click or press Enter)'; let iconUrl = ''; try { if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getURL === 'function') { iconUrl = chrome.runtime.getURL('icons/icon32.png'); } } catch (e) { console.warn("[LLM Content] Could not get icon URL", e); } const iconImg = document.createElement('img'); iconImg.src = iconUrl; iconImg.alt = 'Summarize'; iconImg.style.pointerEvents = 'none'; iconImg.onerror = function() { iconImg.style.display = 'none'; if (!floatingIcon.querySelector('.llm-fallback-icon')) { const fallback = document.createElement('span'); fallback.className = 'llm-fallback-icon'; fallback.textContent = '💡'; fallback.style.pointerEvents = 'none'; floatingIcon.appendChild(fallback); } }; if (!iconUrl) iconImg.onerror(); floatingIcon.appendChild(iconImg); const iconSize = 32; const margin = 5; let iconX = clickX - iconSize / 2; let iconY = clickY - iconSize / 2; iconX = Math.max(window.scrollX + margin, Math.min(iconX, window.scrollX + window.innerWidth - iconSize - margin)); iconY = Math.max(window.scrollY + margin, Math.min(iconY, window.scrollY + window.innerHeight - iconSize - margin)); floatingIcon.style.left = `${iconX}px`; floatingIcon.style.top = `${iconY}px`; floatingIcon.style.pointerEvents = 'auto'; floatingIcon.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); if (DEBUG) console.log('[LLM Content] Floating icon clicked.'); removeFloatingIcon(); processSelectedElement(); }); floatingIcon.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); if (DEBUG) console.log('[LLM Content] Floating icon activated via keyboard.'); removeFloatingIcon(); processSelectedElement(); } if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (DEBUG) console.log('[LLM Content] Floating icon dismissed via Escape.'); removeFloatingIcon(); if (selectedElement && document.body.contains(selectedElement)) { selectedElement.classList.remove('llm-highlight'); selectedElement = null; lastHighlighted = null; } } }); document.body.appendChild(floatingIcon); }
 
-    // --- Popup Display (Unchanged) ---
+    // --- Popup Display ---
     function showPopup(content) {
         const existing = document.querySelector('.summarizer-popup');
         if (existing) { if (DEBUG) console.log('[LLM Content] Removing existing popup.'); existing.remove(); }
@@ -159,7 +153,7 @@ try { // Keep top-level try-catch
     }
 
 
-    // --- Chat Context Handling (Unchanged) ---
+    // --- Chat Context Handling ---
     function openChatWithContext() {
         if (!selectedElement) { alert("Cannot open chat: Original element selection lost."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: selectedElement is null.'); return; }
         if (!lastSummary || lastSummary === 'Thinking...' || lastSummary.startsWith('Error:')) { alert("Cannot open chat: No valid summary available."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.'); return; }
@@ -187,12 +181,10 @@ try { // Keep top-level try-catch
     }
 
 
-    // --- LLM Interaction (Unchanged - uses systemPrompt built from stored data) ---
+    // --- LLM Interaction ---
     function sendToLLM(selectedHtml, apiKey, model, systemPrompt) {
         if (DEBUG) console.log(`[LLM Request] Sending to model: ${model}`);
-        lastSummary = 'Thinking...';
-        lastSummaryHtml = '';
-        showPopup('Thinking...');
+        // Note: "Thinking..." popup is already shown by processSelectedElement
 
         const payload = { model, messages: [ { role: "system", content: systemPrompt }, { role: "user", content: selectedHtml } ] };
 
@@ -232,7 +224,7 @@ try { // Keep top-level try-catch
                 const summaryHtml = '<ul>' + summaryArray.map(item => `<li>${item}</li>`).join('') + '</ul>';
                 lastModelUsed = model;
                 lastSummaryHtml = summaryHtml;
-                showPopup(summaryHtml);
+                showPopup(summaryHtml); // Update popup with result
 
             } catch (e) {
                 lastSummaryHtml = '';
@@ -248,19 +240,19 @@ try { // Keep top-level try-catch
             console.error('[LLM Fetch Error]', err);
             lastSummary = `Error: ${err.message}`;
             lastSummaryHtml = '';
-            showPopup(`Error: ${err.message}`);
+            showPopup(`Error: ${err.message}`); // Update popup with fetch error
         });
     }
 
 
-    // --- processSelectedElement (MODIFIED for async loading) ---
+    // --- processSelectedElement (MODIFIED for validation) ---
     function processSelectedElement() {
         if (!selectedElement) {
             console.error('[LLM Content] processSelectedElement called but selectedElement is null!');
             showPopup('Error: No element selected.');
             return;
         }
-        const currentSelectedElement = selectedElement; // Capture the element at time of call
+        const currentSelectedElement = selectedElement;
         if (DEBUG) console.log('[LLM Content] processSelectedElement called for element:', currentSelectedElement);
 
         // Show thinking immediately
@@ -268,7 +260,6 @@ try { // Keep top-level try-catch
         lastSummaryHtml = '';
         showPopup('Thinking...');
 
-        // Define all keys needed from storage
         const keysToFetch = [
             'apiKey', 'model', 'bulletCount', 'translate', 'translateLanguage', 'debug',
             PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
@@ -280,63 +271,84 @@ try { // Keep top-level try-catch
 
         if (DEBUG) console.log('[LLM Content] Requesting settings from storage:', keysToFetch);
 
-        // Fetch ALL settings asynchronously
         chrome.storage.sync.get(keysToFetch, (config) => {
             // --- Start of Async Callback ---
             if (chrome.runtime.lastError) {
                 console.error('[LLM Content] Error fetching from storage:', chrome.runtime.lastError);
-                showPopup('Error: Could not load extension settings.');
-                return; // Exit callback on storage error
+                showPopup(`Error: Could not load extension settings: ${chrome.runtime.lastError.message}`);
+                return;
             }
             if (DEBUG) console.log('[LLM Content] Settings received from storage:', config);
 
-            // Update DEBUG state based on loaded settings
-            DEBUG = !!config.debug;
-
-            // Check if the element selection is still valid (user might have clicked elsewhere)
-            if (selectedElement !== currentSelectedElement) {
-                 console.warn('[LLM Content] Element selection changed during async settings load. Aborting.');
-                 // Optionally close the "Thinking..." popup or leave it
-                 // const existingPopup = document.querySelector('.summarizer-popup');
-                 // if (existingPopup && existingPopup.textContent.includes('Thinking...')) {
-                 //     existingPopup.remove();
-                 // }
-                 return; // Exit if selection changed
+            // --- Options Validation ---
+            let validationErrors = [];
+            if (!config.apiKey || typeof config.apiKey !== 'string' || config.apiKey.trim() === '') {
+                validationErrors.push("API Key is missing or invalid.");
+            }
+            if (!config.model || typeof config.model !== 'string' || config.model.trim() === '') {
+                validationErrors.push("Default Model is not selected or invalid.");
+            }
+            if (!config.prompt_preamble_template || typeof config.prompt_preamble_template !== 'string' || config.prompt_preamble_template.trim() === '') {
+                validationErrors.push("Core Prompt Preamble Template is missing.");
+            }
+            if (!config.prompt_postamble_text || typeof config.prompt_postamble_text !== 'string' || config.prompt_postamble_text.trim() === '') {
+                validationErrors.push("Core Prompt Postamble Text is missing.");
+            }
+            if (!config.prompt_default_format_instructions || typeof config.prompt_default_format_instructions !== 'string' || config.prompt_default_format_instructions.trim() === '') {
+                validationErrors.push("Core Default Prompt Format Instructions are missing.");
+            }
+            if (config.translate === true && (!config.prompt_translation_template || typeof config.prompt_translation_template !== 'string' || config.prompt_translation_template.trim() === '')) {
+                validationErrors.push("Translation Template is missing (required when translation is enabled).");
             }
 
-            try { // Add try-catch around config processing and prompt generation
+            if (validationErrors.length > 0) {
+                console.error("[LLM Content] Options validation failed:", validationErrors);
+                let errorMsg = "Errors in options!\n\nRequired settings are missing or invalid. Please check:\n- " + validationErrors.join("\n- ");
+                errorMsg += "\n\nClick OK to open the options configuration screen.";
+
+                const existingPopup = document.querySelector('.summarizer-popup');
+                if (existingPopup) existingPopup.remove(); // Remove "Thinking..." popup
+
+                alert(errorMsg); // Show alert
+
+                chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
+                     if (chrome.runtime.lastError) {
+                         console.error("[LLM Content] Error sending openOptionsPage message:", chrome.runtime.lastError.message);
+                         try { window.open(chrome.runtime.getURL('options.html')); } catch (e) {} // Fallback attempt
+                     } else {
+                         if (DEBUG) console.log("[LLM Content] Options page open request sent.");
+                     }
+                });
+                return; // Stop processing
+            }
+            // --- END: Options Validation ---
+
+
+            DEBUG = !!config.debug; // Update debug status
+
+            if (selectedElement !== currentSelectedElement) {
+                 console.warn('[LLM Content] Element selection changed during async settings load. Aborting.');
+                 // Remove "Thinking..." popup if it's still there
+                 const existingPopup = document.querySelector('.summarizer-popup');
+                 if (existingPopup && existingPopup.textContent.includes('Thinking...')) {
+                     existingPopup.remove();
+                 }
+                 return;
+            }
+
+            try {
                 const apiKey = config.apiKey;
                 const model = config.model;
-                const bulletCount = config.bulletCount || 5; // Default if missing
+                const bulletCount = config.bulletCount || 5;
                 const translate = config.translate;
-                const translateLanguage = config.translateLanguage || 'none'; // Default if missing
+                const translateLanguage = config.translateLanguage || 'none';
 
-                // Get prompt components from loaded config
                 const customFormatInstructions = config[PROMPT_STORAGE_KEY_CUSTOM_FORMAT];
                 const preambleTemplate = config[PROMPT_STORAGE_KEY_PREAMBLE];
                 const postambleText = config[PROMPT_STORAGE_KEY_POSTAMBLE];
                 const translationTemplate = config[PROMPT_STORAGE_KEY_TRANSLATION];
                 const defaultFormatInstructions = config[PROMPT_STORAGE_KEY_DEFAULT_FORMAT];
 
-                if (DEBUG) console.log('[LLM Content] Config values extracted:', { apiKey: !!apiKey, model, bulletCount, translate, translateLanguage, DEBUG, customFormatInstructions: !!customFormatInstructions, preambleTemplate: !!preambleTemplate, postambleText: !!postambleText, translationTemplate: !!translationTemplate, defaultFormatInstructions: !!defaultFormatInstructions });
-
-                // Basic validation
-                if (!apiKey || !model) {
-                    console.error('[LLM Content] API Key or Model missing from storage.');
-                    showPopup('Error: API key or model not configured.');
-                    return;
-                }
-                 if (!preambleTemplate || !postambleText || !defaultFormatInstructions) {
-                     console.error('[LLM Content] Core prompt components missing from storage. Try saving options again.');
-                     showPopup('Error: Core prompt settings missing. Please save options.');
-                     return;
-                 }
-                 if (translate && !translationTemplate) {
-                     console.warn('[LLM Content] Translation enabled but template missing from storage.');
-                     // Proceed without translation part of prompt, or show error? For now, proceed.
-                 }
-
-                // Get HTML content (check element again just before use)
                 if (!currentSelectedElement) {
                     console.error('[LLM Content] selectedElement became null before getting HTML!');
                     showPopup('Error: Element selection lost.');
@@ -351,34 +363,26 @@ try { // Keep top-level try-catch
 
                 if (DEBUG) console.log('[LLM Content] Calling getSystemPrompt...');
                 const systemPrompt = getSystemPrompt(
-                    bulletCount,
-                    translate,
-                    translateLanguage,
-                    customFormatInstructions,
-                    preambleTemplate,
-                    postambleText,
-                    translationTemplate,
-                    defaultFormatInstructions
+                    bulletCount, translate, translateLanguage, customFormatInstructions,
+                    preambleTemplate, postambleText, translationTemplate, defaultFormatInstructions
                 );
                 if (DEBUG) console.log('[LLM Content] System prompt assembled successfully.');
                 if (DEBUG) console.log("Using System Prompt:", systemPrompt);
 
                 if (DEBUG) console.log('[LLM Content] Calling sendToLLM...');
-                // Call sendToLLM - it will handle its own popup updates ('Thinking...' -> result/error)
                 sendToLLM(htmlContent, apiKey, model, systemPrompt);
                 if (DEBUG) console.log('[LLM Content] sendToLLM called.');
 
-            } catch (error) { // Catch errors during config processing or prompt generation inside callback
+            } catch (error) {
                 console.error('[LLM Content] Error processing settings or generating prompt:', error);
                 showPopup(`Error processing selection: ${error.message || 'Unknown error'}`);
             }
             // --- End of Async Callback ---
         });
-        // Note: Code here runs *before* the callback finishes
         if (DEBUG) console.log('[LLM Content] storage.sync.get request initiated. Waiting for callback...');
     }
 
-    // --- Message Listener from Background (Unchanged) ---
+    // --- Message Listener from Background ---
     chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         if (req.action === 'processSelection') {
             if (DEBUG) console.log('[LLM Content] Received processSelection command.');
