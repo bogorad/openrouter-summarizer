@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.2
+# OpenRouter Summarizer v2.2.1
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
