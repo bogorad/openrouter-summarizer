@@ -42,6 +42,12 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ---
 
+![Summary](media/summary.png)
+
+![Chat](media/chat.png)
+
+---
+
 ## 🛠️ How It Works
 
 1.  **Install & Setup:**
