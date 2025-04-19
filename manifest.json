@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenRouter Summarizer",
-  "version": "2.2.1",
+  "version": "2.6",
   "description": "Summarize web pages with OpenRouter.ai using your chosen model.",
   "permissions": [
     "activeTab",
@@ -19,8 +19,8 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["styles.css"]
+      "js": ["popup.js"],
+      "css": ["popup.css"]
     }
   ],
   "icons": {
@@ -35,7 +35,9 @@
         "icons/*",
         "options.css",
         "chat.css",
-        "marked.min.js"
+        "marked.min.js",
+        "country-flags/countries.json",
+        "country-flags/svg/*.svg"
       ],
       "matches": ["<all_urls>"]
     }

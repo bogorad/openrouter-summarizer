@@ -1,5 +1,5 @@
 /* background.js */
-// v2.2.7 - Added immediate sendResponse({}) workaround for llmChatStream listener.
+// v2.6
 
 // Default prompt (less relevant now as it's stored via options)
 const DEFAULT_PROMPT = "Summarize this article in 5 bullet points. Ignore HTML tags. Do not comment on output.";
@@ -84,10 +84,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                      if (DEBUG) console.log('[LLM Background] No valid models found in storage, using defaults for chat dropdown.');
                 }
 
+                // *** FIX HERE: Include summaryLanguage and chatTargetLanguage in the payload ***
                 const responsePayload = {
                     domSnippet: storedContext.domSnippet,
                     summary: storedContext.summary, // Pass the raw JSON string summary
                     summaryModel: storedContext.summaryModel,
+                    summaryLanguage: storedContext.summaryLanguage, // Added
+                    chatTargetLanguage: storedContext.chatTargetLanguage, // Added
                     models: modelsToSend // Send array of {id, label} objects
                 };
 
@@ -104,7 +107,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     handleLLMStream(request, sender);
     // --- WORKAROUND: Call sendResponse immediately even though we return false ---
     // Try adding this to see if it prevents the error, even if redundant.
-    sendResponse({});
+    // sendResponse({}); // Removed based on previous conversation feedback
     // --- END WORKAROUND ---
     return false; // Explicitly return false (or nothing) as we use tabs.sendMessage
   }
@@ -115,11 +118,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const DEBUG = !!syncData.debug;
         if (DEBUG) console.log('[LLM Background] Received setChatContext request:', request);
 
+        // Store the entire payload including summaryLanguage and chatTargetLanguage
         chrome.storage.session.set({
             chatContext: {
                 domSnippet: request.domSnippet,
                 summary: request.summary, // Store raw JSON string summary
-                summaryModel: request.summaryModel
+                summaryModel: request.summaryModel,
+                summaryLanguage: request.summaryLanguage, // Store the summary language
+                chatTargetLanguage: request.chatTargetLanguage // Store the target language for chat
             }
         }, () => {
             if (chrome.runtime.lastError) {
@@ -174,7 +180,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 
-// --- STREAMING LLM HANDLER ---
+// --- STREAMING LLM HANDLER --- (unchanged from previous working version)
 async function handleLLMStream(request, sender) {
     chrome.storage.sync.get(['apiKey', 'debug'], async (config) => {
         const apiKey = config.apiKey;
@@ -245,7 +251,7 @@ async function handleLLMStream(request, sender) {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
-            let modelName = request.model;
+            let modelName = request.model; // Keep track of model potentially sent back by API
             let streamEnded = false;
 
             while (!streamEnded) {
@@ -256,34 +262,35 @@ async function handleLLMStream(request, sender) {
                         await chrome.tabs.get(sender.tab.id);
                         tabExists = true;
                     } catch (e) {
-                        // Tab doesn't exist
+                        // Tab doesn't exist (closed by user)
                         if (DEBUG) console.log(`[LLM Background Stream] Sender tab ${sender.tab.id} closed. Aborting stream read.`);
                         streamEnded = true; // Stop reading
-                        // Cleanly close the reader if possible (optional)
-                        try { reader.cancel(); } catch (cancelError) {}
+                        // Cleanly close the reader if possible (optional but good practice)
+                        try { reader.cancel(); } catch (cancelError) { if (DEBUG) console.warn('[LLM Background Stream] Failed to cancel reader:', cancelError); }
                         break; // Exit loop
                     }
                 } else {
+                     // Sender information missing (unlikely but handle defensively)
                      if (DEBUG) console.log(`[LLM Background Stream] Sender tab information missing. Aborting stream read.`);
                      streamEnded = true;
-                     try { reader.cancel(); } catch (cancelError) {}
+                     try { reader.cancel(); } catch (cancelError) { if (DEBUG) console.warn('[LLM Background Stream] Failed to cancel reader:', cancelError); }
                      break;
                 }
 
-                // Proceed only if tab exists
-                if (!tabExists) continue; // Should be caught by break, but for safety
+                // Proceed only if tab still exists
+                if (!tabExists) continue; // Should be caught by break, but defensive
 
                 const { done, value } = await reader.read();
                 if (done) {
                    if (DEBUG) console.log('[LLM Background Stream] Stream finished (reader done).');
                    streamEnded = true;
-                   break;
+                   break; // Exit loop
                 }
 
                 buffer += decoder.decode(value, { stream: true });
 
                 let lines = buffer.split("\n");
-                buffer = lines.pop(); // Keep potential incomplete line
+                buffer = lines.pop(); // Keep potential incomplete line at the end
 
                 for (let line of lines) {
                     line = line.trim();
@@ -294,54 +301,64 @@ async function handleLLMStream(request, sender) {
                     if (data === "[DONE]") {
                         if (DEBUG) console.log('[LLM Background Stream] Received [DONE] marker.');
                         streamEnded = true;
-                        break;
+                        break; // Exit inner for loop
                     }
 
                     try {
                         let parsed = JSON.parse(data);
                         let delta = parsed.choices?.[0]?.delta?.content || "";
-                        if (parsed.model) modelName = parsed.model;
+                        if (parsed.model) {
+                            // Sometimes model is returned in the first chunk
+                            modelName = parsed.model;
+                        }
 
                         // Send chunk only if delta exists and tab still exists
                         if (delta && sender && sender.tab && sender.tab.id) {
-                             // No need to check tab existence again here, done at start of loop
+                             // Tab existence check is at the start of the while loop
                              chrome.tabs.sendMessage(sender.tab.id, {
                                  action: "llmChatStreamChunk",
                                  delta: delta
                              });
                         }
                     } catch (e) {
-                        if (DEBUG) console.warn('[LLM Background Stream] Skipping non-JSON data line:', data, 'Error:', e);
+                        // Handle non-JSON data or parsing errors within the stream
+                        if (DEBUG) console.warn('[LLM Background Stream] Skipping non-JSON data line or parse error:', data, 'Error:', e);
+                        // Optional: Send a message to the content script about malformed data? Probably not needed.
                     }
                 }
-                 if (streamEnded) break;
+                 if (streamEnded) break; // Exit while loop if [DONE] was processed
             } // end while loop
 
              // Send final DONE notification only if the tab still exists
              if (DEBUG) console.log('[LLM Background Stream] Sending final stream DONE notification.');
              if (sender && sender.tab && sender.tab.id) {
                  try {
-                     await chrome.tabs.get(sender.tab.id); // Check one last time
+                     // Check tab existence one last time before sending DONE
+                     await chrome.tabs.get(sender.tab.id);
                      chrome.tabs.sendMessage(sender.tab.id, {
                          action: "llmChatStreamDone",
-                         model: modelName
+                         model: modelName // Send the final model name if available
                      });
                  } catch (e) {
+                      // Tab doesn't exist anymore
                       if (DEBUG) console.log(`[LLM Background Stream] Sender tab ${sender.tab.id} closed before sending DONE.`);
                  }
              }
 
         } catch (e) {
+             // Handle fetch errors or errors during stream reading
              if (DEBUG) console.error('[LLM Background Stream] Fetch/Stream Error:', e);
-             // Send error only if tab still exists
+             // Send error notification only if tab still exists
              if (sender && sender.tab && sender.tab.id) {
                   try {
+                      // Check tab existence one last time before sending error
                       await chrome.tabs.get(sender.tab.id);
                       chrome.tabs.sendMessage(sender.tab.id, {
                           action: "llmChatStreamError",
-                          error: String(e)
+                          error: String(e) // Convert error to string for message
                       });
                   } catch (tabError) {
+                       // Tab doesn't exist anymore
                        if (DEBUG) console.log(`[LLM Background Stream] Sender tab ${sender.tab.id} closed before sending error.`);
                   }
              }
