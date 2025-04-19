@@ -21,7 +21,9 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   Initial summaries (requested as JSON array of HTML strings) are rendered in the popup as a clean HTML list (`<ul><li>...</ul>`).
     *   Chat responses render full Markdown formatting via `marked`.
 *   **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro` and `:auto`.
-*   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the summary popup. Clicking a flag initiates a chat session requesting translation of the summary into that language. **Languages can now be reordered by dragging them in the Options list.**
+*   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the summary popup. Clicking a flag initiates a chat session requesting translation of the summary into that language.
+*   **Languages can now be reordered** by dragging them in the Options list.
+*   **Lighter UI:** Since the summary is requested in the first language,** there is no point of showing its flag.
 *   **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section (default now requests JSON/HTML).
 *   **Configurable Summary:** Choose the approximate number of summary points (3-8) for the initial summary prompt.
 *   **Keyboard Shortcuts:** Use `Ctrl+Enter` / `Cmd+Enter` to send messages in the chat window.

@@ -166,8 +166,8 @@ console.log('[LLM Content] Script Start');
              flagsContainer.style.display = 'flex'; // Ensure container is visible
         }
 
-        // Limit the number of flags displayed
-        const flagsToDisplay = validLanguageNames.slice(0, MAX_FLAGS_DISPLAY);
+        // Limit the number of flags displayed. The first one is the default so no point showing its flag.
+        const flagsToDisplay = validLanguageNames.slice(1, MAX_FLAGS_DISPLAY);
 
 
         flagsToDisplay.forEach(lang => { // lang is {code, name}
