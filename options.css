@@ -5,8 +5,10 @@
 
 /* --- General Body & Layout --- */
 body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                 Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    /* font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, */
+    /*              Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif; */
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Emoji", Roboto,
+                 Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", "Noto Color Emoji", sans-serif;
     margin: 0;
     padding: 20px;
     background-color: #f4f7f9;
@@ -89,7 +91,7 @@ textarea {
     padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px;
     font-size: 1em; font-family: inherit;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-sizing: border-box; vertical-align: middle; width: 100%;
+    box-sizing: border-box; vertical-align: middle;
 }
 input[type="text"]:focus,
 input[type="password"]:focus,
@@ -98,6 +100,7 @@ textarea:focus {
     border-color: #3498db; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2); outline: none;
 }
 input.wide-input { width: 100%; }
+
 
 /* --- Option Groups (General) --- */
 .option-group {
@@ -111,17 +114,135 @@ input.wide-input { width: 100%; }
     cursor: pointer; vertical-align: middle; display: inline-flex; align-items: center; width: auto;
 }
 
-/* --- Model & Language Specific Option Groups --- */
-.model-option input[type="text"],
-.language-option input[type="text"] {
-    flex: 1 1 auto; min-width: 150px;
+
+/* --- Model Specific Option Groups --- */
+.model-option input[type="text"] {
+    flex: 1 1 auto; min-width: 150px; width: auto; /* Allow input to grow */
 }
+
+/* --- Language Specific Option Groups & Autocomplete --- */
+/* The label wraps the flag img and input for accessibility and layout */
+.language-option label.language-input-wrapper {
+    flex: 1 1 auto; /* Allow label to take available space */
+    display: flex; /* Use flex for img and input alignment */
+    align-items: center;
+    gap: 8px; /* Space between flag and input */
+    min-width: 150px;
+    padding: 0; /* Remove padding from label itself */
+    position: relative; /* Needed for positioning the dropdown */
+    /* Style this wrapper to look like an input field border when focused */
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px 12px; /* Match input padding */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+/* When the input inside the wrapper is focused, apply focus styles to the wrapper */
+.language-input-wrapper:focus-within {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    outline: none; /* Remove outline from the wrapper */
+}
+
+
+.language-option input[type="text"] {
+    flex: 1 1 auto; /* Allow input to grow */
+    min-width: 100px; /* Ensure input doesn't disappear */
+    margin: 0; /* Remove margin from input */
+    padding: 0; /* Remove padding, it's on the wrapper */
+    border: none; /* Remove border, it's on the wrapper */
+    box-shadow: none; /* Remove box-shadow, it's on the wrapper */
+    outline: none; /* Remove outline */
+}
+
 .language-label-static {
+    /* Styles for the "No translation needed" label */
     padding: 10px 12px; font-style: italic; color: #555; flex: 1 1 auto;
     min-width: 150px; display: inline-block; line-height: 1.3; vertical-align: middle;
     border: 1px solid transparent; border-radius: 6px;
 }
+
+/* Style for the flag image */
+img.language-flag {
+    line-height: 1; /* Ensure img doesn't add extra height */
+    vertical-align: middle;
+    flex-shrink: 0; /* Prevent img from shrinking */
+    width: 1.6em; /* Width for img element */
+    height: auto; /* Maintain aspect ratio */
+    border: 1px solid #ccc; /* Add a subtle border around the flag */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Subtle shadow */
+    background-color: #eee; /* Background for transparency issues */
+    object-fit: contain; /* Ensure the entire flag is visible */
+}
+
+/* Remove margin from the flag inside the input wrapper label */
+.language-input-wrapper img.language-flag {
+     margin-right: 0; /* Gap is handled by the flex container on the label */
+}
+
+
+/* Autocomplete Dropdown Styles */
+.autocomplete-dropdown {
+    position: absolute; /* Positioned relative to the body */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    max-height: 200px; /* Limit dropdown height */
+    overflow-y: auto; /* Add scrollbar if needed */
+    z-index: 1000; /* Ensure it's above other content */
+    width: auto; /* Will be set by JS to match input wrapper width */
+    display: none; /* Hidden by default */
+}
+
+/* Autocomplete Item Styles */
+.autocomplete-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex; /* Arrange flag img and text */
+    align-items: center;
+    gap: 8px; /* Space between flag img and text */
+    font-size: 1em;
+    color: #333;
+}
+
+/* Style flag image within autocomplete item */
+.autocomplete-item img.language-flag {
+    width: 1.4em; /* Slightly smaller flag in dropdown */
+    height: auto;
+    border: none; /* No border in dropdown */
+    box-shadow: none; /* No shadow in dropdown */
+    background: none; /* No background */
+}
+
+.autocomplete-item .language-name { /* Style for the country name text in dropdown */
+    flex-grow: 1; /* Allow name to take space */
+    white-space: nowrap; /* Prevent wrapping */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Show ellipsis for long names */
+}
+
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+    background-color: #e9ecef; /* Highlight on hover/selection */
+    color: #000;
+}
+
+/* Style for "No results" message if used (currently commented out in JS) */
+/* .autocomplete-item.no-results {
+    font-style: italic;
+    color: #777;
+    cursor: default;
+}
+.autocomplete-item.no-results:hover,
+.autocomplete-item.no-results.selected {
+    background-color: transparent;
+    color: #777;
+} */
+
+
 .no-translate-option .remove-button { display: none; width: 30px; visibility: hidden; }
+
 
 /* --- Bullet Point Radio Group --- */
 .radio-group { display: flex; gap: 15px; flex-wrap: wrap; margin-left: 10px; }
@@ -152,7 +273,7 @@ input.wide-input { width: 100%; }
 }
 .collapsible-header[aria-expanded="true"] {
      border-bottom-color: #3498db; /* Restore prominent border when open */
-     margin-bottom: 25px; /* Restore original margin when open */
+     /* margin-bottom is handled by the content area */
 }
 .collapsible-header[aria-expanded="true"] .toggle-indicator {
     transform: rotate(90deg);
@@ -164,7 +285,7 @@ input.wide-input { width: 100%; }
     border-left: 2px solid #eee; /* Visual cue */
     margin-left: 5px;
     overflow: hidden; /* Needed for smooth transition if added */
-    /* Add transition for height later if desired */
+    padding-bottom: 15px; /* Add padding at the bottom */
 }
 .collapsible-content.active {
     display: block; /* Show when active */
@@ -174,11 +295,16 @@ input.wide-input { width: 100%; }
 
 /* --- Prompt Customization Area --- */
 .collapsible-content h3 { /* Style header inside collapsible */
-    margin-top: 0;
+    margin-top: 0; /* Reset default h3 margin */
     margin-bottom: 15px;
     font-size: 1.1em;
     color: #34495e;
 }
+/* Adjust top margin for subsequent h3s within collapsible */
+.collapsible-content h3 + .prompt-display-area + h3 {
+    margin-top: 25px;
+}
+
 
 .prompt-display-area {
     border: 1px solid #e0e0e0;
@@ -204,11 +330,20 @@ input.wide-input { width: 100%; }
 .prompt-part:last-child { margin-bottom: 0; }
 
 .prompt-preamble, .prompt-postamble { background-color: #f0f0f0; color: #444; }
-.prompt-editable {
-    background-color: #ffffff; border: 1px dashed #3498db; color: #333;
+
+/* Textarea for editable prompt part */
+textarea#promptFormatInstructions {
+    background-color: #ffffff; border: 1px solid #3498db; color: #333; /* Changed to solid border */
     width: 100%; resize: vertical; min-height: 80px;
-    padding: 8px 10px; margin-bottom: 3px;
+    padding: 8px 10px; margin-bottom: 3px; margin-top: 0; /* Added margin-top: 0 */
+    box-sizing: border-box;
+    /* Removed border, shadow, outline properties previously on prompt-editable */
 }
+textarea#promptFormatInstructions:focus {
+    border-color: #3498db; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2); outline: none;
+}
+
+
 .prompt-translation-preview {
     background-color: #e7f3fe; color: #1a73e8; font-style: italic;
     border: 1px dashed #a0c3e8; min-height: 1.5em;
