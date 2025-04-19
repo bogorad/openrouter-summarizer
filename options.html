@@ -45,17 +45,15 @@
         </div>
     </div>
 
-    <!-- Translation Options Section -->
+    <!-- Configured Languages for Chat Flags Section -->
     <div class="section">
-        <h2>Translation Options</h2>
-        <!-- Updated text to reflect choosing a country/language -->
-        <p>Select countries/languages for translation options, or choose "No translation needed". Start typing a country name to see suggestions.</p>
+        <h2>Configured Languages for Chat Flags</h2>
+        <p>Add languages here to show their flags in the summary popup. Clicking a flag will open the chat tab and request a translation of the summary into that language.</p>
         <div id="languageSelectionArea">
-            <p>Loading countries...</p>
+            <p>Loading languages...</p>
         </div>
-        <button id="addLangBtn" class="button add-button">Add Another Language Option</button> <!-- Updated button text -->
-        <!-- Updated note -->
-        <p class="note">Choose a country from the suggested list. The prompt will ask the LLM to translate into the language(s) commonly associated with the selected country (e.g., "France" -> French).</p>
+        <button id="addLangBtn" class="button add-button">Add Another Language</button>
+        <p class="note">Start typing a language name to see suggestions. The flag displayed is based on the language's ISO 639-1 code if available.</p>
     </div>
 
 
@@ -83,18 +81,12 @@
                     <!-- Preamble text will be loaded by JS -->
                 </div>
 
-                <div class="prompt-label">Translation (appears if translation selected):</div> <!-- Updated label -->
-                <div class="prompt-part prompt-translation-preview" id="promptTranslationPreview">
-                    <!-- Translation instructions preview loaded by JS -->
-                </div>
-
                  <div class="prompt-label">Outro:</div>
                 <div class="prompt-part prompt-postamble" id="promptPostamble">
                     <!-- Postamble text will be loaded by JS -->
                 </div>
             </div>
-             <!-- Updated note -->
-             <p class="note">The preamble and postamble are fixed. The translation instructions appear dynamically based on your selected country/language.</p>
+             <p class="note">The preamble and postamble are fixed. The initial summary is always generated in English based on the preamble.</p>
 
              <!-- Custom Instructions Input -->
             <h3 style="margin-top: 25px;">Formatting Instructions</h3>
@@ -102,7 +94,7 @@
             <textarea id="promptFormatInstructions" rows="6" class="prompt-part prompt-editable" spellcheck="false">
                 <!-- Editable instructions loaded/defaulted by JS -->
             </textarea>
-             <p class="note">This text is inserted between the intro/language instructions and the outro.</p>
+             <p class="note">This text is inserted between the intro and the outro.</p>
 
 
         </div>

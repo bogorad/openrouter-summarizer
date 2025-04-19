@@ -1,14 +1,13 @@
 {
   "manifest_version": 3,
   "name": "OpenRouter Summarizer",
-  "version": "2.6",
+  "version": "2.8",
   "description": "Summarize web pages with OpenRouter.ai using your chosen model.",
   "permissions": [
     "activeTab",
     "contextMenus",
     "scripting",
-    "storage" // This single permission covers sync, local, AND session storage.
-    // "storage.session" <-- REMOVED THIS INVALID ENTRY
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -36,7 +35,7 @@
         "options.css",
         "chat.css",
         "marked.min.js",
-        "country-flags/countries.json",
+        "country-flags/languages.json",
         "country-flags/svg/*.svg"
       ],
       "matches": ["<all_urls>"]
