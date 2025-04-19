@@ -48,7 +48,12 @@
     <!-- Configured Languages for Chat Flags Section -->
     <div class="section">
         <h2>Configured Languages for Chat Flags</h2>
-        <p>Add languages here to show their flags in the summary popup. Clicking a flag will open the chat tab and request a translation of the summary into that language.</p>
+        <p><ul>
+          <li>Add languages here to show their flags in the summary popup.</li>
+          <li>The <b>first language</b> in this list will be used to request the <b>initial summary</b> from the LLM.</li>
+          <li>Clicking a flag in the popup will open the chat tab and request a translation of the summary into that language.</li>
+          <li>Drag the grab handle on the left of each language row to change their order.</li>
+        </ul></p>
         <div id="languageSelectionArea">
             <p>Loading languages...</p>
         </div>
@@ -76,7 +81,7 @@
             <h3>Prompt Customization</h3>
             <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle formatting instructions section.</p>
             <div class="prompt-display-area">
-                <div class="prompt-label">Intro:</div>
+                <div class="prompt-label">Intro (sample):</div>
                 <div class="prompt-part prompt-preamble" id="promptPreamble">
                     <!-- Preamble text will be loaded by JS -->
                 </div>
@@ -86,7 +91,7 @@
                     <!-- Postamble text will be loaded by JS -->
                 </div>
             </div>
-             <p class="note">The preamble and postamble are fixed. The initial summary is always generated in English based on the preamble.</p>
+            <p class="note">The preamble and postamble are fixed. The initial summary is generated in the <b>first configured language</b> based on the preamble. It replaces US English.</p>
 
              <!-- Custom Instructions Input -->
             <h3 style="margin-top: 25px;">Formatting Instructions</h3>

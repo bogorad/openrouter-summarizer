@@ -14,6 +14,7 @@ body {
     background-color: #f4f7f9;
     color: #333;
     min-width: 500px; /* Prevent excessive shrinking */
+    font-size: 1.3rem
 }
 
 .container {
@@ -84,6 +85,7 @@ a:hover {
 }
 
 /* --- Input Fields & Selects --- */
+/* Base styles for inputs, selects, textareas */
 input[type="text"],
 input[type="password"],
 select,
@@ -121,7 +123,17 @@ input.wide-input { width: 100%; }
 }
 
 /* --- Language Specific Option Groups & Autocomplete --- */
-/* The label wraps the flag img and input for accessibility and layout */
+/* The main container for each language row */
+.language-option {
+    display: flex; /* Use flex for the main language option div */
+    align-items: center;
+    gap: 10px; /* Space between grab handle, label, and remove button */
+    margin-bottom: 15px;
+    cursor: default; /* Default cursor for the row */
+    transition: opacity 0.2s ease; /* Smooth opacity change */
+}
+
+/* The label wrapping the flag and input */
 .language-option label.language-input-wrapper {
     flex: 1 1 auto; /* Allow label to take available space */
     display: flex; /* Use flex for img and input alignment */
@@ -130,29 +142,35 @@ input.wide-input { width: 100%; }
     min-width: 150px;
     padding: 0; /* Remove padding from label itself */
     position: relative; /* Needed for positioning the dropdown */
-    /* Style this wrapper to look like an input field border when focused */
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    padding: 10px 12px; /* Match input padding */
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-/* When the input inside the wrapper is focused, apply focus styles to the wrapper */
-.language-input-wrapper:focus-within {
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-    outline: none; /* Remove outline from the wrapper */
+    /* REMOVED: Styles that made the label look like an input field */
+    border: none;
+    border-radius: 0;
+    transition: none;
+    box-shadow: none;
 }
 
-
+/* The actual text input field */
 .language-option input[type="text"] {
     flex: 1 1 auto; /* Allow input to grow */
     min-width: 100px; /* Ensure input doesn't disappear */
     margin: 0; /* Remove margin from input */
-    padding: 0; /* Remove padding, it's on the wrapper */
-    border: none; /* Remove border, it's on the wrapper */
-    box-shadow: none; /* Remove box-shadow, it's on the wrapper */
-    outline: none; /* Remove outline */
+    /* ADDED: Styles to make the input field look like an input field */
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: none; /* Ensure no default input shadow */
+    outline: none; /* Ensure no default input outline */
 }
+
+/* Focus styles applied directly to the input */
+.language-option input[type="text"]:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    outline: none;
+}
+
 
 .language-label-static {
     /* Styles for the "No translation needed" label */
@@ -172,6 +190,7 @@ img.language-flag {
     box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Subtle shadow */
     background-color: #eee; /* Background for transparency issues */
     object-fit: contain; /* Ensure the entire flag is visible */
+    border-radius: 3px; /* Slightly round corners */
 }
 
 /* Remove margin from the flag inside the input wrapper label */
@@ -371,3 +390,59 @@ textarea#promptFormatInstructions:focus {
 .status-message { display: inline-block; margin-left: 15px; font-weight: 500; padding: 5px 10px; border-radius: 4px; min-height: 1.5em; vertical-align: middle; }
 .status-message.success { color: #27ae60; background-color: #eafaf1; }
 .status-message.error { color: #c0392b; background-color: #fbeae8; }
+
+/* --- Drag and Drop Styles for Language Options --- */
+/* Removed cursor: grab from .language-option */
+.language-option.dragging {
+    opacity: 0.5; /* Reduce opacity of the dragged item */
+}
+
+/* Visual indicator for drop target */
+.language-option.drag-over-top {
+    border-top: 2px dashed #3498db; /* Blue dashed line at the top */
+}
+
+.language-option.drag-over-bottom {
+    border-bottom: 2px dashed #3498db; /* Blue dashed line at the bottom */
+}
+
+/* Ensure the label wrapper doesn't interfere with drag styles on the parent div */
+/* REMOVED: Re-apply border/shadow on focus-within to the wrapper */
+.language-option label.language-input-wrapper {
+    border: none; /* Ensure no border on the label */
+    box-shadow: none; /* Ensure no shadow on the label */
+    padding: 0; /* Ensure no padding on the label */
+}
+
+
+/* --- Grab Handle Styles --- */
+.grab-handle {
+    width: 20px; /* Width of the handle area */
+    height: 100%; /* Match height of the row */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab; /* Indicate draggable handle */
+    flex-shrink: 0; /* Prevent handle from shrinking */
+    padding: 0 5px; /* Add some padding around the dots */
+    /* background-color: #eee; /* Optional: background for handle area */
+    /* border-right: 1px solid #ccc; /* Optional: separator */
+}
+
+.grab-handle:active {
+    cursor: grabbing; /* Indicate dragging in progress */
+}
+
+.grab-handle-dots {
+    display: flex;
+    flex-direction: column; /* Keep vertical arrangement for horizontal lines */
+    gap: 3px; /* Space between lines */
+}
+
+.grab-handle-dot {
+    width: 16px; /* Make them wider */
+    height: 2px; /* Make them thin lines */
+    background-color: #888; /* Color of the lines */
+    border-radius: 1px; /* Optional: slight rounding */
+}
+
