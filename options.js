@@ -1,5 +1,19 @@
 // options.js
-// v2.8.6 - Fixed dragover and drop listeners
+// v2.11
+
+import {
+    PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
+    PROMPT_STORAGE_KEY_PREAMBLE,
+    PROMPT_STORAGE_KEY_POSTAMBLE,
+    PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
+    DEFAULT_PREAMBLE_TEMPLATE,
+    DEFAULT_POSTAMBLE_TEXT,
+    DEFAULT_FORMAT_INSTRUCTIONS,
+    DEFAULT_MODEL_OPTIONS, // Import default models
+    DEFAULT_PREPOPULATE_LANGUAGES, // Import default languages list
+    SVG_PATH_PREFIX, // Import SVG path prefix
+    FALLBACK_SVG_PATH // Import fallback SVG path
+} from './constants.js'; // Import constants from the new file
 
 document.addEventListener('DOMContentLoaded', async () => { // Made async to await language data load
     // --- DOM Elements ---
@@ -25,29 +39,23 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
 
     // --- Constants ---
     const DEFAULT_BULLET_COUNT = "5";
-    const DEFAULT_MODELS = [
-        "google/gemini-2.0-flash-lite-001", "x-ai/grok-3-mini-beta",
-        "deepseek/deepseek-chat-v3-0324:nitro", "deepseek/deepseek-r1",
-        "openai/gpt-4.1-nano", "anthropic/claude-3.7-sonnet"
-    ];
-    const DEFAULT_SELECTED_MODEL = DEFAULT_MODELS[0];
-    // Default languages (names) to pre-populate if none are saved. These names must match names in languages.json
-    const DEFAULT_PREPOPULATE_LANGUAGES = [
-        "English", "Spanish", "Hebrew", "French"
-    ];
+    // Removed: DEFAULT_MODELS and DEFAULT_SELECTED_MODEL (now imported from constants.js)
+    // Removed: DEFAULT_PREPOPULATE_LANGUAGES (now imported from constants.js)
 
-    // New Constants for Language Data
-    const LANGUAGES_JSON_PATH = '../country-flags/languages.json'; // Path relative to options.html
-    const SVG_PATH_PREFIX = '../country-flags/svg/'; // Path relative to options.html
-    const FALLBACK_SVG_PATH = '../country-flags/svg/un.svg'; // Optional: A generic placeholder
+    // Removed: New Constants for Language Data (now imported from constants.js)
+    // Removed: SVG_PATH_PREFIX and FALLBACK_SVG_PATH (now imported from constants.js)
 
-    // --- Data Storage for Languages ---
+    // --- FIX: Define LANGUAGE_FLAG_CLASS ---
+    const LANGUAGE_FLAG_CLASS = 'language-flag';
+    // --- END FIX ---
+
+    // --- Data Storage for Languages (Removed local storage) ---
     // Will store { LanguageName: CountryCode, ... }
-    let ALL_LANGUAGES_MAP = {};
+    let ALL_LANGUAGES_MAP = {}; // This will now be populated from background.js
     // Will store [{ code: CountryCode, name: LanguageName }, ...]
-    let ALL_LANGUAGES_ARRAY = [];
+    let ALL_LANGUAGES_ARRAY = []; // This will now be populated from background.js
     // Map for quick lookup from lowercase name to {code, original name}
-    let ALL_LANGUAGE_NAMES_MAP = {};
+    let ALL_LANGUAGE_NAMES_MAP = {}; // This will now be populated from background.js
 
 
     // --- FIX: Define DEBUG at the top level ---
@@ -57,28 +65,14 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
     const DEFAULT_DEBUG_MODE = false; // This is just the default value for the setting
     const NUM_TO_WORD = { 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
 
-    // --- Centralized Prompt Definitions ---
-    const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
-    const PROMPT_STORAGE_KEY_PREAMBLE = 'prompt_preamble_template';
-    const PROMPT_STORAGE_KEY_POSTAMBLE = 'prompt_postamble_text';
-    const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
-
-    const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article_text.
-Using US English, prepare a summary of article_text containing no more than \${bulletWord} points.`;
-    const DEFAULT_POSTAMBLE_TEXT = `Format the entire result as a single JSON array of strings.
-Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<i>Point 3:</i> With italics."]
-Do not add any comments before or after the JSON array. Do not output your deliberations.
-Just provide the JSON array string as the result. Ensure the output is valid JSON.`;
-    const DEFAULT_FORMAT_INSTRUCTIONS = `Each point should be a concise HTML string, starting with a bold tag-like marker and a colon, followed by the description.
-You may use ONLY the following HTML tags for emphasis: <b> for bold and <i> for italics. Do not use any other HTML tags (like <p>, <ul>, <li>, <br>, etc.).
-For example: "<b>Key Finding:</b> The market showed <i>significant</i> growth in Q3."
-After providing bullet points for article summary, add a bonus one - your insights, assessment and comments, and what should a mindful reader notice about this. Call it <b>Summarizer Insight</b>.`;
+    // --- Centralized Prompt Definitions (Removed local definitions) ---
+    // Now imported from constants.js
     // --- End Centralized Prompt Definitions ---
 
 
     // --- State Variables ---
-    let currentModels = [];
-    let currentSelectedModel = '';
+    let currentModels = []; // Will store {id, label} objects fetched from background
+    let currentSelectedModel = ''; // This will store the ID of the selected model
     // currentAvailableLanguages will store just the names of selected languages
     let currentAvailableLanguages = [];
     let currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS; // Tracks the value in the textarea
@@ -95,69 +89,114 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
     // --- Functions ---
 
-    // --- Model Selection Functions (unchanged) ---
+    // --- Model Selection Functions (Modified to handle {id, label} and use fetched list) ---
     function renderModelOptions() {
         if (!modelSelectionArea) return;
         modelSelectionArea.innerHTML = '';
         if (!currentModels || currentModels.length === 0) {
-            modelSelectionArea.innerHTML = '<p>No models configured. Add one below or save to use defaults.</p>'; return;
+            modelSelectionArea.innerHTML = '<p>No models configured. Add one below or save to use defaults.</p>';
+            // Disable add button if no models are available at all
+            if (addModelBtn) addModelBtn.disabled = true;
+            return;
+        } else {
+             if (addModelBtn) addModelBtn.disabled = false;
         }
-        // Ensure currentSelectedModel is still in the list, otherwise default
-        if (!currentModels.includes(currentSelectedModel) && currentModels.length > 0) {
-             console.warn(`Selected model "${currentSelectedModel}" not in list, defaulting to "${currentModels[0]}" for render.`);
-             currentSelectedModel = currentModels[0];
+
+        // Ensure currentSelectedModel (ID) is still in the list of fetched models
+        const availableModelIds = currentModels.map(m => m.id);
+        if (!currentSelectedModel || !availableModelIds.includes(currentSelectedModel)) {
+             if (DEBUG) console.warn(`Selected model ID "${currentSelectedModel}" not in fetched list, defaulting to "${currentModels[0].id}" for render.`);
+             currentSelectedModel = currentModels.length > 0 ? currentModels[0].id : '';
         } else if (currentModels.length === 0) {
              currentSelectedModel = '';
         }
-        currentModels.forEach((modelId, index) => {
-            const isChecked = (modelId === currentSelectedModel && modelId.trim() !== '');
+
+        currentModels.forEach((model, index) => { // model is now {id, label}
+            const isChecked = (model.id === currentSelectedModel && model.id.trim() !== '');
             const group = document.createElement('div'); group.className = 'option-group model-option';
             const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'selectedModelOption';
-            radio.id = `modelRadio_${index}`; radio.value = modelId; radio.checked = isChecked; radio.dataset.index = index;
-            radio.disabled = !modelId.trim();
+            radio.id = `modelRadio_${index}`; radio.value = model.id; radio.checked = isChecked; radio.dataset.index = index;
+            radio.disabled = !model.id.trim(); // Disable radio if ID is empty
             radio.addEventListener('change', handleModelRadioChange);
+
             const textInput = document.createElement('input'); textInput.type = 'text'; textInput.id = `modelText_${index}`;
-            textInput.value = modelId; textInput.placeholder = "Enter OpenRouter Model ID"; textInput.dataset.index = index;
+            textInput.value = model.id; // Use the ID for the input value
+            textInput.placeholder = "Enter OpenRouter Model ID"; textInput.dataset.index = index;
             textInput.addEventListener('input', handleModelTextChange);
+
+            const labelInput = document.createElement('input'); labelInput.type = 'text'; labelInput.id = `modelLabel_${index}`;
+            labelInput.value = model.label || model.id; // Use the label for the label input
+            labelInput.placeholder = "Enter Model Label (Optional)"; labelInput.dataset.index = index;
+            labelInput.addEventListener('input', handleModelLabelChange);
+
+
             const removeBtn = document.createElement('button'); removeBtn.type = 'button'; removeBtn.textContent = '✕';
             removeBtn.className = 'button remove-button'; removeBtn.title = 'Remove this model'; removeBtn.dataset.index = index;
             removeBtn.addEventListener('click', handleModelRemoveClick);
-            group.appendChild(radio); group.appendChild(textInput); group.appendChild(removeBtn);
+
+            group.appendChild(radio);
+            group.appendChild(textInput);
+            group.appendChild(labelInput); // Add label input
+            group.appendChild(removeBtn);
             modelSelectionArea.appendChild(group);
         });
     }
+
     function handleModelRadioChange(event) {
         if (event.target.checked) {
             const index = parseInt(event.target.dataset.index, 10);
-            const textInput = document.getElementById(`modelText_${index}`);
-            if (textInput && textInput.value.trim()) {
-                currentSelectedModel = textInput.value.trim(); console.log("Selected model changed to:", currentSelectedModel);
+            // Find the corresponding model object in currentModels by index
+            const selectedModel = currentModels[index];
+            if (selectedModel && selectedModel.id.trim()) {
+                currentSelectedModel = selectedModel.id.trim();
+                if (DEBUG) console.log("Selected model ID changed to:", currentSelectedModel);
             } else {
-                // If the selected input is empty, uncheck it and try to revert to the previous valid one
+                // If the selected model ID is empty, uncheck it and try to revert
                 event.target.checked = false;
                 const previousValidRadio = modelSelectionArea.querySelector(`input[type="radio"][value="${currentSelectedModel}"]:not(:disabled)`);
                 if (previousValidRadio) {
                     previousValidRadio.checked = true;
                 } else {
-                    // If previous isn't found or invalid, try selecting the first valid one
-                    const firstValidRadio = modelSelectionArea.querySelector('input[type="radio"]:not(:disabled)');
-                    if (firstValidRadio) {
-                        firstValidRadio.checked = true;
-                        currentSelectedModel = firstValidModel.value;
+                    // Try selecting the first valid one in the current list
+                    const firstValidModel = currentModels.find(m => m.id.trim() !== '');
+                    if (firstValidModel) {
+                         const firstValidRadio = modelSelectionArea.querySelector(`input[type="radio"][value="${firstValidModel.id}"]`);
+                         if (firstValidRadio) {
+                            firstValidRadio.checked = true;
+                            currentSelectedModel = firstValidModel.id;
+                         } else {
+                             currentSelectedModel = ''; // Should not happen if firstValidModel exists
+                         }
                     } else {
                         currentSelectedModel = ''; // No valid models left
                     }
                 }
+                 if (DEBUG) console.log("Selected model ID adjusted after radio change:", currentSelectedModel);
             }
         }
      }
+
     function handleModelTextChange(event) {
-        const newModelId = event.target.value.trim(); const idx = parseInt(event.target.dataset.index, 10);
-        if (idx >= 0 && idx < currentModels.length) { currentModels[idx] = newModelId; }
+        const newModelId = event.target.value.trim();
+        const idx = parseInt(event.target.dataset.index, 10);
+
+        if (idx >= 0 && idx < currentModels.length) {
+             // Update the ID in the currentModels array
+             currentModels[idx].id = newModelId;
+             // If the label input is empty, update its value to the new ID
+             const labelInput = document.getElementById(`modelLabel_${idx}`);
+             if (labelInput && !labelInput.value.trim()) {
+                 labelInput.value = newModelId;
+                 currentModels[idx].label = newModelId; // Update label in state too
+             }
+        } else {
+             console.error("handleModelTextChange called with invalid index:", idx);
+             return;
+        }
 
         const associatedRadio = document.getElementById(`modelRadio_${idx}`);
         if (associatedRadio) {
-            associatedRadio.value = newModelId;
+            associatedRadio.value = newModelId; // Update radio value to the new ID
             associatedRadio.disabled = !newModelId; // Disable radio if input is empty
 
             // If this was the selected model and input became empty, re-select a new default
@@ -167,74 +206,68 @@ After providing bullet points for article summary, add a bonus one - your insigh
                     currentSelectedModel = ''; // Clear selected if empty
 
                     // Attempt to select the first valid model in the updated list
-                    const firstValidModel = currentModels.find(m => m.trim() !== '');
+                    const firstValidModel = currentModels.find(m => m.id.trim() !== '');
                     if (firstValidModel) {
-                         const firstValidRadio = modelSelectionArea.querySelector(`input[type="radio"][value="${firstValidModel}"]`);
+                         const firstValidRadio = modelSelectionArea.querySelector(`input[type="radio"][value="${firstValidModel.id}"]`);
                          if (firstValidRadio) {
                             firstValidRadio.checked = true;
-                            currentSelectedModel = firstValidModel;
+                            currentSelectedModel = firstValidModel.id;
                          }
                     }
                  } else {
-                    currentSelectedModel = newModelId; // Update selected model if input changed and it's still checked
+                    currentSelectedModel = newModelId; // Update selected model ID if input changed and it's still checked
                  }
-                 console.log("Selected model ID updated via text input to:", currentSelectedModel);
+                 if (DEBUG) console.log("Selected model ID updated via text input to:", currentSelectedModel);
             }
         }
      }
+
+     function handleModelLabelChange(event) {
+         const newModelLabel = event.target.value.trim();
+         const idx = parseInt(event.target.dataset.index, 10);
+
+         if (idx >= 0 && idx < currentModels.length) {
+              // Update the label in the currentModels array
+              currentModels[idx].label = newModelLabel;
+         } else {
+              console.error("handleModelLabelChange called with invalid index:", idx);
+         }
+     }
+
     function handleModelRemoveClick(event) { removeModel(parseInt(event.target.dataset.index, 10)); }
-    function addModel() { currentModels.push(""); renderModelOptions(); const newIndex = currentModels.length - 1; const newInput = document.getElementById(`modelText_${newIndex}`); if (newInput) { newInput.focus(); } }
+
+    // Add a new empty model input field ({id: "", label: ""})
+    function addModel() {
+        currentModels.push({ id: "", label: "" });
+        renderModelOptions(); // Re-render the whole list
+        // Find the new ID input element and focus it
+        const newIndex = currentModels.length - 1;
+        const newInput = document.getElementById(`modelText_${newIndex}`);
+        if (newInput) {
+             newInput.focus();
+        }
+     }
+
+    // Removes a model input field
     function removeModel(indexToRemove) {
         if (indexToRemove < 0 || indexToRemove >= currentModels.length) return;
-        const removedModelId = currentModels[indexToRemove]; currentModels.splice(indexToRemove, 1);
+
+        const removedModelId = currentModels[indexToRemove].id;
+        currentModels.splice(indexToRemove, 1); // Remove the object from the array
+
         // If the removed model was the selected one, find a new selection
         if (removedModelId === currentSelectedModel) {
-            const firstValidModel = currentModels.find(m => m.trim() !== '');
-            currentSelectedModel = firstValidModel || '';
+            const firstValidModel = currentModels.find(m => m.id.trim() !== '');
+            currentSelectedModel = firstValidModel ? firstValidModel.id : '';
         }
-        renderModelOptions();
+        renderModelOptions(); // Re-render the whole list
      }
     // --- End Model Selection Functions ---
 
 
-    // --- Language Selection & Autocomplete Functions (Modified for JSON/SVG) ---
+    // --- Language Selection & Autocomplete Functions (Modified to use fetched data) ---
 
-    // Function to load language data from JSON
-    async function loadLanguageData() {
-        try {
-            const response = await fetch(LANGUAGES_JSON_PATH);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch languages.json: ${response.statusText}`);
-            }
-            const data = await response.json();
-            ALL_LANGUAGES_MAP = data; // { LanguageName: CountryCode, ... }
-            ALL_LANGUAGES_ARRAY = Object.keys(data).map(name => ({ code: data[name], name: name })); // [{ code: CountryCode, name: LanguageName }, ...]
-
-            // Create name-to-code map for quick lookup (case-insensitive names)
-            ALL_LANGUAGE_NAMES_MAP = Object.keys(data).reduce((map, name) => {
-                map[name.toLowerCase()] = { code: data[name], name: name }; // Store lowercase name -> {code, original name}
-                return map;
-            }, {});
-
-            console.log(`Loaded ${ALL_LANGUAGES_ARRAY.length} languages.`);
-            // console.log("ALL_LANGUAGES_MAP:", ALL_LANGUAGES_MAP); // Debug
-            // console.log("ALL_LANGUAGES_ARRAY:", ALL_LANGUAGES_ARRAY); // Debug
-            // console.log("ALL_LANGUAGE_NAMES_MAP:", ALL_LANGUAGE_NAMES_MAP); // Debug
-
-        } catch (error) {
-            console.error("Error loading language data:", error);
-            // Display an error message or use a fallback mechanism
-            if (statusMessage) {
-                statusMessage.textContent = `Error loading language list: ${error.message}`;
-                statusMessage.className = 'status-message error';
-            }
-            // Keep using empty lists if loading fails, rendering will handle missing data
-            ALL_LANGUAGES_MAP = {};
-            ALL_LANGUAGES_ARRAY = [];
-            ALL_LANGUAGE_NAMES_MAP = {};
-        }
-    }
-
+    // Removed local loadLanguageData function
 
     // Filters languages from the loaded data based on the query matching the name
     function filterLanguages(query) {
@@ -293,13 +326,13 @@ After providing bullet points for article summary, add a bonus one - your insigh
             // This might not be accurate for all languages (e.g., "English" vs "US" flag).
             // For now, we'll use the language code as the flag filename.
             const flagImg = document.createElement('img');
-            flagImg.className = 'language-flag'; // Use language-flag class for img
+            flagImg.className = LANGUAGE_FLAG_CLASS; // Use language-flag class name from options for consistency
             flagImg.src = `${SVG_PATH_PREFIX}${lang.code.toLowerCase()}.svg`;
             flagImg.alt = `${lang.name} flag`;
             flagImg.onerror = function() { // Handle missing SVG
                 this.src = FALLBACK_SVG_PATH;
                  this.alt = 'Flag not found'; // Update alt text
-                 console.warn(`Missing SVG for code: ${lang.code}`);
+                 if (DEBUG) console.warn(`Missing SVG for code: ${lang.code}`);
             };
 
             const nameSpan = document.createElement('span');
@@ -356,12 +389,12 @@ After providing bullet points for article summary, add a bonus one - your insigh
              flagImg.onerror = function() { // Handle missing SVG after selection
                  this.src = FALLBACK_SVG_PATH;
                  this.alt = 'Flag not found';
-                 console.warn(`Missing SVG for code: ${languageCode} (after selection)`);
+                 if (DEBUG) console.warn(`Missing SVG for code: ${languageCode} (after selection)`);
              };
         } else if (flagImg) { // If no language code (shouldn't happen with valid selection), show fallback
              flagImg.src = FALLBACK_SVG_PATH;
              flagImg.alt = 'Flag not found';
-             console.warn(`No language code found for selected item: ${languageName}`);
+             if (DEBUG) console.warn(`No language code found for selected item: ${languageName}`);
         }
 
 
@@ -517,7 +550,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
             // Use <img> for the flag - Note: This assumes language codes map to country flags.
             // We need to find the language code from the name to get the flag filename.
             const flagImg = document.createElement('img');
-            flagImg.className = 'language-flag'; // Use language-flag class
+            flagImg.className = LANGUAGE_FLAG_CLASS; // Use language-flag class
             const languageData = findLanguageByName(langName); // Find the code for the name using loaded data
             const languageCode = languageData ? languageData.code : null;
             if (languageCode) {
@@ -526,7 +559,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
                 flagImg.onerror = function() { // Handle missing SVG on render
                     this.src = FALLBACK_SVG_PATH; // Or hide: this.style.display = 'none';
                     this.alt = 'Flag not found'; // Update alt text
-                     console.warn(`Missing SVG for code: ${languageCode} (on render)`);
+                     if (DEBUG) console.warn(`Missing SVG for code: ${languageCode} (on render)`);
                 };
             } else {
                 // If language name not found in data, show placeholder
@@ -534,7 +567,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
                 flagImg.alt = 'Flag not found';
                 // flagImg.style.display = 'none'; // Alternatively, hide the flag
                  if (langName.trim().length > 0) { // Changed condition here
-                    console.warn(`Language name "${langName}" not found in loaded data during render.`);
+                    if (DEBUG) console.warn(`Language name "${langName}" not found in loaded data during render.`);
                  }
             }
 
@@ -609,7 +642,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
                 flagImg.onerror = function() {
                      this.src = FALLBACK_SVG_PATH;
                      this.alt = 'Flag not found';
-                     console.warn(`Missing SVG for code: ${languageCode} (on text input change)`);
+                     if (DEBUG) console.warn(`Missing SVG for code: ${languageCode} (on text input change)`);
                 };
             } else {
                 // If language name not found, show placeholder or hide flag
@@ -805,11 +838,12 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
     // --- Prompt Preview Function (mostly unchanged) ---
     function updatePromptPreview() {
-        console.log("Updating prompt preview...");
+        if (DEBUG) console.log("Updating prompt preview...");
         let bulletCount = DEFAULT_BULLET_COUNT;
         document.querySelectorAll('input[name="bulletCount"]').forEach(radio => { if (radio.checked) bulletCount = radio.value; });
         const bulletWord = NUM_TO_WORD[bulletCount] || "five";
 
+        // Use imported default templates for preview
         if (promptPreambleDiv) promptPreambleDiv.textContent = DEFAULT_PREAMBLE_TEMPLATE.replace('${bulletWord}', bulletWord);
         if (promptPostambleDiv) promptPostambleDiv.textContent = DEFAULT_POSTAMBLE_TEXT;
 
@@ -822,32 +856,95 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
     /** Loads settings and populates the form, WITH VALIDATION. */
     async function loadSettings() { // Made async
-        console.log("Loading settings...");
+        if (DEBUG) console.log("Loading settings...");
 
-         // --- Load Language Data First ---
-        // This is now done *before* the storage sync callback can process language data.
-        await loadLanguageData();
+         // --- Fetch Language Data from Background ---
+         // This replaces the local loadLanguageData call
+         const languageDataResponse = await new Promise((resolve) => {
+             chrome.runtime.sendMessage({ action: "getLanguageData" }, resolve);
+         });
+
+         if (chrome.runtime.lastError) {
+             console.error("Error fetching language data from background:", chrome.runtime.lastError);
+             if (statusMessage) {
+                 statusMessage.textContent = `Error loading language list: ${chrome.runtime.lastError.message}`;
+                 statusMessage.className = 'status-message error';
+             }
+             // Keep using empty lists if loading fails, rendering will handle missing data
+             ALL_LANGUAGES_MAP = {};
+             ALL_LANGUAGES_ARRAY = [];
+             ALL_LANGUAGE_NAMES_MAP = {};
+             // Continue loading other settings even if language data fails
+         } else if (languageDataResponse && languageDataResponse.ALL_LANGUAGES_MAP) {
+             ALL_LANGUAGES_MAP = languageDataResponse.ALL_LANGUAGES_MAP;
+             ALL_LANGUAGES_ARRAY = languageDataResponse.ALL_LANGUAGES_ARRAY;
+             ALL_LANGUAGE_NAMES_MAP = languageDataResponse.ALL_LANGUAGE_NAMES_MAP;
+             // SVG_PATH_PREFIX and FALLBACK_SVG_PATH are now imported constants,
+             // but the response includes the full URLs from background.js if needed elsewhere.
+             if (DEBUG) console.log(`Fetched ${ALL_LANGUAGES_ARRAY.length} languages from background.`);
+         } else {
+              console.error("Invalid response fetching language data from background:", languageDataResponse);
+              if (statusMessage) {
+                 statusMessage.textContent = `Error loading language list: Invalid response.`;
+                 statusMessage.className = 'status-message error';
+             }
+             ALL_LANGUAGES_MAP = {};
+             ALL_LANGUAGES_ARRAY = [];
+             ALL_LANGUAGE_NAMES_MAP = {};
+         }
+         // --- End Fetch Language Data ---
+
+
+         // --- Fetch Models List from Background ---
+         const modelsResponse = await new Promise((resolve) => {
+             chrome.runtime.sendMessage({ action: "getModelsList" }, resolve);
+         });
+
+         if (chrome.runtime.lastError) {
+             console.error("Error fetching models list from background:", chrome.runtime.lastError);
+             if (statusMessage) {
+                 statusMessage.textContent = `Error loading models list: ${chrome.runtime.lastError.message}`;
+                 statusMessage.className = 'status-message error';
+             }
+             // Fallback to default models if fetching fails
+             currentModels = [...DEFAULT_MODEL_OPTIONS];
+             if (DEBUG) console.log("Using default models due to fetch error.");
+         } else if (modelsResponse && Array.isArray(modelsResponse.models)) {
+             // Expecting array of {id, label} objects
+             currentModels = modelsResponse.models;
+             if (DEBUG) console.log(`Fetched ${currentModels.length} models from background.`);
+         } else {
+              console.error("Invalid response fetching models list from background:", modelsResponse);
+              if (statusMessage) {
+                 statusMessage.textContent = `Error loading models list: Invalid response.`;
+                 statusMessage.className = 'status-message error';
+             }
+             // Fallback to default models if response is invalid
+             currentModels = [...DEFAULT_MODEL_OPTIONS];
+             if (DEBUG) console.log("Using default models due to invalid fetch response.");
+         }
+         // --- End Fetch Models List ---
+
 
         const keysToFetch = [
-            'apiKey', 'model', 'models', 'debug', 'bulletCount',
+            'apiKey', 'model', 'debug', 'bulletCount',
             // Removed 'translate', 'translateLanguage',
-            'availableLanguages',
+            'availableLanguages', // Still fetch saved language names
             PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-            PROMPT_STORAGE_KEY_PREAMBLE,
+            PROMPT_STORAGE_KEY_PREAMBLE, // Fetch default prompt parts from storage
             PROMPT_STORAGE_KEY_POSTAMBLE,
-            // Removed PROMPT_STORAGE_KEY_TRANSLATION,
             PROMPT_STORAGE_KEY_DEFAULT_FORMAT
         ];
 
         chrome.storage.sync.get(keysToFetch, (data) => {
-            // --- Start of Async Callback --- (This runs after storage sync is done, but after language data is loaded)
+            // --- Start of Async Callback --- (This runs after storage sync is done, but after language data and models are loaded)
             if (chrome.runtime.lastError) {
                 console.error("Error loading settings:", chrome.runtime.lastError);
                 statusMessage.textContent = `Error loading settings: ${chrome.runtime.lastError.message}`;
                 statusMessage.className = 'status-message error';
                 alert(`Critical Error loading settings:\n${chrome.runtime.lastError.message}\n\nPlease try saving the options again.`);
             } else {
-                console.log("Loaded data:", data);
+                if (DEBUG) console.log("Loaded data from storage:", data);
             }
 
             // --- FIX: Update DEBUG state variable here ---
@@ -867,60 +964,72 @@ After providing bullet points for article summary, add a bonus one - your insigh
             bulletCountRadios.forEach(radio => { if (radio.value === countValue) { radio.checked = true; bulletSet = true; } else { radio.checked = false; } });
             if (!bulletSet) { const defaultBulletRadio = document.querySelector(`input[name="bulletCount"][value="${DEFAULT_BULLET_COUNT}"]`); if (defaultBulletRadio) defaultBulletRadio.checked = true; }
 
-            currentModels = (Array.isArray(data.models) && data.models.length > 0 && data.models.every(m => typeof m === 'string'))
-                            ? data.models.map(m => m.trim()).filter(m => m !== '') // Trim and filter empty models on load
-                            : [...DEFAULT_MODELS];
-            if (currentModels.length === 0) currentModels = [...DEFAULT_MODELS]; // Ensure it's never empty after loading/filtering
-
+            // currentModels is already populated from the background message response
             const storedSelectedModel = data.model ? data.model.trim() : ''; // Trim loaded selected model
-            // Ensure loaded model is in the list of models after loading/filtering
-            if (storedSelectedModel && currentModels.includes(storedSelectedModel)) {
+            const availableModelIds = currentModels.map(m => m.id); // Get IDs from fetched models
+            // Ensure loaded model is in the list of models after fetching
+            if (storedSelectedModel && availableModelIds.includes(storedSelectedModel)) {
                 currentSelectedModel = storedSelectedModel;
             } else if (currentModels.length > 0) {
-                currentSelectedModel = currentModels[0]; // Default to first available model
+                currentSelectedModel = currentModels[0].id; // Default to first available model ID
             } else {
                 currentSelectedModel = ''; // No models available
             }
-            renderModelOptions();
+            renderModelOptions(); // Render models using the fetched list and determined selection
 
 
-            // --- Language Loading Logic (Now depends on loaded ALL_LANGUAGES_MAP/ARRAY) ---
-            const loadedLanguages = (Array.isArray(data.availableLanguages) && data.availableLanguages.length > 0 && data.availableLanguages.every(l => typeof l === 'string'))
-                                    ? data.availableLanguages.map(l => l.trim()).filter(l => l !== '') // Get saved names, trim, filter empty
-                                    : [];
+            // --- Language Loading Logic (Modified) ---
+            const loadedLanguages = data.availableLanguages; // Get the raw value from storage
 
-            // Filter loaded names to only include names found in the loaded language data
-            const validLoadedLanguages = loadedLanguages.filter(name => findLanguageByName(name));
-            if (loadedLanguages.length > validLoadedLanguages.length) {
-                 console.warn(`${loadedLanguages.length - validLoadedLanguages.length} saved languages were not found in the languages list.`);
-                 if (loadedLanguages.length > 0) {
-                     // Only add validation error if there were saved languages that became invalid
-                     const invalidNames = loadedLanguages.filter(name => !findLanguageByName(name)).join(', ');
-                      if (invalidNames) {
-                           validationErrors.push(`Some saved languages (${invalidNames}) were not found in the available list and were removed.`);
+            // Check if availableLanguages is undefined (first load)
+            if (loadedLanguages === undefined) {
+                 if (DEBUG) console.log("availableLanguages is undefined in storage, prepopulating with defaults.");
+                 // On first load, use defaults directly. Validation against ALL_LANGUAGES_MAP happens later during save.
+                 currentAvailableLanguages = [...DEFAULT_PREPOPULATE_LANGUAGES];
+
+                 // Add a validation warning if language data wasn't loaded, as defaults can't be validated yet
+                 if (Object.keys(ALL_LANGUAGES_MAP).length === 0) {
+                      validationErrors.push("Language data could not be loaded. Language flags may not appear correctly until data is available and options are saved.");
+                 }
+
+            } else {
+                 // Existing logic for when availableLanguages is an array (could be empty)
+                 const trimmedLoadedLanguages = (Array.isArray(loadedLanguages) && loadedLanguages.length > 0 && loadedLanguages.every(l => typeof l === 'string'))
+                                        ? loadedLanguages.map(l => l.trim()).filter(l => l !== '') // Get saved names, trim, filter empty
+                                        : [];
+
+                 // Filter loaded names to only include names found in the fetched language data
+                 const validLoadedLanguages = trimmedLoadedLanguages.filter(name => findLanguageByName(name));
+
+                 if (trimmedLoadedLanguages.length > validLoadedLanguages.length) {
+                      if (DEBUG) console.warn(`${trimmedLoadedLanguages.length - validLoadedLanguages.length} saved languages were not found in the languages list.`);
+                      if (trimmedLoadedLanguages.length > 0) {
+                          const invalidNames = trimmedLoadedLanguages.filter(name => !findLanguageByName(name)).join(', ');
+                           if (invalidNames) {
+                                validationErrors.push(`Some saved languages (${invalidNames}) were not found in the available list and were removed.`);
+                           }
+                      }
+                 }
+
+                 // Use valid loaded languages or prepopulate defaults (filtered against loaded data)
+                 if (validLoadedLanguages.length > 0) {
+                      currentAvailableLanguages = validLoadedLanguages;
+                 } else {
+                      if (DEBUG) console.log("No valid languages found in storage, prepopulating with defaults (filtered).");
+                      // Filter default prepopulate languages against the fetched language list
+                      currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => findLanguageByName(name));
+                      if (ALL_LANGUAGES_ARRAY.length > 0 && currentAvailableLanguages.length < DEFAULT_PREPOPULATE_LANGUAGES.length) {
+                           if (DEBUG) console.warn(`Some default languages (${DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ')}) were not found in the languages list.`);
+                          const filteredDefaults = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ');
+                          if (filteredDefaults && DEFAULT_PREPOPULATE_LANGUAGES.length > 0) {
+                              validationErrors.push(`Some default languages (${filteredDefaults}) were not found in the available list and were not added.`);
+                          }
                       }
                  }
             }
 
-
-            // Use valid loaded languages or prepopulate defaults, filtering defaults if not in the loaded language list
-            if (validLoadedLanguages.length > 0) {
-                 currentAvailableLanguages = validLoadedLanguages;
-            } else {
-                 console.log("No valid languages found in storage, prepopulating with defaults.");
-                 // Filter default prepopulate languages against the loaded language list
-                 currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => findLanguageByName(name));
-                 if (currentAvailableLanguages.length < DEFAULT_PREPOPULATE_LANGUAGES.length) {
-                      console.warn(`Some default languages (${DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ')}) were not found in the languages list.`);
-                      // Only add validation error if some defaults were filtered out AND the default list wasn't originally empty
-                     const filteredDefaults = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ');
-                     if (filteredDefaults && DEFAULT_PREPOPULATE_LANGUAGES.length > 0) {
-                         validationErrors.push(`Some default languages (${filteredDefaults}) were not found in the available list and were not added.`);
-                     }
-                 }
-            }
             // If after all this, the list is still empty, add an empty one so the user can type.
-            // The save function will filter out empty ones.
+            // This handles the case where DEFAULT_PREPOPULATE_LANGUAGES is empty or all defaults were invalid.
             if (currentAvailableLanguages.length === 0) {
                  currentAvailableLanguages.push("");
             }
@@ -931,6 +1040,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
 
             // Load custom instructions, falling back to the LOADED default, then the HARDCODED default
+            // Use imported default prompt parts if not found in storage
             const savedDefaultFormat = data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] || DEFAULT_FORMAT_INSTRUCTIONS;
             currentCustomFormatInstructions = data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] || savedDefaultFormat;
             if (promptFormatInstructionsTextarea) {
@@ -940,7 +1050,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
             }
 
             updatePromptPreview();
-            console.log("Settings loaded and UI populated.");
+            if (DEBUG) console.log("Settings loaded and UI populated.");
 
             // --- Display Validation Errors if any ---
             if (validationErrors.length > 0) {
@@ -963,7 +1073,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
     /** Saves the current settings, INCLUDING the default prompt components. */
     function saveSettings() {
-        console.log("Saving settings...");
+        if (DEBUG) console.log("Saving settings...");
         const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
         const debug = debugCheckbox ? debugCheckbox.checked : false;
         let bulletCount = DEFAULT_BULLET_COUNT;
@@ -974,11 +1084,15 @@ After providing bullet points for article summary, add a bonus one - your insigh
          // Update the state variable from the textarea value before saving
          currentCustomFormatInstructions = customFormatInstructionsToSave;
 
-        const modelsToSave = currentModels.map(m => m.trim()).filter(m => m !== '');
+        // Get models from the currentModels state array (which includes id and label)
+        // Filter out models with empty IDs
+        const modelsToSave = currentModels.filter(m => m.id.trim() !== '').map(m => ({ id: m.id.trim(), label: m.label.trim() }));
+
         let finalSelectedModel = '';
-        // Ensure the selected model is actually in the list being saved
-        if (currentSelectedModel && modelsToSave.includes(currentSelectedModel)) { finalSelectedModel = currentSelectedModel; }
-        else if (modelsToSave.length > 0) { finalSelectedModel = modelsToSave[0]; }
+        // Ensure the selected model ID is actually in the list of IDs being saved
+        const savedModelIds = modelsToSave.map(m => m.id);
+        if (currentSelectedModel && savedModelIds.includes(currentSelectedModel)) { finalSelectedModel = currentSelectedModel; }
+        else if (modelsToSave.length > 0) { finalSelectedModel = modelsToSave[0].id; }
         else { finalSelectedModel = ''; } // No models saved
 
         // Get language names directly from the input fields for saving, filtering empty and invalid ones
@@ -995,21 +1109,25 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
 
         const settingsToSave = {
-            apiKey, model: finalSelectedModel, models: modelsToSave, debug, bulletCount,
+            apiKey, model: finalSelectedModel,
+            // Save models as an array of IDs only, as background.js has the labels
+            models: modelsToSave.map(m => m.id), // Save only the IDs
+            debug, bulletCount,
             // Removed translate: finalTranslate, translateLanguage: finalTranslateLanguage,
             availableLanguages: languagesToSave, // Save the list of valid names
             [PROMPT_STORAGE_KEY_CUSTOM_FORMAT]: customFormatInstructionsToSave,
-            [PROMPT_STORAGE_KEY_PREAMBLE]: DEFAULT_PREAMBLE_TEMPLATE, // Save defaults just in case
+            // Save default prompt parts from imported constants
+            [PROMPT_STORAGE_KEY_PREAMBLE]: DEFAULT_PREAMBLE_TEMPLATE,
             [PROMPT_STORAGE_KEY_POSTAMBLE]: DEFAULT_POSTAMBLE_TEXT,
-            // Removed PROMPT_STORAGE_KEY_TRANSLATION
             [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS
         };
-        console.log("Saving data:", settingsToSave);
+        if (DEBUG) console.log("Saving data:", settingsToSave);
         chrome.storage.sync.set(settingsToSave, () => {
             if (chrome.runtime.lastError) { statusMessage.textContent = `Error saving: ${chrome.runtime.lastError.message}`; statusMessage.className = 'status-message error'; console.error("Error saving settings:", chrome.runtime.lastError); }
             else {
-                 statusMessage.textContent = 'Options saved!'; statusMessage.className = 'status-message success'; console.log("Options saved successfully.");
+                 statusMessage.textContent = 'Options saved!'; statusMessage.className = 'status-message success'; if (DEBUG) console.log("Options saved successfully.");
                  // After saving, re-render to ensure UI reflects the saved state (e.g., selected radio, filtered invalid)
+                 renderModelOptions(); // Re-render models based on the filtered list
                  renderLanguageOptions(); // Re-render languages specifically
                  updatePromptPreview(); // Ensure prompt preview is correct
             }
@@ -1019,13 +1137,16 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
     /** Resets settings to defaults (excluding API key). */
     function resetToDefaults() {
-        console.log("Resetting options to defaults (excluding API key)...");
-        currentModels = [...DEFAULT_MODELS]; currentSelectedModel = DEFAULT_SELECTED_MODEL;
-        // Reset languages to the default pre-populate list, filtering against loaded languages
+        if (DEBUG) console.log("Resetting options to defaults (excluding API key)...");
+        // Reset models to the imported default options (id, label)
+        currentModels = [...DEFAULT_MODEL_OPTIONS];
+        currentSelectedModel = currentModels.length > 0 ? currentModels[0].id : ''; // Select the first default model ID
+
+        // Reset languages to the imported default pre-populate list, filtering against fetched languages
         // Ensure ALL_LANGUAGES_MAP is available before filtering defaults
         currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => findLanguageByName(name));
          if (ALL_LANGUAGES_ARRAY.length > 0 && currentAvailableLanguages.length < DEFAULT_PREPOPULATE_LANGUAGES.length) {
-              console.warn(`Some default languages (${DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ')}) were not found in the languages list during reset and were not added.`);
+              if (DEBUG) console.warn(`Some default languages (${DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ')}) were not found in the languages list during reset and were not added.`);
          }
          if (currentAvailableLanguages.length === 0) { // Ensure at least one empty slot if defaults filtered out
               currentAvailableLanguages.push("");
@@ -1033,7 +1154,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
         currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
 
-        renderModelOptions();
+        renderModelOptions(); // Re-render with new default models
         renderLanguageOptions(); // Re-render with new default languages
         bulletCountRadios.forEach(radio => { radio.checked = (radio.value === DEFAULT_BULLET_COUNT); });
         if (debugCheckbox) debugCheckbox.checked = DEFAULT_DEBUG_MODE;
@@ -1053,7 +1174,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
     // --- Collapsible Section Logic (unchanged) ---
     function setupCollapsible() {
         if (!advancedOptionsToggle || !advancedOptionsContent) {
-             console.warn("Collapsible elements not found."); return;
+             if (DEBUG) console.warn("Collapsible elements not found."); return;
         }
         const toggleIndicator = advancedOptionsToggle.querySelector('.toggle-indicator');
         const toggleSection = () => {
@@ -1095,7 +1216,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
     document.addEventListener('click', handleGlobalClick);
 
     // --- Initial Load & Setup ---
-    // loadSettings is now async and loads language data before proceeding
+    // loadSettings is now async and loads language data and models before proceeding
     await loadSettings();
 
     setupCollapsible(); // Setup collapsible after elements are created/loaded
