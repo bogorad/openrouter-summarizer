@@ -27,7 +27,7 @@ console.log('[LLM Content] Script Start');
     const POPUP_FLAGS_CLASS = 'summarizer-flags';
     const POPUP_BODY_CLASS = 'summarizer-body';
     const POPUP_ACTIONS_CLASS = 'summarizer-actions';
-    const POPUP_BTN_CLASS = 'copy-btn'; // Corrected class name
+    const POPUP_BTN_CLASS = 'summarizer-btn';
     const POPUP_COPY_BTN_CLASS = 'copy-btn';
     const POPUP_CHAT_BTN_CLASS = 'chat-btn';
     const POPUP_CLOSE_BTN_CLASS = 'close-btn';
