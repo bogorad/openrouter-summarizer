@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
     const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
 
     const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article_text.
-Using US English, prepare a summary of article_text containing approximately \${bulletWord} points.`;
+Using US English, prepare a summary of article_text containing no more than \${bulletWord} points.`;
     const DEFAULT_POSTAMBLE_TEXT = `Format the entire result as a single JSON array of strings.
 Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<i>Point 3:</i> With italics."]
 Do not add any comments before or after the JSON array. Do not output your deliberations.

@@ -34,7 +34,7 @@
         "icons/*",
         "options.css",
         "chat.css",
-        "marked.min.js",
+        // "marked.min.js",
         "country-flags/languages.json",
         "country-flags/svg/*.svg"
       ],
