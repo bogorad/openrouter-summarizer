@@ -1,6 +1,6 @@
 /* popup.js */
 // == OpenRouter Summarizer Content Script ==
-// v2.7.1 - Fixed chat context payload for flag clicks
+// v2.8.1 - Code cleanup: Removed unused translation prompt logic
 
 console.log('[LLM Content] Script Start');
 
@@ -15,7 +15,7 @@ console.log('[LLM Content] Script Start');
     const FALLBACK_SVG_PATH = chrome.runtime.getURL('country-flags/svg/un.svg'); // Generic placeholder flag
 
     const MAX_FLAGS_DISPLAY = 5; // Limit the number of flags shown in the header
-    const NO_TRANSLATION_VALUE = "none"; // Keep consistent with options
+    // const NO_TRANSLATION_VALUE = "none"; // Removed as explicit translation option is gone
 
     // CSS Class Names
     const HIGHLIGHT_PREVIEW_CLASS = 'llm-highlight-preview';
@@ -33,22 +33,22 @@ console.log('[LLM Content] Script Start');
     const POPUP_CLOSE_BTN_CLASS = 'close-btn';
     const LANGUAGE_FLAG_CLASS = 'language-flag'; // Class for flag img elements
 
-    // --- Storage Keys (From old code) ---
+    // --- Storage Keys ---
     const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
     const PROMPT_STORAGE_KEY_PREAMBLE = 'prompt_preamble_template';
     const PROMPT_STORAGE_KEY_POSTAMBLE = 'prompt_postamble_text';
-    const PROMPT_STORAGE_KEY_TRANSLATION = 'prompt_translation_template';
+    // Removed: const PROMPT_STORAGE_KEY_TRANSLATION = 'prompt_translation_template';
     const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
 
 
-    // --- Data Storage for Languages (New code) ---
+    // --- Data Storage for Languages ---
     // Will store { LanguageName: CountryCode, ... }
     let ALL_LANGUAGES_MAP = {};
     // Map for quick lookup from lowercase name to {code, original name}
     let ALL_LANGUAGE_NAMES_MAP = {};
 
 
-    // --- State Variables (Combined from old and new code) ---
+    // --- State Variables ---
     let selectedElement = null; // Element selected by Alt+Click
     let lastHighlighted = null; // Element last highlighted by mousemove (Alt+Hover) - Used in old code's click logic
     let altKeyDown = false; // Is Alt key currently held down?
@@ -60,22 +60,20 @@ console.log('[LLM Content] Script Start');
     let lastSummaryHtml = ''; // Generated <ul><li>...</li></ul> HTML (String format from old code)
     let lastModelUsed = ''; // Model used for the last summary
     // Store the language the summary was generated IN (based on options)
-    let lastSummaryLanguageUsed = 'English'; // Default assumption if option wasn't set
+    // Simplified: Always English now based on preamble
+    let lastSummaryLanguageUsed = 'English';
 
-    let popup = null; // Reference to the current popup element (New code)
+    let popup = null; // Reference to the current popup element
 
 
-    // --- Prompt Assembly Function (From New Code - clearer check for NO_TRANSLATION_VALUE) ---
+    // --- Prompt Assembly Function (Simplified) ---
     const numToWord = { 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
 
     function getSystemPrompt(
         bulletCount,
-        translate,
-        translateLanguage, // The actual language name string (e.g., "French")
         customFormatInstructions, // User's custom text
         preambleTemplate,         // Template string from storage
         postambleText,            // Fixed string from storage
-        translationTemplate,      // Template string from storage
         defaultFormatInstructions // Default format string from storage
     ) {
         const bcNum = Number(bulletCount) || 5;
@@ -86,55 +84,44 @@ console.log('[LLM Content] Script Start');
         const finalFormatInstructions = (customFormatInstructions && customFormatInstructions.trim() !== '') ? customFormatInstructions : defaultFormatInstructions || "[Error: Default format instructions missing]";
         const finalPostamble = postambleText || "[Error: Postamble text missing]";
 
-        let prompt = finalPreamble + "\n" + finalFormatInstructions;
+        // Prompt is now just preamble + format instructions + postamble
+        let prompt = finalPreamble + "\n" + finalFormatInstructions + "\n" + finalPostamble;
 
-        // Check if translation is enabled AND a specific language is selected (not 'none')
-        if (translate === true && translateLanguage && translateLanguage !== NO_TRANSLATION_VALUE && translationTemplate) {
-            // Use the already resolved language name directly in the translation template
-            const finalTranslationInstruction = translationTemplate.replace('${langName}', translateLanguage);
-            prompt += "\n" + finalTranslationInstruction;
-        } else if (translate === true && (!translationTemplate || !translateLanguage || translateLanguage === NO_TRANSLATION_VALUE)) {
-             // Log a warning if translation is enabled but configuration is incomplete
-             if (DEBUG) console.warn("[LLM Content] Translation requested but template or language name missing/invalid from storage.");
-             // The prompt will just omit the translation instruction in this case
-        }
-
-        prompt += "\n" + finalPostamble;
         return prompt;
     }
 
 
-    // --- Helper Functions (New: Language Data & Flags) ---
+    // --- Helper Functions: Language Data & Flags ---
 
     // Function to load language data from JSON
-    async function loadLanguageData() { // Renamed from loadCountryData
+    async function loadLanguageData() {
         try {
-            const response = await fetch(LANGUAGES_JSON_PATH); // Updated path
+            const response = await fetch(LANGUAGES_JSON_PATH);
             if (!response.ok) {
-                throw new Error(`Failed to fetch languages.json: ${response.statusText} (${response.status})`); // Updated filename
+                throw new Error(`Failed to fetch languages.json: ${response.statusText} (${response.status})`);
             }
             const data = await response.json();
-            ALL_LANGUAGES_MAP = data; // Updated variable name
+            ALL_LANGUAGES_MAP = data;
              // Create name-to-code map for quick lookup (lowercase names)
-            ALL_LANGUAGE_NAMES_MAP = Object.keys(data).reduce((map, name) => { // Updated variable name
-                map[name.toLowerCase()] = { code: data[name], name: name }; // Store lowercase name -> {code, original name}
+            ALL_LANGUAGE_NAMES_MAP = Object.keys(data).reduce((map, name) => {
+                map[name.toLowerCase()] = { code: data[name], name: name };
                 return map;
             }, {});
-            if (DEBUG) console.log(`[LLM Content] Successfully loaded ${Object.keys(ALL_LANGUAGES_MAP).length} languages.`); // Updated log
+            if (DEBUG) console.log(`[LLM Content] Successfully loaded ${Object.keys(ALL_LANGUAGES_MAP).length} languages.`);
         } catch (error) {
-            console.error("[LLM Content] Error loading language data:", error); // Updated log
+            console.error("[LLM Content] Error loading language data:", error);
             // Keep using empty maps if loading fails - flag rendering will gracefully fail
-            ALL_LANGUAGES_MAP = {}; // Updated variable name
-            ALL_LANGUAGE_NAMES_MAP = {}; // Updated variable name
+            ALL_LANGUAGES_MAP = {};
+            ALL_LANGUAGE_NAMES_MAP = {};
         }
     }
 
      // Finds a language object ({code, name}) by its name (case-insensitive, trims whitespace)
     // Returns undefined if not found. Uses the loaded data.
-    function findLanguageByName(name) { // Renamed from findCountryByName
+    function findLanguageByName(name) {
         if (!name || typeof name !== 'string') return undefined;
         const cleanName = name.trim().toLowerCase();
-        const languageData = ALL_LANGUAGE_NAMES_MAP[cleanName]; // Updated map name
+        const languageData = ALL_LANGUAGE_NAMES_MAP[cleanName];
         if (languageData) {
             return languageData; // Returns { code: CountryCode, name: OriginalLanguageName }
         }
@@ -162,11 +149,10 @@ console.log('[LLM Content] Script Start');
         }
 
         // Filter configured names to only include valid language names found in our loaded data
-        // Also ensure we don't process the "none" value
         const validLanguageNames = availableLanguageNames
             .map(name => name.trim())
-            .filter(name => name !== '' && name !== NO_TRANSLATION_VALUE) // Remove empty or "none"
-            .map(name => findLanguageByName(name)) // Get language object for each name (renamed function)
+            .filter(name => name !== '') // Remove empty
+            .map(name => findLanguageByName(name)) // Get language object for each name
             .filter(lang => lang !== undefined); // Keep only found languages
 
         if (validLanguageNames.length === 0) {
@@ -219,7 +205,7 @@ console.log('[LLM Content] Script Start');
     }
 
 
-    // --- Popup Display (From New Code - Includes flags and transitions) ---
+    // --- Popup Display ---
     // Added availableLanguages as a parameter. REMOVED calls to removeSelectionHighlight/removeFloatingIcon.
     function showPopup(content, availableLanguages = []) {
         // Remove any existing popup first
@@ -272,7 +258,7 @@ console.log('[LLM Content] Script Start');
         const actions = document.createElement('div');
         actions.className = POPUP_ACTIONS_CLASS;
 
-        // Copy Button (From New Code)
+        // Copy Button
         const copyBtn = document.createElement('button');
         copyBtn.className = `${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}`;
         copyBtn.textContent = 'Copy';
@@ -305,7 +291,7 @@ console.log('[LLM Content] Script Start');
         };
         actions.appendChild(copyBtn);
 
-        // Chat Button (From New Code, calls openChatWithContext)
+        // Chat Button (calls openChatWithContext)
         const chatBtn = document.createElement('button');
         chatBtn.className = `${POPUP_BTN_CLASS} ${POPUP_CHAT_BTN_CLASS}`;
         chatBtn.textContent = 'Chat';
@@ -314,7 +300,7 @@ console.log('[LLM Content] Script Start');
         chatBtn.onclick = () => openChatWithContext(); // Call without targetLang initially
         actions.appendChild(chatBtn);
 
-        // Close Button (From New Code, calls hidePopup)
+        // Close Button (calls hidePopup)
         const closeBtn = document.createElement('button');
         closeBtn.className = `${POPUP_BTN_CLASS} ${POPUP_CLOSE_BTN_CLASS}`;
         closeBtn.textContent = 'Close';
@@ -329,11 +315,11 @@ console.log('[LLM Content] Script Start');
 
         // --- Flag Rendering ---
         // Only render flags if language data was loaded successfully
-         if (Object.keys(ALL_LANGUAGES_MAP).length > 0) { // Updated variable name
+         if (Object.keys(ALL_LANGUAGES_MAP).length > 0) {
              // availableLanguages is passed as a parameter to showPopup now
              renderHeaderFlags(availableLanguages);
          } else {
-             if (DEBUG) console.warn("[LLM Content] Language data not loaded, skipping flag rendering in popup."); // Updated log
+             if (DEBUG) console.warn("[LLM Content] Language data not loaded, skipping flag rendering in popup.");
              // Hide the flags container if data wasn't loaded
              const flagsContainer = popup.querySelector(`.${POPUP_FLAGS_CLASS}`);
               if (flagsContainer) flagsContainer.style.display = 'none';
@@ -352,7 +338,7 @@ console.log('[LLM Content] Script Start');
         // They are removed in processSelectedElement AFTER the storage fetch validation passes.
     }
 
-    // Function to hide the popup (From New Code - Includes transitions)
+    // Function to hide the popup
     function hidePopup() {
         const popupElement = document.querySelector(`.${POPUP_CLASS}`); // Find existing popup
         if (popupElement) {
@@ -376,7 +362,7 @@ console.log('[LLM Content] Script Start');
     }
 
 
-    // --- Chat Context Handling (From New Code - Accepts targetLang) ---
+    // --- Chat Context Handling ---
     function openChatWithContext(targetLang = null) { // Added optional targetLang parameter
         if (!selectedElement) { alert("Cannot open chat: Original element selection lost."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: selectedElement is null.'); return; }
         if (!lastSummary || lastSummary === 'Thinking...' || lastSummary.startsWith('Error:')) { alert("Cannot open chat: No valid summary available."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.'); return; }
@@ -388,8 +374,8 @@ console.log('[LLM Content] Script Start');
         const contextPayload = {
             domSnippet: domSnippet,
             summary: summaryForChat, // The raw JSON string from the LLM
-            // Removed summaryModel: lastModelUsed,
-            // Removed summaryLanguage: lastSummaryLanguageUsed, // The language the summary was generated in
+            // Removed summaryModel: lastModelUsed, // Not needed in chat context payload
+            // Removed summaryLanguage: lastSummaryLanguageUsed, // Not needed in chat context payload
             chatTargetLanguage: targetLang // The language requested for the chat (if a flag was clicked)
         };
 
@@ -420,7 +406,7 @@ console.log('[LLM Content] Script Start');
     }
 
 
-    // --- LLM Interaction (From New Code - Fetches languages after response) ---
+    // --- LLM Interaction ---
     function sendToLLM(selectedHtml, apiKey, model, systemPrompt) {
         if (DEBUG) console.log(`[LLM Request] Sending to model: ${model}`);
         // Note: "Thinking..." popup is already shown by processSelectedElement
@@ -499,9 +485,8 @@ console.log('[LLM Content] Script Start');
                  lastSummaryHtml = summaryHtml; // Store the successfully parsed HTML string
                  // Re-fetch settings to get availableLanguages for the popup
                  // Note: availableLanguages is needed *after* the response for popup flags
-                 chrome.storage.sync.get(['availableLanguages', 'translateLanguage', 'translate'], (cfg) => { // Fetch translate boolean too
-                      // Store the language the summary was generated in
-                      lastSummaryLanguageUsed = (cfg.translate === true && cfg.translateLanguage && cfg.translateLanguage !== NO_TRANSLATION_VALUE) ? cfg.translateLanguage : 'English'; // Default to English if no translation requested
+                 chrome.storage.sync.get(['availableLanguages'], (cfg) => { // Only fetch availableLanguages
+                      // lastSummaryLanguageUsed is now always 'English' based on preamble
                       showPopup(lastSummaryHtml, cfg.availableLanguages || []); // Show popup with HTML string and languages
                       // Enable the Chat button after successful parse
                        const chatBtn = document.querySelector(`.${POPUP_BTN_CLASS}.${POPUP_CHAT_BTN_CLASS}`);
@@ -518,7 +503,7 @@ console.log('[LLM Content] Script Start');
     }
 
 
-    // --- processSelectedElement (From New Code - Fetches settings and calls sendToLLM) ---
+    // --- processSelectedElement ---
     function processSelectedElement() {
         // The selectedElement global variable should already be set by the Alt+Click mousedown handler
         if (!selectedElement) {
@@ -540,11 +525,11 @@ console.log('[LLM Content] Script Start');
         showPopup('Thinking...', []); // Call showPopup with loading message and empty language list
 
         const keysToFetch = [
-            'apiKey', 'model', 'bulletCount', 'translate', 'translateLanguage', 'debug', // availableLanguages fetched AFTER LLM call in sendToLLM
+            'apiKey', 'model', 'bulletCount', 'debug', // availableLanguages fetched AFTER LLM call in sendToLLM
             PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
             PROMPT_STORAGE_KEY_PREAMBLE,
             PROMPT_STORAGE_KEY_POSTAMBLE,
-            PROMPT_STORAGE_KEY_TRANSLATION,
+            // Removed: PROMPT_STORAGE_KEY_TRANSLATION,
             PROMPT_STORAGE_KEY_DEFAULT_FORMAT
         ];
 
@@ -564,7 +549,7 @@ console.log('[LLM Content] Script Start');
             }
             if (DEBUG) console.log('[LLM Content] Settings received from storage:', config);
 
-            // --- Options Validation (From New Code) ---
+            // --- Options Validation ---
             let validationErrors = [];
             if (!config.apiKey || typeof config.apiKey !== 'string' || config.apiKey.trim() === '') {
                 validationErrors.push("API Key is missing or invalid.");
@@ -581,10 +566,7 @@ console.log('[LLM Content] Script Start');
             if (!config.prompt_default_format_instructions || typeof config.prompt_default_format_instructions !== 'string' || config.prompt_default_format_instructions.trim() === '') {
                 validationErrors.push("Core Default Prompt Format Instructions are missing.");
             }
-             // Validation for the *translation template* is still relevant if translate is true.
-            if (config.translate === true && (!config.prompt_translation_template || typeof config.prompt_translation_template !== 'string' || config.prompt_translation_template.trim() === '')) {
-                validationErrors.push("Translation Template is missing (required when translation is enabled).");
-            }
+             // Removed validation for translation template
 
 
             if (validationErrors.length > 0) {
@@ -619,7 +601,7 @@ console.log('[LLM Content] Script Start');
 
             DEBUG = !!config.debug; // Update debug status
 
-            // --- Selection Validation (Moved/Corrected) ---
+            // --- Selection Validation ---
             // Check if the currently selected global element is STILL the one we started processing
             // AND if the element is still in the DOM for robustness.
             if (selectedElement !== currentSelectedElement || !document.body.contains(currentSelectedElement)) {
@@ -648,16 +630,16 @@ console.log('[LLM Content] Script Start');
                 const apiKey = config.apiKey;
                 const model = config.model;
                 const bulletCount = config.bulletCount || 5;
-                const translate = config.translate; // Boolean flag
-                const translateLanguage = config.translateLanguage; // Language name string ('none' or specific name)
+                // Removed: const translate = config.translate;
+                // Removed: const translateLanguage = config.translateLanguage;
 
-                // Store the language the summary is requested in
-                lastSummaryLanguageUsed = (translate === true && translateLanguage && translateLanguage !== NO_TRANSLATION_VALUE) ? translateLanguage : 'English'; // Default to English if no translation requested
+                // lastSummaryLanguageUsed is now always 'English' based on preamble
+                lastSummaryLanguageUsed = 'English';
 
                 const customFormatInstructions = config[PROMPT_STORAGE_KEY_CUSTOM_FORMAT];
                 const preambleTemplate = config[PROMPT_STORAGE_KEY_PREAMBLE];
                 const postambleText = config[PROMPT_STORAGE_KEY_POSTAMBLE];
-                const translationTemplate = config[PROMPT_STORAGE_KEY_TRANSLATION];
+                // Removed: const translationTemplate = config[PROMPT_STORAGE_KEY_TRANSLATION];
                 const defaultFormatInstructions = config[PROMPT_STORAGE_KEY_DEFAULT_FORMAT];
 
                 if (!currentSelectedElement) { // Redundant check, but safe
@@ -679,8 +661,8 @@ console.log('[LLM Content] Script Start');
 
                 if (DEBUG) console.log('[LLM Content] Calling getSystemPrompt...');
                 const systemPrompt = getSystemPrompt(
-                    bulletCount, translate, translateLanguage, customFormatInstructions,
-                    preambleTemplate, postambleText, translationTemplate, defaultFormatInstructions
+                    bulletCount, customFormatInstructions,
+                    preambleTemplate, postambleText, defaultFormatInstructions // Removed translation parameters
                 );
                 if (DEBUG) console.log('[LLM Content] System prompt assembled successfully.');
                 if (DEBUG) console.log("Using System Prompt:", systemPrompt);
@@ -704,7 +686,7 @@ console.log('[LLM Content] Script Start');
     }
 
 
-    // --- Floating Icon (From Old Code - Correct Positioning Logic) ---
+    // --- Floating Icon ---
     function removeFloatingIcon() {
         if (floatingIcon && floatingIcon.parentNode) {
             // Remove event listeners added in createFloatingIcon
@@ -828,7 +810,7 @@ console.log('[LLM Content] Script Start');
     }
 
 
-    // --- Alt Key, Mouse, and Click Event Listeners (Restored from old code, adapted) ---
+    // --- Alt Key, Mouse, and Click Event Listeners ---
 
     function resetAltState() {
         if (altKeyDown || previewHighlighted) {
@@ -943,13 +925,12 @@ console.log('[LLM Content] Script Start');
 
     const handleClick = (e) => {
         // Ignore clicks inside the floating icon, popup, or flags area
-        // Keep old code's logic for popup element checks but add new flags area check
         if (e.target.closest(`.${FLOATING_ICON_CLASS}`) || e.target.closest(`.${POPUP_CLASS}`) || e.target.closest(`.${POPUP_FLAGS_CLASS}`)) {
              if (DEBUG) console.log('[LLM Content] Mousedown ignored on icon, popup, or flags.');
              return; // Exit if clicking any of our extension's UI elements
         }
 
-        // Handle Alt+Left Click for selection (from Old Code)
+        // Handle Alt+Left Click for selection
         if (e.altKey && e.button === 0) {
             e.preventDefault(); // Prevent default click action (like following links)
             e.stopPropagation(); // Stop event from bubbling up
@@ -983,7 +964,7 @@ console.log('[LLM Content] Script Start');
                      lastHighlighted = clickedTarget; // Keep track of the last selected element
                      selectedElement.classList.add(HIGHLIGHT_SELECTED_CLASS); // Add highlight to the new element
 
-                     // Create and show the floating icon at the click coordinates - THIS IS THE KEY PART FROM OLD CODE
+                     // Create and show the floating icon at the click coordinates
                      createFloatingIcon(e.pageX, e.pageY);
 
                      if (DEBUG) console.log('[LLM Content] Selected element:', selectedElement);
@@ -1003,7 +984,7 @@ console.log('[LLM Content] Script Start');
             return; // Stop further processing for Alt+Click
         }
 
-        // Handle regular Left Click (without Alt) for deselecting (from Old Code)
+        // Handle regular Left Click (without Alt) for deselecting
         if (!e.altKey && e.button === 0) {
              // Check if there is a selected element AND the click was outside of it
              // AND the click was outside the popup AND outside the floating icon
@@ -1020,7 +1001,7 @@ console.log('[LLM Content] Script Start');
     }; // Use capturing phase for addEventListener later
 
 
-    // --- Message Listener from Background (From New Code) ---
+    // --- Message Listener from Background ---
     chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         if (DEBUG) console.log('[LLM Content] Received message:', req.action);
 
@@ -1081,7 +1062,7 @@ console.log('[LLM Content] Script Start');
     // Load language data immediately when the script runs.
     // This ensures the data is available before any messages to show the popup are received
     // or before flags are rendered if the popup is shown.
-    await loadLanguageData(); // Updated function call
+    await loadLanguageData();
 
     // Add global event listeners for Alt key and mouse interactions
     window.addEventListener('keydown', handleKeyDown);
@@ -1096,4 +1077,5 @@ console.log('[LLM Content] Script Start');
     console.log('[LLM Content] Script Initialized. Listening for Alt key, mouse events, and messages.');
 
 })(); // End of async IIFE
+
 
