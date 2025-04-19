@@ -1,6 +1,78 @@
 /* background.js */
-// v2.8
+// v2.11 - Fixed floating icon visibility and error handling in popup.js
 
+import {
+    DEFAULT_MODEL_OPTIONS,
+    LANGUAGES_JSON_PATH, // Keep LANGUAGES_JSON_PATH here for loadLanguageData
+    SVG_PATH_PREFIX, // Keep SVG_PATH_PREFIX here for getLanguageData message
+    FALLBACK_SVG_PATH
+} from './constants.js'; // Import constants
+
+// --- Language Data Storage ---
+// Will store { LanguageName: CountryCode, ... }
+let ALL_LANGUAGES_MAP = {};
+// Will store [{ code: CountryCode, name: LanguageName }, ...]
+let ALL_LANGUAGES_ARRAY = [];
+// Map for quick lookup from lowercase name to {code, original name}
+let ALL_LANGUAGE_NAMES_MAP = {};
+
+// --- Debug State ---
+let DEBUG = false; // Default debug state
+
+// --- Language Data Loading ---
+// Function to load language data from JSON (called once on startup)
+async function loadLanguageData() {
+    try {
+        // Use chrome.runtime.getURL to access extension resources
+        const url = chrome.runtime.getURL(LANGUAGES_JSON_PATH);
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch languages.json: ${response.statusText} (${response.status})`);
+        }
+        const data = await response.json();
+        ALL_LANGUAGES_MAP = data; // { LanguageName: CountryCode, ... }
+        ALL_LANGUAGES_ARRAY = Object.keys(data).map(name => ({ code: data[name], name: name })); // [{ code: CountryCode, name: LanguageName }, ...]
+
+        // Create name-to-code map for quick lookup (case-insensitive names)
+        ALL_LANGUAGE_NAMES_MAP = Object.keys(data).reduce((map, name) => {
+            map[name.toLowerCase()] = { code: data[name], name: name }; // Store lowercase name -> {code, original name}
+            return map;
+        }, {});
+
+        if (DEBUG) console.log(`[LLM Background] Successfully loaded ${ALL_LANGUAGES_ARRAY.length} languages.`); // Debug
+    } catch (error) {
+        console.error("[LLM Background] Error loading language data:", error);
+        // Keep using empty lists if loading fails - dependent functions will handle missing data
+        ALL_LANGUAGES_MAP = {};
+        ALL_LANGUAGES_ARRAY = [];
+        ALL_LANGUAGE_NAMES_MAP = {};
+    }
+}
+
+// --- Language Lookup ---
+// Finds a language object ({code, name}) by its name (case-insensitive, trims whitespace)
+// Returns undefined if not found. Uses the loaded data.
+function findLanguageByName(name) {
+    if (!name || typeof name !== 'string') return undefined;
+    const cleanName = name.trim().toLowerCase();
+    const languageData = ALL_LANGUAGE_NAMES_MAP[cleanName];
+    if (languageData) {
+        return languageData; // Returns { code: CountryCode, name: OriginalLanguageName }
+    }
+    return undefined;
+}
+
+// --- Initial Setup ---
+// Load debug state first, then load language data
+chrome.storage.sync.get('debug', (data) => {
+    DEBUG = !!data.debug;
+    if (DEBUG) console.log('[LLM Background] Debug mode enabled.');
+    // Load language data after debug state is known
+    loadLanguageData();
+});
+
+
+// --- Service Worker Lifecycle ---
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "sendToLLM",
@@ -10,13 +82,13 @@ chrome.runtime.onInstalled.addListener(() => {
 
   // Simplified initial setup - check API key, let options page handle defaults
   chrome.storage.sync.get(['apiKey', 'debug'], data => {
-    const debug = !!data.debug;
+    DEBUG = !!data.debug; // Ensure debug state is current
     if (!data.apiKey) {
-        if (debug) console.log('[LLM Background] API key not found on install/update, opening options.');
+        if (DEBUG) console.log('[LLM Background] API key not found on install/update, opening options.');
         // Only open options if API key is missing
         chrome.runtime.openOptionsPage();
     } else {
-        if (debug) console.log('[LLM Background] API key found.');
+        if (DEBUG) console.log('[LLM Background] API key found.');
     }
   });
 });
@@ -49,7 +121,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // --- Get Chat Context ---
   if (request.action === "getChatContext") {
     chrome.storage.sync.get(['debug'], syncData => {
-        const DEBUG = !!syncData.debug;
+        DEBUG = !!syncData.debug; // Ensure debug state is current
         if (DEBUG) console.log('[LLM Background] Received getChatContext request from chat tab.');
 
         chrome.storage.session.get(['chatContext'], (sessionData) => {
@@ -72,12 +144,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (Array.isArray(config.models) && config.models.length > 0 && config.models.every(m => typeof m === 'string')) {
                      // Map saved IDs to objects with labels
                      modelsToSend = config.models.map(id => {
-                         const defaultModel = DEFAULT_MODELS_WITH_LABELS.find(m => m.id === id);
+                         const defaultModel = DEFAULT_MODEL_OPTIONS.find(m => m.id === id);
                          return { id: id, label: defaultModel ? defaultModel.label : id };
                      });
                      if (DEBUG) console.log('[LLM Background] Using models from storage for chat dropdown:', modelsToSend);
                 } else {
-                     modelsToSend = DEFAULT_MODELS_WITH_LABELS; // Fallback to full default list
+                     modelsToSend = DEFAULT_MODEL_OPTIONS; // Fallback to full default list
                      if (DEBUG) console.log('[LLM Background] No valid models found in storage, using defaults for chat dropdown.');
                 }
 
@@ -97,6 +169,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Indicate async response
   }
 
+  // --- Get Models List (for options page) ---
+  if (request.action === "getModelsList") {
+      chrome.storage.sync.get(['debug'], syncData => {
+          DEBUG = !!syncData.debug; // Ensure debug state is current
+          if (DEBUG) console.log('[LLM Background] Received getModelsList request from options tab.');
+          // Return the default model options list
+          sendResponse({ models: DEFAULT_MODEL_OPTIONS });
+      });
+      return true; // Indicate async response
+  }
+
+  // --- Get Language Data (for options and popup pages) ---
+  if (request.action === "getLanguageData") {
+      chrome.storage.sync.get(['debug'], syncData => {
+          DEBUG = !!syncData.debug; // Ensure debug state is current
+          if (DEBUG) console.log('[LLM Background] Received getLanguageData request.');
+          // Return the loaded language data
+          sendResponse({
+              ALL_LANGUAGES_MAP: ALL_LANGUAGES_MAP,
+              ALL_LANGUAGES_ARRAY: ALL_LANGUAGES_ARRAY,
+              ALL_LANGUAGE_NAMES_MAP: ALL_LANGUAGE_NAMES_MAP,
+              SVG_PATH_PREFIX: chrome.runtime.getURL(SVG_PATH_PREFIX), // Provide full URLs
+              FALLBACK_SVG_PATH: chrome.runtime.getURL(FALLBACK_SVG_PATH) // Provide full URL
+          });
+      });
+      return true; // Indicate async response
+  }
+
   // --- LLM Streaming ---
   if (request.action === "llmChatStream") {
     handleLLMStream(request, sender);
@@ -105,7 +205,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // --- Set Chat Context ---
   if (request.action === "setChatContext") {
-    chrome.storage.sync.get(['debug'], syncData => {
+    chrome.storage.sync.get(['debug'], syncData => { // Ensure debug state is current
         const DEBUG = !!syncData.debug;
         if (DEBUG) console.log('[LLM Background] Received setChatContext request:', request);
 
@@ -132,7 +232,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // --- Open Chat Tab ---
   if (request.action === "openChatTab") {
     chrome.storage.sync.get(['debug'], syncData => {
-        const DEBUG = !!syncData.debug;
+        DEBUG = !!syncData.debug; // Ensure debug state is current
         const chatUrl = chrome.runtime.getURL('chat.html');
         if (DEBUG) console.log(`[LLM Background] Received request to open chat tab: ${chatUrl}`);
 
@@ -152,7 +252,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // --- Open Options Page ---
   if (request.action === "openOptionsPage") {
       chrome.storage.sync.get(['debug'], syncData => {
-          const DEBUG = !!syncData.debug;
+          DEBUG = !!syncData.debug; // Ensure debug state is current
           if (DEBUG) console.log(`[LLM Background] Received request to open options page.`);
           chrome.runtime.openOptionsPage();
           sendResponse({ status: "options page opened" }); // Acknowledge

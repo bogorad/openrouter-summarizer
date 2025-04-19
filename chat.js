@@ -1,8 +1,8 @@
 /* chat.js */
-// v2.6
+// v2.11
 
 // ==== GLOBAL STATE ====
-let models = []; // Will store array of {id: string, label: string} objects
+let models = []; // Will store array of {id: string, label: string} objects, fetched from background
 let selectedModelId = ""; // This is the variable holding the selected model ID
 // chatContext.summary will now store the RAW JSON STRING received initially
 // Added chatTargetLanguage
@@ -344,7 +344,7 @@ function sendChatRequestToBackground(userText) {
      let apiMessages = [];
 
      // Always include a general system prompt
-     apiMessages.push({ role: "system", content: "You are a helpful assistant. Be concise and factual. Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <i>. If asked to elaborate on a previous structured response, try to provide the elaboration as natural text or Markdown, not necessarily repeating the JSON structure unless it makes sense for clarity." });
+     apiMessages.push({ role: "system", content: "Be concise and factual. Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <i>. If asked to elaborate on a previous structured response, try to provide the elaboration as natural text or Markdown, not necessarily repeating the JSON structure unless it makes sense for clarity." });
 
      // Decide how to include context based on whether this is the very first turn
      // The very first user message was added in initializeChat or handleFormSubmit *before* this call.

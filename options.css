@@ -1,6 +1,7 @@
 /* ======================================== */
 /* OpenRouter Summarizer Options Styles     */
 /* Includes Model, Language, Prompt Sections*/
+/* v2.11                                    */
 /* ======================================== */
 
 /* --- General Body & Layout --- */
@@ -14,7 +15,7 @@ body {
     background-color: #f4f7f9;
     color: #333;
     min-width: 500px; /* Prevent excessive shrinking */
-    font-size: 1.3rem
+    font-size: 1.2rem
 }
 
 .container {

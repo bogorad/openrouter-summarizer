@@ -1,6 +1,6 @@
 // popup.js
 // == OpenRouter Summarizer Content Script ==
-// v2.9 - Initial summary language based on first configured language
+// v2.11 - Consolidated constants and language data loading
 
 console.log('[LLM Content] Script Start');
 
@@ -10,9 +10,19 @@ console.log('[LLM Content] Script Start');
 
     // --- Constants ---
     // Paths for language data and flags relative to the content script's location
-    const LANGUAGES_JSON_PATH = chrome.runtime.getURL('country-flags/languages.json'); // Updated path
-    const SVG_PATH_PREFIX = chrome.runtime.getURL('country-flags/svg/');
-    const FALLBACK_SVG_PATH = chrome.runtime.getURL('country-flags/svg/un.svg'); // Generic placeholder flag
+    // Removed: LANGUAGES_JSON_PATH, SVG_PATH_PREFIX, FALLBACK_SVG_PATH (now fetched from background)
+  const {
+    PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
+    PROMPT_STORAGE_KEY_PREAMBLE,
+    PROMPT_STORAGE_KEY_POSTAMBLE,
+    PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
+    DEFAULT_PREAMBLE_TEMPLATE,
+    DEFAULT_POSTAMBLE_TEXT,
+    DEFAULT_FORMAT_INSTRUCTIONS,
+    SVG_PATH_PREFIX,
+    FALLBACK_SVG_PATH
+  } = await import(chrome.runtime.getURL('constants.js'));
+
 
     const MAX_FLAGS_DISPLAY = 5; // Limit the number of flags shown in the header
     // const NO_TRANSLATION_VALUE = "none"; // Removed as explicit translation option is gone
@@ -34,18 +44,17 @@ console.log('[LLM Content] Script Start');
     const LANGUAGE_FLAG_CLASS = 'language-flag'; // Class for flag img elements
 
     // --- Storage Keys ---
-    const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
-    const PROMPT_STORAGE_KEY_PREAMBLE = 'prompt_preamble_template';
-    const PROMPT_STORAGE_KEY_POSTAMBLE = 'prompt_postamble_text';
-    // Removed: const PROMPT_STORAGE_KEY_TRANSLATION = 'prompt_translation_template';
-    const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
+    // Removed: PROMPT_STORAGE_KEY_CUSTOM_FORMAT, PROMPT_STORAGE_KEY_PREAMBLE, PROMPT_STORAGE_KEY_POSTAMBLE, PROMPT_STORAGE_KEY_DEFAULT_FORMAT (now imported)
 
 
-    // --- Data Storage for Languages ---
+    // --- Data Storage for Languages (Now populated from background.js) ---
     // Will store { LanguageName: CountryCode, ... }
     let ALL_LANGUAGES_MAP = {};
     // Map for quick lookup from lowercase name to {code, original name}
     let ALL_LANGUAGE_NAMES_MAP = {};
+    // Store the full URLs for SVG paths fetched from background
+    let svgPathPrefixUrl = '';
+    let fallbackSvgPathUrl = '';
 
 
     // --- State Variables ---
@@ -67,25 +76,25 @@ console.log('[LLM Content] Script Start');
     let popup = null; // Reference to the current popup element
 
 
-    // --- Prompt Assembly Function (Modified to accept language) ---
+    // --- Prompt Assembly Function (Modified to accept language and use imported constants) ---
     const numToWord = { 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
 
     function getSystemPrompt(
         bulletCount,
         customFormatInstructions, // User's custom text
-        preambleTemplate,         // Template string from storage
-        postambleText,            // Fixed string from storage
-        defaultFormatInstructions, // Default format string from storage
+        preambleTemplate,         // Template string from storage (now defaulted by imported constant if missing)
+        postambleText,            // Fixed string from storage (now defaulted by imported constant if missing)
+        defaultFormatInstructions, // Default format string from storage (now defaulted by imported constant if missing)
         targetLanguage // ADDED: The language to request the summary in
     ) {
         const bcNum = Number(bulletCount) || 5;
         const word = numToWord[bcNum] || "five";
 
-        // Use loaded templates/defaults
+        // Use loaded templates/defaults, falling back to imported constants if storage is empty
         // MODIFIED: Use targetLanguage in the preamble template
-        const finalPreamble = preambleTemplate ? preambleTemplate.replace('${bulletWord}', word).replace('US English', targetLanguage) : `[Error: Preamble template missing] Prepare summary with ${word} points in ${targetLanguage}.`;
-        const finalFormatInstructions = (customFormatInstructions && customFormatInstructions.trim() !== '') ? customFormatInstructions : defaultFormatInstructions || "[Error: Default format instructions missing]";
-        const finalPostamble = postambleText || "[Error: Postamble text missing]";
+        const finalPreamble = (preambleTemplate && preambleTemplate.trim() !== '') ? preambleTemplate.replace('${bulletWord}', word).replace('US English', targetLanguage) : DEFAULT_PREAMBLE_TEMPLATE.replace('${bulletWord}', word).replace('US English', targetLanguage);
+        const finalFormatInstructions = (customFormatInstructions && customFormatInstructions.trim() !== '') ? customFormatInstructions : (defaultFormatInstructions && defaultFormatInstructions.trim() !== '' ? defaultFormatInstructions : DEFAULT_FORMAT_INSTRUCTIONS);
+        const finalPostamble = (postambleText && postambleText.trim() !== '') ? postambleText : DEFAULT_POSTAMBLE_TEXT;
 
         // Prompt is now just preamble + format instructions + postamble
         let prompt = finalPreamble + "\n" + finalFormatInstructions + "\n" + finalPostamble;
@@ -96,34 +105,15 @@ console.log('[LLM Content] Script Start');
 
     // --- Helper Functions: Language Data & Flags ---
 
-    // Function to load language data from JSON
-    async function loadLanguageData() {
-        try {
-            const response = await fetch(LANGUAGES_JSON_PATH);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch languages.json: ${response.statusText} (${response.status})`);
-            }
-            const data = await response.json();
-            ALL_LANGUAGES_MAP = data;
-             // Create name-to-code map for quick lookup from lowercase name to {code, original name}
-            ALL_LANGUAGE_NAMES_MAP = Object.keys(data).reduce((map, name) => {
-                map[name.toLowerCase()] = { code: data[name], name: name };
-                return map;
-            }, {});
-            if (DEBUG) console.log(`[LLM Content] Successfully loaded ${Object.keys(ALL_LANGUAGES_MAP).length} languages.`);
-        } catch (error) {
-            console.error("[LLM Content] Error loading language data:", error);
-            // Keep using empty maps if loading fails - flag rendering will gracefully fail
-            ALL_LANGUAGES_MAP = {};
-            ALL_LANGUAGE_NAMES_MAP = {};
-        }
-    }
+    // Function to load language data from JSON (REMOVED local implementation)
+    // Now fetches from background.js
 
      // Finds a language object ({code, name}) by its name (case-insensitive, trims whitespace)
     // Returns undefined if not found. Uses the loaded data.
     function findLanguageByName(name) {
         if (!name || typeof name !== 'string') return undefined;
         const cleanName = name.trim().toLowerCase();
+        // Now look up the lowercase name in the correctly built map
         const languageData = ALL_LANGUAGE_NAMES_MAP[cleanName];
         if (languageData) {
             return languageData; // Returns { code: CountryCode, name: OriginalLanguageName }
@@ -173,14 +163,14 @@ console.log('[LLM Content] Script Start');
         flagsToDisplay.forEach(lang => { // lang is {code, name}
             const flagImg = document.createElement('img');
             flagImg.className = LANGUAGE_FLAG_CLASS; // Use the class defined in CSS
-            // Use chrome.runtime.getURL for the SVG path, using the language code
-            flagImg.src = `${SVG_PATH_PREFIX}${lang.code.toLowerCase()}.svg`;
+            // Use the fetched SVG path prefix URL
+            flagImg.src = `${svgPathPrefixUrl}${lang.code.toLowerCase()}.svg`;
             flagImg.alt = `${lang.name} flag`;
             flagImg.title = `Translate summary and chat in ${lang.name}`; // Tooltip on hover
 
             // Handle missing SVG file
             flagImg.onerror = function() {
-                 this.src = FALLBACK_SVG_PATH; // Use fallback URL
+                 this.src = fallbackSvgPathUrl; // Use fetched fallback URL
                  this.alt = 'Flag not found';
                  this.title = 'Flag not found';
                  if (DEBUG) console.warn(`[LLM Content] Missing SVG for code: ${lang.code}, using fallback.`);
@@ -570,7 +560,7 @@ console.log('[LLM Content] Script Start');
                  removeSelectionHighlight();
                  selectedElement = null;
                  lastHighlighted = null;
-                 removeFloatingIcon();
+                 removeFloatingIcon(); // --- FIX: Remove icon on validation failure ---
                 return;
             }
 
@@ -1084,7 +1074,7 @@ console.log('[LLM Content] Script Start');
             } else {
                  console.warn('[LLM Content] Received processSelection but no element is selected.');
                  showPopup('Error: No element selected. Use Alt+Click to select an element first.', []);
-                 // --- FIX: Remove icon if processSelection command is received without a selected element ---
+                 // --- FIX: Remove icon if processSelectedElement is called without a selected element ---
                  removeFloatingIcon();
                  // --- END FIX ---
                  sendResponse({status: "no element selected"});
@@ -1107,7 +1097,33 @@ console.log('[LLM Content] Script Start');
     // Load language data immediately when the script runs.
     // This ensures the data is available before any messages to show the popup are received
     // or before flags are rendered if the popup is shown.
-    await loadLanguageData();
+    // --- Fetch Language Data from Background ---
+    const languageDataResponse = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: "getLanguageData" }, resolve);
+    });
+
+    if (chrome.runtime.lastError) {
+        console.error("Error fetching language data from background:", chrome.runtime.lastError);
+        // Keep using empty lists if loading fails, rendering will handle missing data
+        ALL_LANGUAGES_MAP = {};
+        ALL_LANGUAGE_NAMES_MAP = {};
+        svgPathPrefixUrl = ''; // Ensure URLs are empty on error
+        fallbackSvgPathUrl = '';
+    } else if (languageDataResponse && languageDataResponse.ALL_LANGUAGES_MAP) {
+        ALL_LANGUAGES_MAP = languageDataResponse.ALL_LANGUAGES_MAP;
+        ALL_LANGUAGE_NAMES_MAP = languageDataResponse.ALL_LANGUAGE_NAMES_MAP;
+        svgPathPrefixUrl = languageDataResponse.SVG_PATH_PREFIX || ''; // Store fetched URLs
+        fallbackSvgPathUrl = languageDataResponse.FALLBACK_SVG_PATH || '';
+        if (DEBUG) console.log(`Fetched ${Object.keys(ALL_LANGUAGES_MAP).length} languages and SVG paths from background.`);
+    } else {
+         console.error("Invalid response fetching language data from background:", languageDataResponse);
+         ALL_LANGUAGES_MAP = {};
+         ALL_LANGUAGE_NAMES_MAP = {};
+         svgPathPrefixUrl = ''; // Ensure URLs are empty on invalid response
+         fallbackSvgPathUrl = '';
+    }
+    // --- End Fetch Language Data ---
+
 
     // Add global event listeners for Alt key and mouse interactions
     window.addEventListener('keydown', handleKeyDown);
