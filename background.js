@@ -1,9 +1,6 @@
 /* background.js */
 // v2.8
 
-// Default prompt (less relevant now as it's stored via options)
-const DEFAULT_PROMPT = "Summarize this article in 5 bullet points. Ignore HTML tags. Do not comment on output.";
-
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "sendToLLM",
