@@ -1,17 +1,16 @@
 /* popup.js */
 // == OpenRouter Summarizer Content Script ==
-// v2.5.3 - Fixed element selection loss during async storage fetch.
-// Corrected timing of highlight/icon removal.
+// v2.7.1 - Fixed chat context payload for flag clicks
 
 console.log('[LLM Content] Script Start');
 
 // Use an async IIFE (Immediately Invoked Function Expression)
-// This helps manage scope and allows using await at the top level for country data loading.
+// This helps manage scope and allows using await at the top level for language data loading.
 (async () => {
 
     // --- Constants ---
-    // Paths for country data and flags relative to the content script's location
-    const COUNTRIES_JSON_PATH = chrome.runtime.getURL('country-flags/countries.json');
+    // Paths for language data and flags relative to the content script's location
+    const LANGUAGES_JSON_PATH = chrome.runtime.getURL('country-flags/languages.json'); // Updated path
     const SVG_PATH_PREFIX = chrome.runtime.getURL('country-flags/svg/');
     const FALLBACK_SVG_PATH = chrome.runtime.getURL('country-flags/svg/un.svg'); // Generic placeholder flag
 
@@ -42,11 +41,11 @@ console.log('[LLM Content] Script Start');
     const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
 
 
-    // --- Data Storage for Countries (New code) ---
-    // Will store {"AD": "Andorra", ...} - loaded from JSON
-    let ALL_COUNTRIES_MAP = {};
-    // Map for quick lookup from name to code (case-insensitive names) - derived from JSON
-    let ALL_COUNTRY_NAMES_MAP = {};
+    // --- Data Storage for Languages (New code) ---
+    // Will store { LanguageName: CountryCode, ... }
+    let ALL_LANGUAGES_MAP = {};
+    // Map for quick lookup from lowercase name to {code, original name}
+    let ALL_LANGUAGE_NAMES_MAP = {};
 
 
     // --- State Variables (Combined from old and new code) ---
@@ -105,40 +104,39 @@ console.log('[LLM Content] Script Start');
     }
 
 
-    // --- Helper Functions (New: Country Data & Flags) ---
+    // --- Helper Functions (New: Language Data & Flags) ---
 
-    // Function to load country data from JSON
-    async function loadCountryData() {
+    // Function to load language data from JSON
+    async function loadLanguageData() { // Renamed from loadCountryData
         try {
-            const response = await fetch(COUNTRIES_JSON_PATH);
+            const response = await fetch(LANGUAGES_JSON_PATH); // Updated path
             if (!response.ok) {
-                throw new Error(`Failed to fetch countries.json: ${response.statusText} (${response.status})`);
+                throw new Error(`Failed to fetch languages.json: ${response.statusText} (${response.status})`); // Updated filename
             }
             const data = await response.json();
-            ALL_COUNTRIES_MAP = data;
+            ALL_LANGUAGES_MAP = data; // Updated variable name
              // Create name-to-code map for quick lookup (lowercase names)
-            ALL_COUNTRY_NAMES_MAP = Object.keys(data).reduce((map, code) => {
-                map[data[code].toLowerCase()] = code; // Store lowercase name -> original code
+            ALL_LANGUAGE_NAMES_MAP = Object.keys(data).reduce((map, name) => { // Updated variable name
+                map[name.toLowerCase()] = { code: data[name], name: name }; // Store lowercase name -> {code, original name}
                 return map;
             }, {});
-            if (DEBUG) console.log(`[LLM Content] Successfully loaded ${Object.keys(ALL_COUNTRIES_MAP).length} countries.`);
+            if (DEBUG) console.log(`[LLM Content] Successfully loaded ${Object.keys(ALL_LANGUAGES_MAP).length} languages.`); // Updated log
         } catch (error) {
-            console.error("[LLM Content] Error loading country data:", error);
+            console.error("[LLM Content] Error loading language data:", error); // Updated log
             // Keep using empty maps if loading fails - flag rendering will gracefully fail
-            ALL_COUNTRIES_MAP = {};
-            ALL_COUNTRY_NAMES_MAP = {};
+            ALL_LANGUAGES_MAP = {}; // Updated variable name
+            ALL_LANGUAGE_NAMES_MAP = {}; // Updated variable name
         }
     }
 
-     // Finds a country object ({code, name}) by its name (case-insensitive, trims whitespace)
+     // Finds a language object ({code, name}) by its name (case-insensitive, trims whitespace)
     // Returns undefined if not found. Uses the loaded data.
-    function findCountryByName(name) {
+    function findLanguageByName(name) { // Renamed from findCountryByName
         if (!name || typeof name !== 'string') return undefined;
         const cleanName = name.trim().toLowerCase();
-        const code = ALL_COUNTRY_NAMES_MAP[cleanName];
-        if (code) {
-            // Return a simple object with original name and code
-            return { code: code, name: ALL_COUNTRIES_MAP[code] };
+        const languageData = ALL_LANGUAGE_NAMES_MAP[cleanName]; // Updated map name
+        if (languageData) {
+            return languageData; // Returns { code: CountryCode, name: OriginalLanguageName }
         }
          return undefined;
     }
@@ -163,16 +161,16 @@ console.log('[LLM Content] Script Start');
             return;
         }
 
-        // Filter configured names to only include valid country names found in our loaded data
+        // Filter configured names to only include valid language names found in our loaded data
         // Also ensure we don't process the "none" value
-        const validCountryNames = availableLanguageNames
+        const validLanguageNames = availableLanguageNames
             .map(name => name.trim())
             .filter(name => name !== '' && name !== NO_TRANSLATION_VALUE) // Remove empty or "none"
-            .map(name => findCountryByName(name)) // Get country object for each name
-            .filter(country => country !== undefined); // Keep only found countries
+            .map(name => findLanguageByName(name)) // Get language object for each name (renamed function)
+            .filter(lang => lang !== undefined); // Keep only found languages
 
-        if (validCountryNames.length === 0) {
-             // Hide the flags container if no *valid* countries derived from the list
+        if (validLanguageNames.length === 0) {
+             // Hide the flags container if no *valid* languages derived from the list
              flagsContainer.style.display = 'none';
              return;
         } else {
@@ -180,31 +178,31 @@ console.log('[LLM Content] Script Start');
         }
 
         // Limit the number of flags displayed
-        const flagsToDisplay = validCountryNames.slice(0, MAX_FLAGS_DISPLAY);
+        const flagsToDisplay = validLanguageNames.slice(0, MAX_FLAGS_DISPLAY);
 
 
-        flagsToDisplay.forEach(country => { // country is {code, name}
+        flagsToDisplay.forEach(lang => { // lang is {code, name}
             const flagImg = document.createElement('img');
             flagImg.className = LANGUAGE_FLAG_CLASS; // Use the class defined in CSS
-            // Use chrome.runtime.getURL for the SVG path
-            flagImg.src = `${SVG_PATH_PREFIX}${country.code.toLowerCase()}.svg`;
-            flagImg.alt = `${country.name} flag`;
-            flagImg.title = `Translate summary and chat in ${country.name}`; // Tooltip on hover
+            // Use chrome.runtime.getURL for the SVG path, using the language code
+            flagImg.src = `${SVG_PATH_PREFIX}${lang.code.toLowerCase()}.svg`;
+            flagImg.alt = `${lang.name} flag`;
+            flagImg.title = `Translate summary and chat in ${lang.name}`; // Tooltip on hover
 
             // Handle missing SVG file
             flagImg.onerror = function() {
                  this.src = FALLBACK_SVG_PATH; // Use fallback URL
                  this.alt = 'Flag not found';
                  this.title = 'Flag not found';
-                 if (DEBUG) console.warn(`[LLM Content] Missing SVG for code: ${country.code}, using fallback.`);
+                 if (DEBUG) console.warn(`[LLM Content] Missing SVG for code: ${lang.code}, using fallback.`);
              };
 
             // Add click listener to the flag for chat context
             flagImg.addEventListener('click', (e) => {
                  e.stopPropagation(); // Prevent click from bubbling up
-                 if (DEBUG) console.log(`[LLM Content] Flag clicked for language: ${country.name}`);
+                 if (DEBUG) console.log(`[LLM Content] Flag clicked for language: ${lang.name}`);
                  // Call openChatWithContext, passing the target language name
-                 openChatWithContext(country.name);
+                 openChatWithContext(lang.name);
             });
 
             flagsContainer.appendChild(flagImg);
@@ -330,12 +328,12 @@ console.log('[LLM Content] Script Start');
         if (DEBUG) console.log('[LLM Content] New popup added to page.');
 
         // --- Flag Rendering ---
-        // Only render flags if country data was loaded successfully
-         if (Object.keys(ALL_COUNTRIES_MAP).length > 0) {
+        // Only render flags if language data was loaded successfully
+         if (Object.keys(ALL_LANGUAGES_MAP).length > 0) { // Updated variable name
              // availableLanguages is passed as a parameter to showPopup now
              renderHeaderFlags(availableLanguages);
          } else {
-             if (DEBUG) console.warn("[LLM Content] Country data not loaded, skipping flag rendering in popup.");
+             if (DEBUG) console.warn("[LLM Content] Language data not loaded, skipping flag rendering in popup."); // Updated log
              // Hide the flags container if data wasn't loaded
              const flagsContainer = popup.querySelector(`.${POPUP_FLAGS_CLASS}`);
               if (flagsContainer) flagsContainer.style.display = 'none';
@@ -390,16 +388,17 @@ console.log('[LLM Content] Script Start');
         const contextPayload = {
             domSnippet: domSnippet,
             summary: summaryForChat, // The raw JSON string from the LLM
-            summaryModel: lastModelUsed,
-            summaryLanguage: lastSummaryLanguageUsed, // The language the summary was generated in
+            // Removed summaryModel: lastModelUsed,
+            // Removed summaryLanguage: lastSummaryLanguageUsed, // The language the summary was generated in
             chatTargetLanguage: targetLang // The language requested for the chat (if a flag was clicked)
         };
 
         if (DEBUG) { console.log('[LLM Chat Context] Preparing context payload for background:', contextPayload); }
 
+        // Send the context to the background script
         chrome.runtime.sendMessage({ action: "setChatContext", ...contextPayload }, function(response) {
             if (chrome.runtime.lastError) { console.error('[LLM Chat Context] Error sending context:', chrome.runtime.lastError); alert(`Error preparing chat: ${chrome.runtime.lastError.message}`); return; }
-            if (response && response.status === 'ok') {
+            if (response && response.status === 'ok') { // <--- This is where it's waiting
                 if (DEBUG) console.log('[LLM Chat Context] Background confirmed context storage. Requesting tab open.');
                 chrome.runtime.sendMessage({ action: "openChatTab" }, (openResponse) => {
                     if (chrome.runtime.lastError) { console.error('[LLM Chat Context] Error requesting tab open:', chrome.runtime.lastError); alert(`Error opening chat tab: ${chrome.runtime.lastError.message}.`); }
@@ -502,7 +501,7 @@ console.log('[LLM Content] Script Start');
                  // Note: availableLanguages is needed *after* the response for popup flags
                  chrome.storage.sync.get(['availableLanguages', 'translateLanguage', 'translate'], (cfg) => { // Fetch translate boolean too
                       // Store the language the summary was generated in
-                      lastSummaryLanguageUsed = (cfg.translate === true && cfg.translateLanguage && cfg.translateLanguage !== NO_TRANSLATION_VALUE) ? cfg.translateLanguage : 'English';
+                      lastSummaryLanguageUsed = (cfg.translate === true && cfg.translateLanguage && cfg.translateLanguage !== NO_TRANSLATION_VALUE) ? cfg.translateLanguage : 'English'; // Default to English if no translation requested
                       showPopup(lastSummaryHtml, cfg.availableLanguages || []); // Show popup with HTML string and languages
                       // Enable the Chat button after successful parse
                        const chatBtn = document.querySelector(`.${POPUP_BTN_CLASS}.${POPUP_CHAT_BTN_CLASS}`);
@@ -1079,10 +1078,10 @@ console.log('[LLM Content] Script Start');
       else { DEBUG = !!result.debug; if (DEBUG) console.log('[LLM Content] Initial Debug mode:', DEBUG); }
     });
 
-    // Load country data immediately when the script runs.
+    // Load language data immediately when the script runs.
     // This ensures the data is available before any messages to show the popup are received
     // or before flags are rendered if the popup is shown.
-    await loadCountryData();
+    await loadLanguageData(); // Updated function call
 
     // Add global event listeners for Alt key and mouse interactions
     window.addEventListener('keydown', handleKeyDown);
@@ -1097,3 +1096,4 @@ console.log('[LLM Content] Script Start');
     console.log('[LLM Content] Script Initialized. Listening for Alt key, mouse events, and messages.');
 
 })(); // End of async IIFE
+

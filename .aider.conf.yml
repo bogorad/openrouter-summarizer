@@ -1,0 +1,32 @@
+auto-commits: false
+show-model-warnings: false
+analytics: false
+gitignore: false
+auto-lint: true
+multiline: true
+# model: openrouter/google/gemini-2.5-pro-preview-03-25
+model: openrouter/google/gemini-2.5-flash-preview
+# model: openrouter/meta-llama/llama-4-maverick:free
+# architect: true
+# read:
+file:
+  - ./README.md
+  - ./background.js
+  - ./chat.css
+  - ./chat.html
+  - ./chat.js
+  - ./options.css
+  - ./options.html
+  - ./options.js
+  - ./popup.css
+  - ./popup.js
+  - ./manifest.json
+read:
+  - ./CONVENTIONS.md
+  - ./marked.min.js
+  - ./country-flags/countries.json
+  - ./country-flags/languages.json
+  - /icons/icon128.png
+  - /icons/icon48.png
+  - /icons/icon16.png
+  - /icons/icon.png

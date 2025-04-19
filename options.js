@@ -1,7 +1,7 @@
 // options.js
-// v2.5.0 - Replaced hardcoded language list with countries.json and emoji flags with SVG flags.
+// v2.7 - Removed explicit translation option
 
-document.addEventListener('DOMContentLoaded', async () => { // Made async to await country data load
+document.addEventListener('DOMContentLoaded', async () => { // Made async to await language data load
     // --- DOM Elements ---
     const apiKeyInput = document.getElementById('apiKey');
     const modelSelectionArea = document.getElementById('modelSelectionArea');
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
     // Prompt Elements
     const promptPreambleDiv = document.getElementById('promptPreamble');
     const promptFormatInstructionsTextarea = document.getElementById('promptFormatInstructions');
-    const promptTranslationPreviewDiv = document.getElementById('promptTranslationPreview');
+    // Removed promptTranslationPreviewDiv
     const promptPostambleDiv = document.getElementById('promptPostamble');
     // Collapsible Section Elements
     const advancedOptionsToggle = document.getElementById('advancedOptionsToggle');
@@ -31,24 +31,24 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
         "openai/gpt-4.1-nano", "anthropic/claude-3.7-sonnet"
     ];
     const DEFAULT_SELECTED_MODEL = DEFAULT_MODELS[0];
-    const NO_TRANSLATION_VALUE = "none";
-    // Default countries (names) to pre-populate if none are saved. These names must match names in countries.json
+    // Removed NO_TRANSLATION_VALUE
+    // Default languages (names) to pre-populate if none are saved. These names must match names in languages.json
     const DEFAULT_PREPOPULATE_LANGUAGES = [
-        "France", "Spain", "Germany"
+        "English", "Spanish", "Hebrew", "French"
     ];
 
-    // New Constants for Country Data
-    const COUNTRIES_JSON_PATH = '../country-flags/countries.json'; // Path relative to options.html
+    // New Constants for Language Data
+    const LANGUAGES_JSON_PATH = '../country-flags/languages.json'; // Path relative to options.html
     const SVG_PATH_PREFIX = '../country-flags/svg/'; // Path relative to options.html
     const FALLBACK_SVG_PATH = '../country-flags/svg/un.svg'; // Optional: A generic placeholder
 
-    // --- Data Storage for Countries ---
-    // Will store {"AD": "Andorra", ...}
-    let ALL_COUNTRIES_MAP = {};
-    // Will store [{ code: "AD", name: "Andorra" }, ...]
-    let ALL_COUNTRIES_ARRAY = [];
-    // Map for quick lookup from name to code (case-insensitive names)
-    let ALL_COUNTRY_NAMES_MAP = {};
+    // --- Data Storage for Languages ---
+    // Will store { LanguageName: CountryCode, ... }
+    let ALL_LANGUAGES_MAP = {};
+    // Will store [{ code: CountryCode, name: LanguageName }, ...]
+    let ALL_LANGUAGES_ARRAY = [];
+    // Map for quick lookup from lowercase name to {code, original name}
+    let ALL_LANGUAGE_NAMES_MAP = {};
 
 
     const DEFAULT_DEBUG_MODE = false;
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
     const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
     const PROMPT_STORAGE_KEY_PREAMBLE = 'prompt_preamble_template';
     const PROMPT_STORAGE_KEY_POSTAMBLE = 'prompt_postamble_text';
-    const PROMPT_STORAGE_KEY_TRANSLATION = 'prompt_translation_template';
+    // Removed PROMPT_STORAGE_KEY_TRANSLATION
     const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
 
     const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article_text.
@@ -67,7 +67,7 @@ Using US English, prepare a summary of article_text containing approximately \${
 Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<i>Point 3:</i> With italics."]
 Do not add any comments before or after the JSON array. Do not output your deliberations.
 Just provide the JSON array string as the result. Ensure the output is valid JSON.`;
-    const DEFAULT_TRANSLATION_TEMPLATE = `Translate the JSON array of HTML strings you created into the language commonly spoken in \${langName}. Drop the original summary, only return the translated JSON array. Ensure the translated strings retain the same HTML formatting (only <b> and <i> tags allowed). Ensure the output is valid JSON.`; // Updated prompt slightly
+    // Removed DEFAULT_TRANSLATION_TEMPLATE
     const DEFAULT_FORMAT_INSTRUCTIONS = `Each point should be a concise HTML string, starting with a bold tag-like marker and a colon, followed by the description.
 You may use ONLY the following HTML tags for emphasis: <b> for bold and <i> for italics. Do not use any other HTML tags (like <p>, <ul>, <li>, <br>, etc.).
 For example: "<b>Key Finding:</b> The market showed <i>significant</i> growth in Q3."
@@ -78,9 +78,9 @@ After providing bullet points for article summary, add a bonus one - your insigh
     // --- State Variables ---
     let currentModels = [];
     let currentSelectedModel = '';
-    // currentAvailableLanguages will store just the names of selected countries/languages
+    // currentAvailableLanguages will store just the names of selected languages
     let currentAvailableLanguages = [];
-    let currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
+    // Removed currentSelectedLanguageValue
     let currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS; // Tracks the value in the textarea
 
     // --- Autocomplete State ---
@@ -195,63 +195,69 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
     // --- Language Selection & Autocomplete Functions (Modified for JSON/SVG) ---
 
-    // Function to load country data from JSON
-    async function loadCountryData() {
+    // Function to load language data from JSON
+    async function loadLanguageData() {
         try {
-            const response = await fetch(COUNTRIES_JSON_PATH);
+            const response = await fetch(LANGUAGES_JSON_PATH);
             if (!response.ok) {
-                throw new Error(`Failed to fetch countries.json: ${response.statusText}`);
+                throw new Error(`Failed to fetch languages.json: ${response.statusText}`);
             }
             const data = await response.json();
-            ALL_COUNTRIES_MAP = data;
-            ALL_COUNTRIES_ARRAY = Object.keys(data).map(code => ({ code: code, name: data[code] }));
-            // Create name-to-code map for quick lookup (lowercase names)
-            ALL_COUNTRY_NAMES_MAP = Object.keys(data).reduce((map, code) => {
-                map[data[code].toLowerCase()] = code; // Store lowercase name -> original code
+            ALL_LANGUAGES_MAP = data; // { LanguageName: CountryCode, ... }
+            ALL_LANGUAGES_ARRAY = Object.keys(data).map(name => ({ code: data[name], name: name })); // [{ code: CountryCode, name: LanguageName }, ...]
+
+            // Create name-to-code map for quick lookup (case-insensitive names)
+            ALL_LANGUAGE_NAMES_MAP = Object.keys(data).reduce((map, name) => {
+                map[name.toLowerCase()] = { code: data[name], name: name }; // Store lowercase name -> {code, original name}
                 return map;
             }, {});
-            console.log(`Loaded ${ALL_COUNTRIES_ARRAY.length} countries.`);
+
+            console.log(`Loaded ${ALL_LANGUAGES_ARRAY.length} languages.`);
+            // console.log("ALL_LANGUAGES_MAP:", ALL_LANGUAGES_MAP); // Debug
+            // console.log("ALL_LANGUAGES_ARRAY:", ALL_LANGUAGES_ARRAY); // Debug
+            // console.log("ALL_LANGUAGE_NAMES_MAP:", ALL_LANGUAGE_NAMES_MAP); // Debug
+
         } catch (error) {
-            console.error("Error loading country data:", error);
+            console.error("Error loading language data:", error);
             // Display an error message or use a fallback mechanism
             if (statusMessage) {
-                statusMessage.textContent = `Error loading country list: ${error.message}`;
+                statusMessage.textContent = `Error loading language list: ${error.message}`;
                 statusMessage.className = 'status-message error';
             }
             // Keep using empty lists if loading fails, rendering will handle missing data
-            ALL_COUNTRIES_MAP = {};
-            ALL_COUNTRIES_ARRAY = [];
-            ALL_COUNTRY_NAMES_MAP = {};
+            ALL_LANGUAGES_MAP = {};
+            ALL_LANGUAGES_ARRAY = [];
+            ALL_LANGUAGE_NAMES_MAP = {};
         }
     }
 
 
-    // Filters countries from the loaded data based on the query matching the name
-    function filterCountries(query) {
+    // Filters languages from the loaded data based on the query matching the name
+    function filterLanguages(query) {
         const lowerQuery = query.toLowerCase().trim();
         if (!lowerQuery) return []; // Don't show suggestions for empty input
 
         // Filter the array based on name containing the query
-        return ALL_COUNTRIES_ARRAY.filter(country =>
-            country.name.toLowerCase().includes(lowerQuery)
+        return ALL_LANGUAGES_ARRAY.filter(lang =>
+            lang.name.toLowerCase().includes(lowerQuery)
         );
     }
 
-    // Finds a country object ({code, name}) by its name (case-insensitive, trims whitespace)
+    // Finds a language object ({code, name}) by its name (case-insensitive, trims whitespace)
     // Returns undefined if not found
-    function findCountryByName(name) {
+    function findLanguageByName(name) {
+        if (!name || typeof name !== 'string') return undefined;
         const cleanName = name.trim().toLowerCase();
-        const code = ALL_COUNTRY_NAMES_MAP[cleanName];
-        if (code) {
-            return { code: code, name: ALL_COUNTRIES_MAP[code] }; // Return original name case
+        // Now look up the lowercase name in the correctly built map
+        const languageData = ALL_LANGUAGE_NAMES_MAP[cleanName];
+        if (languageData) {
+            return languageData; // Returns { code: CountryCode, name: OriginalLanguageName }
         }
-        // Fallback to iterating array if exact map match fails (e.g., for aliases, though map is preferred)
-        // Given the standard ISO list, the map should be sufficient.
-         return undefined; // Explicitly return undefined if not found
+         return undefined;
     }
 
 
-    // Shows the autocomplete dropdown with country suggestions
+    // Shows the autocomplete dropdown with language suggestions
     function showAutocompleteSuggestions(inputElement, suggestions) {
         if (!autocompleteDropdown) {
             autocompleteDropdown = document.createElement('div');
@@ -273,25 +279,27 @@ After providing bullet points for article summary, add a bonus one - your insigh
             return;
         }
 
-        suggestions.forEach((country, index) => { // 'country' is now {code, name}
+        suggestions.forEach((lang, index) => { // 'lang' is now {code, name}
             const item = document.createElement('div');
             item.className = 'autocomplete-item';
             item.dataset.index = index;
-            item.dataset.countryCode = country.code; // Store code for easy access
-            item.dataset.countryName = country.name; // Store name
-            // Use <img> for SVG flag
+            item.dataset.languageCode = lang.code; // Store code for easy access
+            item.dataset.languageName = lang.name; // Store name
+            // Use <img> for SVG flag - Note: This assumes language codes map to country flags.
+            // This might not be accurate for all languages (e.g., "English" vs "US" flag).
+            // For now, we'll use the language code as the flag filename.
             const flagImg = document.createElement('img');
             flagImg.className = 'language-flag'; // Use language-flag class for img
-            flagImg.src = `${SVG_PATH_PREFIX}${country.code.toLowerCase()}.svg`;
-            flagImg.alt = `${country.name} flag`;
+            flagImg.src = `${SVG_PATH_PREFIX}${lang.code.toLowerCase()}.svg`;
+            flagImg.alt = `${lang.name} flag`;
             flagImg.onerror = function() { // Handle missing SVG
                 this.src = FALLBACK_SVG_PATH;
                  this.alt = 'Flag not found'; // Update alt text
-                 console.warn(`Missing SVG for code: ${country.code}`);
+                 console.warn(`Missing SVG for code: ${lang.code}`);
             };
 
             const nameSpan = document.createElement('span');
-            nameSpan.textContent = country.name;
+            nameSpan.textContent = lang.name;
             nameSpan.className = 'language-name'; // Class for the name text
 
             item.appendChild(flagImg);
@@ -331,25 +339,25 @@ After providing bullet points for article summary, add a bonus one - your insigh
     function selectAutocompleteSuggestion(itemElement, inputElement) {
         if (!itemElement || !inputElement) return;
 
-        const countryName = itemElement.dataset.countryName;
-        const countryCode = itemElement.dataset.countryCode;
+        const languageName = itemElement.dataset.languageName;
+        const languageCode = itemElement.dataset.languageCode;
 
-        inputElement.value = countryName; // Put the full country name into the input
+        inputElement.value = languageName; // Put the full language name into the input
 
         // Manually update the flag next to the input
         const flagImg = inputElement.parentElement ? inputElement.parentElement.querySelector('.language-flag') : null;
-        if (flagImg && countryCode) { // Ensure flagImg exists and we have a code
-            flagImg.src = `${SVG_PATH_PREFIX}${countryCode.toLowerCase()}.svg`;
-             flagImg.alt = `${countryName} flag`;
+        if (flagImg && languageCode) { // Ensure flagImg exists and we have a code
+            flagImg.src = `${SVG_PATH_PREFIX}${languageCode.toLowerCase()}.svg`;
+             flagImg.alt = `${languageName} flag`;
              flagImg.onerror = function() { // Handle missing SVG after selection
                  this.src = FALLBACK_SVG_PATH;
                  this.alt = 'Flag not found';
-                 console.warn(`Missing SVG for code: ${countryCode} (after selection)`);
+                 console.warn(`Missing SVG for code: ${languageCode} (after selection)`);
              };
-        } else if (flagImg) { // If no country code (shouldn't happen with valid selection), show fallback
+        } else if (flagImg) { // If no language code (shouldn't happen with valid selection), show fallback
              flagImg.src = FALLBACK_SVG_PATH;
              flagImg.alt = 'Flag not found';
-             console.warn(`No country code found for selected item: ${countryName}`);
+             console.warn(`No language code found for selected item: ${languageName}`);
         }
 
 
@@ -418,8 +426,8 @@ After providing bullet points for article summary, add a bonus one - your insigh
     function setupAutocomplete(inputElement) {
         inputElement.addEventListener('input', (event) => {
             const query = event.target.value;
-            // Filter countries (by name)
-            const suggestions = filterCountries(query);
+            // Filter languages (by name)
+            const suggestions = filterLanguages(query);
             if (query.length > 0 && suggestions.length > 0) {
                 showAutocompleteSuggestions(event.target, suggestions);
             } else {
@@ -433,7 +441,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
              // On focus, show suggestions if there's already text
              const query = event.target.value;
              if (query.length > 0) {
-                 const suggestions = filterCountries(query);
+                 const suggestions = filterLanguages(query);
                  if (suggestions.length > 0) {
                      showAutocompleteSuggestions(event.target, suggestions);
                  } else {
@@ -455,82 +463,45 @@ After providing bullet points for article summary, add a bonus one - your insigh
     }
 
 
-    // Renders the list of available languages (countries) in the options UI
+    // Renders the list of available languages in the options UI
     function renderLanguageOptions() {
         if (!languageSelectionArea) return;
         languageSelectionArea.innerHTML = ''; // Clear existing options
 
-        // Ensure currentSelectedLanguageValue is still in the list being rendered, otherwise default
-        // Note: currentAvailableLanguages holds names. currentSelectedLanguageValue holds a name or NO_TRANSLATION_VALUE.
-        // Check against the list of names
-        if (currentSelectedLanguageValue !== NO_TRANSLATION_VALUE && !currentAvailableLanguages.includes(currentSelectedLanguageValue)) {
-             console.warn(`Selected language "${currentSelectedLanguageValue}" not in available list, defaulting to "${NO_TRANSLATION_VALUE}" for render.`);
-             currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-        } else if (currentAvailableLanguages.length === 0 && currentSelectedLanguageValue !== NO_TRANSLATION_VALUE) {
-             // Edge case: List is empty, but something is still selected (shouldn't happen after loading/saving logic)
-             currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-        }
-
-
-        // Add "No translation needed" option first
-        const noTransGroup = document.createElement('div');
-        noTransGroup.className = 'option-group language-option no-translate-option';
-        const noTransRadio = document.createElement('input');
-        noTransRadio.type = 'radio';
-        noTransRadio.name = 'selectedLanguageOption';
-        noTransRadio.id = 'langRadio_none';
-        noTransRadio.value = NO_TRANSLATION_VALUE;
-        noTransRadio.checked = (currentSelectedLanguageValue === NO_TRANSLATION_VALUE);
-        noTransRadio.addEventListener('change', handleLanguageRadioChange);
-        const noTransLabel = document.createElement('label');
-        noTransLabel.setAttribute('for', 'langRadio_none');
-        const noTransSpan = document.createElement('span');
-        noTransSpan.textContent = 'No translation needed';
-        noTransSpan.className = 'language-label-static'; // Keep static style
-        noTransLabel.appendChild(noTransSpan);
-        noTransGroup.appendChild(noTransRadio);
-        noTransGroup.appendChild(noTransLabel);
-        languageSelectionArea.appendChild(noTransGroup);
-
-
-        // Add current available languages (countries)
-        currentAvailableLanguages.forEach((langName, index) => { // langName is actually a country name here
+        // Add current available languages
+        currentAvailableLanguages.forEach((langName, index) => { // langName is the language name here
             const group = document.createElement('div');
             group.className = 'option-group language-option';
 
-            const radio = document.createElement('input');
-            radio.type = 'radio';
-            radio.name = 'selectedLanguageOption';
-            radio.id = `langRadio_${index}`;
-            radio.value = langName; // Radio value is the country name
-            radio.checked = (langName === currentSelectedLanguageValue && langName.trim() !== '');
-            radio.dataset.index = index;
-            radio.disabled = !langName.trim(); // Disable radio if input is empty
-            radio.addEventListener('change', handleLanguageRadioChange);
+            // Removed radio button creation
 
             const label = document.createElement('label');
-            label.setAttribute('for', `langRadio_${index}`);
+            // Removed label 'for' attribute as there's no radio
             label.className = 'language-input-wrapper';
 
 
-            // Use <img> for the flag
+            // Use <img> for the flag - Note: This assumes language codes map to country flags.
+            // We need to find the language code from the name to get the flag filename.
             const flagImg = document.createElement('img');
             flagImg.className = 'language-flag'; // Use language-flag class
-            const countryData = findCountryByName(langName); // Find the code for the name using loaded data
-            const countryCode = countryData ? countryData.code : null;
-            if (countryCode) {
-                flagImg.src = `${SVG_PATH_PREFIX}${countryCode.toLowerCase()}.svg`;
-                flagImg.alt = `${langName} flag`;
+            const languageData = findLanguageByName(langName); // Find the code for the name using loaded data
+            const languageCode = languageData ? languageData.code : null;
+            if (languageCode) {
+                flagImg.src = `${SVG_PATH_PREFIX}${languageCode.toLowerCase()}.svg`;
+                flagImg.alt = `${langName} flag`; // Use the found language name for alt
                 flagImg.onerror = function() { // Handle missing SVG on render
                     this.src = FALLBACK_SVG_PATH; // Or hide: this.style.display = 'none';
                     this.alt = 'Flag not found'; // Update alt text
-                     console.warn(`Missing SVG for code: ${countryCode} (on render)`);
+                     console.warn(`Missing SVG for code: ${languageCode} (on render)`);
                 };
             } else {
-                // If country name not found in data, show placeholder
+                // If language name not found in data, show placeholder
                 flagImg.src = FALLBACK_SVG_PATH;
                 flagImg.alt = 'Flag not found';
-                 console.warn(`Country name "${langName}" not found in loaded data during render.`);
+                // flagImg.style.display = 'none'; // Alternatively, hide the flag
+                 if (langName.trim().length > 0) { // Changed condition here
+                    console.warn(`Language name "${langName}" not found in loaded data during render.`);
+                 }
             }
 
 
@@ -538,7 +509,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
             textInput.type = 'text';
             textInput.id = `langText_${index}`;
             textInput.value = langName;
-            textInput.placeholder = "Enter Country Name"; // Updated placeholder
+            textInput.placeholder = "Enter Language Name"; // Updated placeholder
             textInput.dataset.index = index;
             textInput.setAttribute('autocomplete', 'off');
 
@@ -557,7 +528,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
             label.appendChild(flagImg); // Append img instead of span
             label.appendChild(textInput);
 
-            group.appendChild(radio);
+            // Removed appending radio
             group.appendChild(label);
             group.appendChild(removeBtn);
 
@@ -568,50 +539,14 @@ After providing bullet points for article summary, add a bonus one - your insigh
         });
      }
 
-    // Handles change event on language radio buttons
-    function handleLanguageRadioChange(event) {
-        const selectedValue = event.target.value; // This value is the country name or NO_TRANSLATION_VALUE
-        if (event.target.checked) {
-            if (selectedValue === NO_TRANSLATION_VALUE) {
-                currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-                console.log("Lang selection: No Translation");
-            } else {
-                const index = parseInt(event.target.dataset.index, 10);
-                const textInput = document.getElementById(`langText_${index}`);
-                if (textInput && textInput.value.trim()) {
-                     const selectedLangName = textInput.value.trim();
-                     // Validate that the selected name corresponds to a country before setting
-                     if (findCountryByName(selectedLangName)) {
-                        currentSelectedLanguageValue = selectedLangName;
-                        console.log("Lang selection:", currentSelectedLanguageValue);
-                     } else {
-                        // If the input is filled but doesn't match a country, revert to None
-                        event.target.checked = false;
-                        const noneRadio = document.getElementById('langRadio_none');
-                        if(noneRadio) noneRadio.checked = true;
-                        currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-                        console.warn("Selected language input did not match a country, reverting to No Translation.");
-                     }
-                } else {
-                     // If the input associated with the checked radio is empty,
-                     // uncheck it and revert to 'none' or previous valid selection
-                     event.target.checked = false;
-                     const noneRadio = document.getElementById('langRadio_none');
-                     if(noneRadio) noneRadio.checked = true;
-                     currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-                     console.warn("Selected language input was empty, reverting to No Translation.");
-                }
-            }
-            updatePromptPreview(); // Update preview based on new selection
-        }
-     }
+    // Removed handleLanguageRadioChange function
 
     // Handles input event on language text fields (typing or selection)
     function handleLanguageTextChange(event) {
         const newLangName = event.target.value; // Get raw value (don't trim yet for autocomplete filter)
         const idx = parseInt(event.target.dataset.index, 10);
 
-        // Update the array of available languages (country names) with the raw value
+        // Update the array of available languages (language names) with the raw value
         if (idx >= 0 && idx < currentAvailableLanguages.length) {
             currentAvailableLanguages[idx] = newLangName.trim(); // Store trimmed name in array
         } else {
@@ -622,57 +557,28 @@ After providing bullet points for article summary, add a bonus one - your insigh
         // Find and update the associated flag img
         const flagImg = event.target.parentElement ? event.target.parentElement.querySelector('.language-flag') : null;
         if (flagImg) {
-            const countryData = findCountryByName(newLangName); // Find using potentially untrimmed/partial name for flag preview while typing
-            const countryCode = countryData ? countryData.code : null;
+            const languageData = findLanguageByName(newLangName); // Find using potentially untrimmed/partial name for flag preview while typing
+            const languageCode = languageData ? languageData.code : null;
 
-            if (countryCode) {
-                flagImg.src = `${SVG_PATH_PREFIX}${countryCode.toLowerCase()}.svg`;
-                flagImg.alt = `${countryData.name} flag`; // Use the found country name for alt
+            if (languageCode) {
+                flagImg.src = `${SVG_PATH_PREFIX}${languageCode.toLowerCase()}.svg`;
+                flagImg.alt = `${languageData.name} flag`; // Use the found language name for alt
                 flagImg.style.display = ''; // Ensure flag is visible
                 flagImg.onerror = function() {
                      this.src = FALLBACK_SVG_PATH;
                      this.alt = 'Flag not found';
-                     console.warn(`Missing SVG for code: ${countryCode} (on text input change)`);
+                     console.warn(`Missing SVG for code: ${languageCode} (on text input change)`);
                 };
             } else {
-                // If country name not found, show placeholder or hide flag
+                // If language name not found, show placeholder or hide flag
                 flagImg.src = FALLBACK_SVG_PATH; // Show placeholder
                 flagImg.alt = 'Flag not found';
                 // flagImg.style.display = 'none'; // Alternatively, hide the flag
-                 if (newLangName.trim().length > 0) {
-                     console.warn(`Country name "${newLangName.trim()}" not found in loaded data on text change.`);
-                 }
+                // Removed the console.warn here as it's expected during typing
             }
         }
 
-
-        // Update the associated radio button value and state
-        const associatedRadio = document.getElementById(`langRadio_${idx}`);
-        if (associatedRadio) {
-            const trimmedLangName = newLangName.trim();
-            associatedRadio.value = trimmedLangName; // Radio value is the trimmed name
-            const isDisabled = !trimmedLangName || !findCountryByName(trimmedLangName); // Disable if empty or doesn't match a country name
-            associatedRadio.disabled = isDisabled;
-
-             // If this input was associated with the *currently selected* language,
-             // update the selected value and prompt preview based on the *trimmed* valid name
-            if (associatedRadio.checked) {
-                if (isDisabled) {
-                    // If the current selected language's input became empty or invalid
-                    associatedRadio.checked = false; // Uncheck the invalid radio
-                    const noneRadio = document.getElementById('langRadio_none');
-                    if(noneRadio) noneRadio.checked = true; // Select "None"
-                    currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-                     console.log("Selected language input became invalid, switching selection to No Translation.");
-                } else {
-                    // If the current selected language's input changed and is still valid
-                    currentSelectedLanguageValue = trimmedLangName;
-                    console.log("Selected language name (country) updated via text:", currentSelectedLanguageValue);
-                }
-                 updatePromptPreview(); // Update preview only if the selected language changed (or potentially changed to none)
-            }
-            // If the input is not currently selected, just ensure its radio is disabled/enabled correctly
-        }
+        // Removed all logic related to associatedRadio
      }
 
 
@@ -695,16 +601,12 @@ After providing bullet points for article summary, add a bonus one - your insigh
     function removeLanguage(indexToRemove) {
         if (indexToRemove < 0 || indexToRemove >= currentAvailableLanguages.length) return;
 
-        const removedLangName = currentAvailableLanguages[indexToRemove];
+        // Removed check if removed language was the selected one
+
         currentAvailableLanguages.splice(indexToRemove, 1); // Remove from the array
 
-        // If the removed language was the selected one, change the selection to "none"
-        if (removedLangName === currentSelectedLanguageValue) {
-            currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-        }
-
         renderLanguageOptions(); // Re-render the whole list
-        updatePromptPreview(); // Update preview as selected language might have changed
+        // Removed updatePromptPreview call here
      }
     // --- End Language Selection & Autocomplete Functions ---
 
@@ -718,12 +620,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
         if (promptPreambleDiv) promptPreambleDiv.textContent = DEFAULT_PREAMBLE_TEMPLATE.replace('${bulletWord}', bulletWord);
         if (promptPostambleDiv) promptPostambleDiv.textContent = DEFAULT_POSTAMBLE_TEXT;
 
-        let translationText = "";
-        // Check if a language is selected AND that language is still in the available list
-        if (currentSelectedLanguageValue !== NO_TRANSLATION_VALUE && currentAvailableLanguages.includes(currentSelectedLanguageValue)) {
-             translationText = DEFAULT_TRANSLATION_TEMPLATE.replace('${langName}', currentSelectedLanguageValue);
-        }
-        if (promptTranslationPreviewDiv) promptTranslationPreviewDiv.textContent = translationText;
+        // Removed translation text logic and promptTranslationPreviewDiv update
 
         // Use the current value from the textarea for preview
         if (promptFormatInstructionsTextarea) promptFormatInstructionsTextarea.value = currentCustomFormatInstructions;
@@ -734,22 +631,23 @@ After providing bullet points for article summary, add a bonus one - your insigh
     async function loadSettings() { // Made async
         console.log("Loading settings...");
 
-         // --- Load Country Data First ---
+         // --- Load Language Data First ---
         // This is now done *before* the storage sync callback can process language data.
-        await loadCountryData();
+        await loadLanguageData();
 
         const keysToFetch = [
             'apiKey', 'model', 'models', 'debug', 'bulletCount',
-            'translate', 'translateLanguage', 'availableLanguages',
+            // Removed 'translate', 'translateLanguage',
+            'availableLanguages',
             PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
             PROMPT_STORAGE_KEY_PREAMBLE,
             PROMPT_STORAGE_KEY_POSTAMBLE,
-            PROMPT_STORAGE_KEY_TRANSLATION,
+            // Removed PROMPT_STORAGE_KEY_TRANSLATION,
             PROMPT_STORAGE_KEY_DEFAULT_FORMAT
         ];
 
         chrome.storage.sync.get(keysToFetch, (data) => {
-            // --- Start of Async Callback --- (This runs after storage sync is done, but after country data is loaded)
+            // --- Start of Async Callback --- (This runs after storage sync is done, but after language data is loaded)
             if (chrome.runtime.lastError) {
                 console.error("Error loading settings:", chrome.runtime.lastError);
                 statusMessage.textContent = `Error loading settings: ${chrome.runtime.lastError.message}`;
@@ -787,38 +685,38 @@ After providing bullet points for article summary, add a bonus one - your insigh
             renderModelOptions();
 
 
-            // --- Language Loading Logic (Now depends on loaded ALL_COUNTRIES_MAP/ARRAY) ---
+            // --- Language Loading Logic (Now depends on loaded ALL_LANGUAGES_MAP/ARRAY) ---
             const loadedLanguages = (Array.isArray(data.availableLanguages) && data.availableLanguages.length > 0 && data.availableLanguages.every(l => typeof l === 'string'))
                                     ? data.availableLanguages.map(l => l.trim()).filter(l => l !== '') // Get saved names, trim, filter empty
                                     : [];
 
-            // Filter loaded names to only include names found in the loaded country data
-            const validLoadedLanguages = loadedLanguages.filter(name => findCountryByName(name));
+            // Filter loaded names to only include names found in the loaded language data
+            const validLoadedLanguages = loadedLanguages.filter(name => findLanguageByName(name));
             if (loadedLanguages.length > validLoadedLanguages.length) {
-                 console.warn(`${loadedLanguages.length - validLoadedLanguages.length} saved languages were not found in the countries list.`);
+                 console.warn(`${loadedLanguages.length - validLoadedLanguages.length} saved languages were not found in the languages list.`);
                  if (loadedLanguages.length > 0) {
                      // Only add validation error if there were saved languages that became invalid
-                     const invalidNames = loadedLanguages.filter(name => !findCountryByName(name)).join(', ');
+                     const invalidNames = loadedLanguages.filter(name => !findLanguageByName(name)).join(', ');
                       if (invalidNames) {
-                           validationErrors.push(`Some saved countries/languages (${invalidNames}) were not found in the available list and were removed.`);
+                           validationErrors.push(`Some saved languages (${invalidNames}) were not found in the available list and were removed.`);
                       }
                  }
             }
 
 
-            // Use valid loaded languages or prepopulate defaults, filtering defaults if not in the loaded country list
+            // Use valid loaded languages or prepopulate defaults, filtering defaults if not in the loaded language list
             if (validLoadedLanguages.length > 0) {
                  currentAvailableLanguages = validLoadedLanguages;
             } else {
-                 console.log("No valid countries/languages found in storage, prepopulating with defaults.");
-                 // Filter default prepopulate languages against the loaded country list
-                 currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => findCountryByName(name));
+                 console.log("No valid languages found in storage, prepopulating with defaults.");
+                 // Filter default prepopulate languages against the loaded language list
+                 currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => findLanguageByName(name));
                  if (currentAvailableLanguages.length < DEFAULT_PREPOPULATE_LANGUAGES.length) {
-                      console.warn(`Some default languages (${DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findCountryByName(name)).join(', ')}) were not found in the countries list.`);
+                      console.warn(`Some default languages (${DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ')}) were not found in the languages list.`);
                       // Only add validation error if some defaults were filtered out AND the default list wasn't originally empty
-                     const filteredDefaults = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findCountryByName(name)).join(', ');
+                     const filteredDefaults = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ');
                      if (filteredDefaults && DEFAULT_PREPOPULATE_LANGUAGES.length > 0) {
-                         validationErrors.push(`Some default countries/languages (${filteredDefaults}) were not found in the available list and were not added.`);
+                         validationErrors.push(`Some default languages (${filteredDefaults}) were not found in the available list and were not added.`);
                      }
                  }
             }
@@ -828,28 +726,10 @@ After providing bullet points for article summary, add a bonus one - your insigh
                  currentAvailableLanguages.push("");
             }
 
+            // Removed logic related to storedTranslate and storedLang
+            // Removed logic related to determining initial currentSelectedLanguageValue
 
-            const storedTranslate = ('translate' in data) ? !!data.translate : false;
-            const storedLang = data.translateLanguage ? data.translateLanguage.trim() : ''; // Trim loaded selected language name
-
-            // Determine initial selected language value (name)
-            if (!storedTranslate || storedLang === NO_TRANSLATION_VALUE) {
-                currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-            }
-            // Check if the stored language name is present in the list we just determined (validLoadedLanguages or defaults)
-            // And also check if it is a valid country name in the loaded data map
-            else if (storedLang && currentAvailableLanguages.includes(storedLang) && findCountryByName(storedLang)) {
-                currentSelectedLanguageValue = storedLang;
-            }
-            // Fallback if stored language wasn't valid or wasn't in the list (either invalid or filtered out)
-            else {
-                currentSelectedLanguageValue = NO_TRANSLATION_VALUE;
-                if (storedTranslate && storedLang && storedLang !== NO_TRANSLATION_VALUE) {
-                     console.warn(`Stored selected language "${storedLang}" not found/valid in current available list. Reverting selection to "No translation needed".`);
-                     validationErrors.push(`The previously selected country/language "${storedLang}" was not found in the available list and selection reverted to "No translation needed".`);
-                }
-            }
-             // Now render the languages based on the potentially modified currentAvailableLanguages and currentSelectedLanguageValue
+             // Now render the languages based on the potentially modified currentAvailableLanguages
             renderLanguageOptions();
             // --- End Language Loading Logic ---
 
@@ -906,49 +786,27 @@ After providing bullet points for article summary, add a bonus one - your insigh
         else { finalSelectedModel = ''; } // No models saved
 
         // Get language names directly from the input fields for saving, filtering empty and invalid ones
-        const languageInputs = languageSelectionArea.querySelectorAll('.language-option:not(.no-translate-option) input[type="text"]');
+        const languageInputs = languageSelectionArea.querySelectorAll('.language-option input[type="text"]'); // Removed :not(.no-translate-option)
         const languagesToSave = Array.from(languageInputs)
                                      .map(input => input.value.trim())
-                                     .filter(lang => lang !== '' && findCountryByName(lang)); // Only save non-empty names that match a country
+                                     .filter(lang => lang !== '' && findLanguageByName(lang)); // Only save non-empty names that match a language
 
 
-        // Determine the final selected language value based on radio button state
-        let finalTranslate = false;
-        let finalTranslateLanguage = NO_TRANSLATION_VALUE; // This will store the saved name or 'none'
-        const selectedLangRadio = document.querySelector('input[name="selectedLanguageOption"]:checked');
-
-        if (selectedLangRadio && selectedLangRadio.value !== NO_TRANSLATION_VALUE) {
-             const selectedLangName = selectedLangRadio.value.trim();
-             // Double-check the selected name is valid and also in the list of languages being saved
-             if (findCountryByName(selectedLangName) && languagesToSave.includes(selectedLangName)) {
-                 finalTranslate = true;
-                 finalTranslateLanguage = selectedLangName;
-             } else {
-                 // This case implies a language was selected but its input was then cleared, became invalid, or it was removed.
-                 // We must save 'none' and update the UI state accordingly.
-                 console.warn(`Selected country/language "${selectedLangName}" became invalid or was removed. Saving "No translation needed" instead.`);
-                 finalTranslate = false;
-                 finalTranslateLanguage = NO_TRANSLATION_VALUE;
-                 // Don't update UI here, the save callback should trigger reload or manual update if needed,
-                 // but loadSettings already handles invalid saved state.
-             }
-        }
-        // If selectedLangRadio is 'none' or null, finalTranslate remains false and finalTranslateLanguage remains NO_TRANSLATION_VALUE
+        // Removed logic related to determining finalTranslate and finalTranslateLanguage
 
          // Ensure the currentAvailableLanguages state variable reflects the *valid* names *being saved*
          currentAvailableLanguages = languagesToSave;
-         // Update currentSelectedLanguageValue state variable to match what was determined for saving
-         currentSelectedLanguageValue = finalTranslateLanguage;
+         // Removed update of currentSelectedLanguageValue state variable
 
 
         const settingsToSave = {
             apiKey, model: finalSelectedModel, models: modelsToSave, debug, bulletCount,
-            translate: finalTranslate, translateLanguage: finalTranslateLanguage,
+            // Removed translate: finalTranslate, translateLanguage: finalTranslateLanguage,
             availableLanguages: languagesToSave, // Save the list of valid names
             [PROMPT_STORAGE_KEY_CUSTOM_FORMAT]: customFormatInstructionsToSave,
             [PROMPT_STORAGE_KEY_PREAMBLE]: DEFAULT_PREAMBLE_TEMPLATE, // Save defaults just in case
             [PROMPT_STORAGE_KEY_POSTAMBLE]: DEFAULT_POSTAMBLE_TEXT,
-            [PROMPT_STORAGE_KEY_TRANSLATION]: DEFAULT_TRANSLATION_TEMPLATE,
+            // Removed PROMPT_STORAGE_KEY_TRANSLATION
             [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS
         };
         console.log("Saving data:", settingsToSave);
@@ -968,17 +826,17 @@ After providing bullet points for article summary, add a bonus one - your insigh
     function resetToDefaults() {
         console.log("Resetting options to defaults (excluding API key)...");
         currentModels = [...DEFAULT_MODELS]; currentSelectedModel = DEFAULT_SELECTED_MODEL;
-        // Reset languages to the default pre-populate list, filtering against loaded countries
-        // Ensure ALL_COUNTRIES_MAP is available before filtering defaults
-        currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => findCountryByName(name));
-         if (ALL_COUNTRIES_ARRAY.length > 0 && currentAvailableLanguages.length < DEFAULT_PREPOPULATE_LANGUAGES.length) {
-              console.warn(`Some default languages (${DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findCountryByName(name)).join(', ')}) were not found in the countries list during reset and were not added.`);
+        // Reset languages to the default pre-populate list, filtering against loaded languages
+        // Ensure ALL_LANGUAGES_MAP is available before filtering defaults
+        currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter(name => findLanguageByName(name));
+         if (ALL_LANGUAGES_ARRAY.length > 0 && currentAvailableLanguages.length < DEFAULT_PREPOPULATE_LANGUAGES.length) {
+              console.warn(`Some default languages (${DEFAULT_PREPOPULATE_LANGUAGES.filter(name => !findLanguageByName(name)).join(', ')}) were not found in the languages list during reset and were not added.`);
          }
          if (currentAvailableLanguages.length === 0) { // Ensure at least one empty slot if defaults filtered out
               currentAvailableLanguages.push("");
          }
 
-        currentSelectedLanguageValue = NO_TRANSLATION_VALUE; // Default to no translation
+        // Removed setting currentSelectedLanguageValue
         currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
 
         renderModelOptions();
@@ -1043,7 +901,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
     document.addEventListener('click', handleGlobalClick);
 
     // --- Initial Load & Setup ---
-    // loadSettings is now async and loads country data before proceeding
+    // loadSettings is now async and loads language data before proceeding
     await loadSettings();
 
     setupCollapsible(); // Setup collapsible after elements are created/loaded
