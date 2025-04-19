@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
         "openai/gpt-4.1-nano", "anthropic/claude-3.7-sonnet"
     ];
     const DEFAULT_SELECTED_MODEL = DEFAULT_MODELS[0];
-    // Removed NO_TRANSLATION_VALUE
     // Default languages (names) to pre-populate if none are saved. These names must match names in languages.json
     const DEFAULT_PREPOPULATE_LANGUAGES = [
         "English", "Spanish", "Hebrew", "French"
@@ -62,7 +61,6 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
     const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
     const PROMPT_STORAGE_KEY_PREAMBLE = 'prompt_preamble_template';
     const PROMPT_STORAGE_KEY_POSTAMBLE = 'prompt_postamble_text';
-    // Removed PROMPT_STORAGE_KEY_TRANSLATION
     const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
 
     const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article_text.
@@ -71,7 +69,6 @@ Using US English, prepare a summary of article_text containing approximately \${
 Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<i>Point 3:</i> With italics."]
 Do not add any comments before or after the JSON array. Do not output your deliberations.
 Just provide the JSON array string as the result. Ensure the output is valid JSON.`;
-    // Removed DEFAULT_TRANSLATION_TEMPLATE
     const DEFAULT_FORMAT_INSTRUCTIONS = `Each point should be a concise HTML string, starting with a bold tag-like marker and a colon, followed by the description.
 You may use ONLY the following HTML tags for emphasis: <b> for bold and <i> for italics. Do not use any other HTML tags (like <p>, <ul>, <li>, <br>, etc.).
 For example: "<b>Key Finding:</b> The market showed <i>significant</i> growth in Q3."
@@ -84,7 +81,6 @@ After providing bullet points for article summary, add a bonus one - your insigh
     let currentSelectedModel = '';
     // currentAvailableLanguages will store just the names of selected languages
     let currentAvailableLanguages = [];
-    // Removed currentSelectedLanguageValue
     let currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS; // Tracks the value in the textarea
 
     // --- Autocomplete State ---
@@ -929,9 +925,6 @@ After providing bullet points for article summary, add a bonus one - your insigh
                  currentAvailableLanguages.push("");
             }
 
-            // Removed logic related to storedTranslate and storedLang
-            // Removed logic related to determining initial currentSelectedLanguageValue
-
              // Now render the languages based on the potentially modified currentAvailableLanguages
             renderLanguageOptions();
             // --- End Language Loading Logic ---
@@ -999,7 +992,6 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
          // Ensure the currentAvailableLanguages state variable reflects the *valid* names *being saved*
          currentAvailableLanguages = languagesToSave;
-         // Removed update of currentSelectedLanguageValue state variable
 
 
         const settingsToSave = {
@@ -1039,7 +1031,6 @@ After providing bullet points for article summary, add a bonus one - your insigh
               currentAvailableLanguages.push("");
          }
 
-        // Removed setting currentSelectedLanguageValue
         currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
 
         renderModelOptions();

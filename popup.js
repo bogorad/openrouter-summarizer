@@ -1091,29 +1091,6 @@ console.log('[LLM Content] Script Start');
                  return false;
             }
         }
-         // Redundant messages from background script based on current flow, but keeping for safety
-        else if (req.action === "showSummaryPopup") {
-             if (DEBUG) console.log("Popup (Content Script): Received showSummaryPopup message from background.");
-             console.warn('[LLM Content] Received potentially unused showSummaryPopup message.'); // Indicate this path might not be the main one
-             if (req.summaryHtml) {
-                  chrome.storage.sync.get(['availableLanguages'], (cfg) => {
-                      showPopup(req.summaryHtml, cfg.availableLanguages || []); // Show popup with HTML string and languages
-                 });
-             } else if (req.error) {
-                  showPopup(`Error: ${req.error}`, []);
-             } else {
-                   showPopup("An unknown error occurred while attempting to show summary from background message.", []);
-             }
-             sendResponse({ status: "popup show request received (might be redundant)" });
-             return true;
-         } else if (req.action === "hideSummaryPopup") {
-              if (DEBUG) console.log("Popup (Content Script): Received hideSummaryPopup message from background.");
-              console.warn('[LLM Content] Received potentially unused hideSummaryPopup message.'); // Indicate this path might not be the main one
-              hidePopup();
-              sendResponse({ status: "popup hide request received (might be redundant)" });
-              return true;
-         }
-
 
          // For other messages, return false or nothing
          return false;
