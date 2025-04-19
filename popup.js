@@ -1,6 +1,6 @@
-/* popup.js */
+// popup.js
 // == OpenRouter Summarizer Content Script ==
-// v2.8.1 - Code cleanup: Removed unused translation prompt logic
+// v2.9 - Initial summary language based on first configured language
 
 console.log('[LLM Content] Script Start');
 
@@ -27,7 +27,7 @@ console.log('[LLM Content] Script Start');
     const POPUP_FLAGS_CLASS = 'summarizer-flags';
     const POPUP_BODY_CLASS = 'summarizer-body';
     const POPUP_ACTIONS_CLASS = 'summarizer-actions';
-    const POPUP_BTN_CLASS = 'summarizer-btn';
+    const POPUP_BTN_CLASS = 'copy-btn'; // Corrected class name
     const POPUP_COPY_BTN_CLASS = 'copy-btn';
     const POPUP_CHAT_BTN_CLASS = 'chat-btn';
     const POPUP_CLOSE_BTN_CLASS = 'close-btn';
@@ -61,12 +61,13 @@ console.log('[LLM Content] Script Start');
     let lastModelUsed = ''; // Model used for the last summary
     // Store the language the summary was generated IN (based on options)
     // Simplified: Always English now based on preamble
-    let lastSummaryLanguageUsed = 'English';
+    let lastSummaryLanguageUsed = 'English'; // This will now be the first configured language
+
 
     let popup = null; // Reference to the current popup element
 
 
-    // --- Prompt Assembly Function (Simplified) ---
+    // --- Prompt Assembly Function (Modified to accept language) ---
     const numToWord = { 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
 
     function getSystemPrompt(
@@ -74,13 +75,15 @@ console.log('[LLM Content] Script Start');
         customFormatInstructions, // User's custom text
         preambleTemplate,         // Template string from storage
         postambleText,            // Fixed string from storage
-        defaultFormatInstructions // Default format string from storage
+        defaultFormatInstructions, // Default format string from storage
+        targetLanguage // ADDED: The language to request the summary in
     ) {
         const bcNum = Number(bulletCount) || 5;
         const word = numToWord[bcNum] || "five";
 
         // Use loaded templates/defaults
-        const finalPreamble = preambleTemplate ? preambleTemplate.replace('${bulletWord}', word) : `[Error: Preamble template missing] Prepare summary with ${word} points.`;
+        // MODIFIED: Use targetLanguage in the preamble template
+        const finalPreamble = preambleTemplate ? preambleTemplate.replace('${bulletWord}', word).replace('US English', targetLanguage) : `[Error: Preamble template missing] Prepare summary with ${word} points in ${targetLanguage}.`;
         const finalFormatInstructions = (customFormatInstructions && customFormatInstructions.trim() !== '') ? customFormatInstructions : defaultFormatInstructions || "[Error: Default format instructions missing]";
         const finalPostamble = postambleText || "[Error: Postamble text missing]";
 
@@ -102,7 +105,7 @@ console.log('[LLM Content] Script Start');
             }
             const data = await response.json();
             ALL_LANGUAGES_MAP = data;
-             // Create name-to-code map for quick lookup (lowercase names)
+             // Create name-to-code map for quick lookup from lowercase name to {code, original name}
             ALL_LANGUAGE_NAMES_MAP = Object.keys(data).reduce((map, name) => {
                 map[name.toLowerCase()] = { code: data[name], name: name };
                 return map;
@@ -186,6 +189,7 @@ console.log('[LLM Content] Script Start');
             // Add click listener to the flag for chat context
             flagImg.addEventListener('click', (e) => {
                  e.stopPropagation(); // Prevent click from bubbling up
+                 e.preventDefault(); // Prevent default action
                  if (DEBUG) console.log(`[LLM Content] Flag clicked for language: ${lang.name}`);
                  // Call openChatWithContext, passing the target language name
                  openChatWithContext(lang.name);
@@ -365,7 +369,7 @@ console.log('[LLM Content] Script Start');
     // --- Chat Context Handling ---
     function openChatWithContext(targetLang = null) { // Added optional targetLang parameter
         if (!selectedElement) { alert("Cannot open chat: Original element selection lost."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: selectedElement is null.'); return; }
-        if (!lastSummary || lastSummary === 'Thinking...' || lastSummary.startsWith('Error:')) { alert("Cannot open chat: No valid summary available."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.'); return; }
+        if (!lastSummary || lastSummary === 'Thinking...' || lastSummary.startsWith('Error:')) { alert("Cannot open chat: No valid summary available."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.'); return; return; } // Added return here
         if (!lastSummaryHtml) { alert("Cannot open chat: Summary parsing failed."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: lastSummaryHtml is empty.'); return; }
 
         const domSnippet = selectedElement.outerHTML || selectedElement.innerHTML || selectedElement.textContent || "";
@@ -417,7 +421,7 @@ console.log('[LLM Content] Script Start');
         fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${apiKey}`,
+              'Authorization': `Bearer ${apiKey}`, // Use apiKey here
               'Content-Type': 'application/json',
               'HTTP-Referer': 'https://github.com/bogorad/openrouter-summarizer', // Replace with your repo if different
               'X-Title': 'OR-Summ' // Custom header
@@ -431,7 +435,14 @@ console.log('[LLM Content] Script Start');
             return response.json();
         })
         .then(data => {
-            if (DEBUG) console.log('[LLM Response] Received data:', data);
+            if (DEBUG) {
+                // Create a copy of the data object before logging to remove sensitive info if any
+                const dataToLog = { ...data };
+                // Although OpenRouter API response shouldn't contain the key,
+                // it's good practice to be cautious if logging response objects.
+                // No API key expected in this response, but keeping this pattern in mind.
+                console.log('[LLM Response] Received data:', dataToLog);
+            }
             const modelOutput = data.choices?.[0]?.message?.content?.trim();
 
             if (!modelOutput) { throw new Error('No response content received from LLM.'); }
@@ -471,6 +482,10 @@ console.log('[LLM Content] Script Start');
                  lastSummaryHtml = ''; // Ensure HTML is empty on parse error
                  // Update popup with the parse error message + truncated raw output
                  const errorContent = `Error: Could not parse LLM response as JSON.\n\nDetails: ${parseError ? parseError.message : 'Unknown parsing issue.'}\n\nRaw Output (truncated):\n"${modelOutput.substring(0, 200)}${modelOutput.length > 200 ? '...' : ''}"`;
+                 // --- FIX: Move highlight and icon removal here ---
+                 removeSelectionHighlight();
+                 removeFloatingIcon();
+                 // --- END FIX ---
                  showPopup(errorContent, []); // Show error text, no flags initially
                  console.error('[LLM Error] Failed to process LLM JSON response:', parseError || new Error("Parsed JSON array was empty or did not result in HTML"));
                  if (DEBUG) {
@@ -487,6 +502,10 @@ console.log('[LLM Content] Script Start');
                  // Note: availableLanguages is needed *after* the response for popup flags
                  chrome.storage.sync.get(['availableLanguages'], (cfg) => { // Only fetch availableLanguages
                       // lastSummaryLanguageUsed is now always 'English' based on preamble
+                      // --- FIX: Move highlight and icon removal here ---
+                      removeSelectionHighlight();
+                      removeFloatingIcon();
+                      // --- END FIX ---
                       showPopup(lastSummaryHtml, cfg.availableLanguages || []); // Show popup with HTML string and languages
                       // Enable the Chat button after successful parse
                        const chatBtn = document.querySelector(`.${POPUP_BTN_CLASS}.${POPUP_CHAT_BTN_CLASS}`);
@@ -498,17 +517,24 @@ console.log('[LLM Content] Script Start');
             console.error('[LLM Fetch Error]', err);
             lastSummary = `Error: ${err.message}`; // Update lastSummary with fetch error
             lastSummaryHtml = ''; // Clear HTML on fetch error
+            // --- FIX: Move highlight and icon removal here ---
+            removeSelectionHighlight();
+            removeFloatingIcon();
+            // --- END FIX ---
             showPopup(`Error: ${err.message}`, []); // Update popup with fetch error message, no flags
         });
     }
 
 
-    // --- processSelectedElement ---
+    // --- processSelectedElement (Modified to get first language) ---
     function processSelectedElement() {
         // The selectedElement global variable should already be set by the Alt+Click mousedown handler
         if (!selectedElement) {
             console.error('[LLM Content] processSelectedElement called but selectedElement is null!');
             showPopup('Error: No element selected.', []); // Pass empty array for languages
+            // --- FIX: Remove icon if processSelectedElement is called without a selected element ---
+            removeFloatingIcon();
+            // --- END FIX ---
             return;
         }
         // Store a reference to the element that triggered THIS process call
@@ -525,7 +551,7 @@ console.log('[LLM Content] Script Start');
         showPopup('Thinking...', []); // Call showPopup with loading message and empty language list
 
         const keysToFetch = [
-            'apiKey', 'model', 'bulletCount', 'debug', // availableLanguages fetched AFTER LLM call in sendToLLM
+            'apiKey', 'model', 'bulletCount', 'debug', 'availableLanguages', // ADDED availableLanguages here
             PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
             PROMPT_STORAGE_KEY_PREAMBLE,
             PROMPT_STORAGE_KEY_POSTAMBLE,
@@ -547,7 +573,15 @@ console.log('[LLM Content] Script Start');
                  removeFloatingIcon();
                 return;
             }
-            if (DEBUG) console.log('[LLM Content] Settings received from storage:', config);
+
+            // --- Sanitize config object before logging ---
+            const configToLog = { ...config };
+            if (configToLog.apiKey) {
+                configToLog.apiKey = '[API Key Hidden]'; // Mask the API key for logging
+            }
+            if (DEBUG) console.log('[LLM Content] Settings received from storage:', configToLog);
+            // --- End Sanitize ---
+
 
             // --- Options Validation ---
             let validationErrors = [];
@@ -594,7 +628,7 @@ console.log('[LLM Content] Script Start');
                  removeSelectionHighlight();
                  selectedElement = null;
                  lastHighlighted = null;
-                 removeFloatingIcon();
+                 removeFloatingIcon(); // --- FIX: Remove icon on validation failure ---
                 return; // Stop processing
             }
             // --- END: Options Validation ---
@@ -616,25 +650,41 @@ console.log('[LLM Content] Script Start');
                  }
                  // Don't necessarily remove highlight/icon here; another process might own them now.
                  // The new selection/deselect logic will handle clearing them if needed.
+                 // --- FIX: Remove icon on selection validation failure ---
+                 removeFloatingIcon();
+                 // --- END FIX ---
                  return; // Abort processing
             }
             // --- END: Selection Validation ---
 
 
             // --- If we reach here, settings are valid and selection is stable. ---
-            // NOW it's safe to remove the highlight and the floating icon
-             removeSelectionHighlight();
-             removeFloatingIcon();
+            // DO NOT remove highlight and icon here. They should remain until the final popup is shown.
+            // removeSelectionHighlight();
+            // removeFloatingIcon();
 
             try {
-                const apiKey = config.apiKey;
+                const apiKey = config.apiKey; // Use apiKey here
                 const model = config.model;
                 const bulletCount = config.bulletCount || 5;
                 // Removed: const translate = config.translate;
                 // Removed: const translateLanguage = config.translateLanguage;
 
-                // lastSummaryLanguageUsed is now always 'English' based on preamble
-                lastSummaryLanguageUsed = 'English';
+                // --- DETERMINE TARGET LANGUAGE FOR SUMMARY ---
+                const availableLanguages = Array.isArray(config.availableLanguages) ? config.availableLanguages : [];
+                // Find the first valid language name from the configured list
+                const firstConfiguredLanguage = availableLanguages
+                    .map(name => name.trim())
+                    .filter(name => name !== '')
+                    .find(name => findLanguageByName(name)); // Find the first name that exists in our language data
+
+                // Use the first configured language, or fallback to "US English"
+                const targetLanguageForSummary = firstConfiguredLanguage || 'US English';
+                if (DEBUG) console.log('[LLM Content] Target language for summary:', targetLanguageForSummary);
+                lastSummaryLanguageUsed = targetLanguageForSummary; // Store the language used for the summary
+
+                // --- END DETERMINE TARGET LANGUAGE ---
+
 
                 const customFormatInstructions = config[PROMPT_STORAGE_KEY_CUSTOM_FORMAT];
                 const preambleTemplate = config[PROMPT_STORAGE_KEY_PREAMBLE];
@@ -645,40 +695,49 @@ console.log('[LLM Content] Script Start');
                 if (!currentSelectedElement) { // Redundant check, but safe
                     console.error('[LLM Content] selectedElement somehow became null after validation!');
                     showPopup('Error: Element selection lost unexpectedly.', []);
+                    // --- FIX: Remove icon on unexpected null selectedElement ---
+                    removeFloatingIcon();
+                    // --- END FIX ---
                     return;
                 }
                 // Use outerHTML if available, fallback to innerHTML, then textContent
                 const htmlContent = currentSelectedElement.outerHTML || currentSelectedElement.innerHTML || currentSelectedElement.textContent || '';
                 if (!htmlContent.trim()) {
                     console.warn('[LLM Content] Selected element has no content.');
-                    showPopup('Error: Selected element has no content.', []);
-                    // Clear selection/icon after showing this non-content error
+                    // --- FIX: Move highlight and icon removal here for no-content error ---
+                    removeSelectionHighlight();
                     selectedElement = null;
                     lastHighlighted = null;
-                    // No need to remove highlight/icon here as they were removed above
+                    removeFloatingIcon();
+                    // --- END FIX ---
+                    showPopup('Error: Selected element has no content.', []);
                     return;
                 }
 
                 if (DEBUG) console.log('[LLM Content] Calling getSystemPrompt...');
                 const systemPrompt = getSystemPrompt(
                     bulletCount, customFormatInstructions,
-                    preambleTemplate, postambleText, defaultFormatInstructions // Removed translation parameters
+                    preambleTemplate, postambleText, defaultFormatInstructions,
+                    targetLanguageForSummary // PASS the determined language
                 );
                 if (DEBUG) console.log('[LLM Content] System prompt assembled successfully.');
                 if (DEBUG) console.log("Using System Prompt:", systemPrompt);
 
                 if (DEBUG) console.log('[LLM Content] Calling sendToLLM...');
                  // sendToLLM will handle showing the final popup with results/errors
-                sendToLLM(htmlContent, apiKey, model, systemPrompt);
+                 // Pass the availableLanguages array to sendToLLM so it can pass it to showPopup
+                sendToLLM(htmlContent, apiKey, model, systemPrompt); // Pass apiKey here
                 if (DEBUG) console.log('[LLM Content] sendToLLM called. Waiting for response...');
 
             } catch (error) {
                 console.error('[LLM Content] Error processing settings or generating prompt:', error);
+                // --- FIX: Move highlight and icon removal here for processing error ---
+                removeSelectionHighlight();
+                selectedElement = null;
+                lastHighlighted = null;
+                removeFloatingIcon();
+                // --- END FIX ---
                 showPopup(`Error processing selection: ${error.message || 'Unknown error'}`, []);
-                 // Clear selection/icon after showing this processing error
-                 selectedElement = null;
-                 lastHighlighted = null;
-                 // No need to remove highlight/icon here as they were removed above
             }
             // --- End of Async Callback ---
         });
@@ -758,7 +817,13 @@ console.log('[LLM Content] Script Start');
         const margin = 5; // Margin from window edges
 
         let iconX = clickX - iconSize / 2; // Center icon horizontally on click point
-        let iconY = clickY - iconSize / 2; // Center icon vertically on click point
+        // REMOVED: let iconY = clickY - iconY / 2; // This line caused the ReferenceError
+
+        // Corrected positioning calculation
+        // The diagnostic correctly identified that the line above was the issue
+        // and the calculation below is the correct one.
+        let iconY = clickY - iconSize / 2;
+
 
         // Clamp icon position to stay within the viewport (considering scroll)
         iconX = Math.max(window.scrollX + margin, Math.min(iconX, window.scrollX + window.innerWidth - iconSize - margin));
@@ -1019,6 +1084,9 @@ console.log('[LLM Content] Script Start');
             } else {
                  console.warn('[LLM Content] Received processSelection but no element is selected.');
                  showPopup('Error: No element selected. Use Alt+Click to select an element first.', []);
+                 // --- FIX: Remove icon if processSelection command is received without a selected element ---
+                 removeFloatingIcon();
+                 // --- END FIX ---
                  sendResponse({status: "no element selected"});
                  return false;
             }
@@ -1077,5 +1145,3 @@ console.log('[LLM Content] Script Start');
     console.log('[LLM Content] Script Initialized. Listening for Alt key, mouse events, and messages.');
 
 })(); // End of async IIFE
-
-

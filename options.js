@@ -1,5 +1,5 @@
 // options.js
-// v2.7 - Removed explicit translation option
+// v2.8.6 - Fixed dragover and drop listeners
 
 document.addEventListener('DOMContentLoaded', async () => { // Made async to await language data load
     // --- DOM Elements ---
@@ -51,7 +51,11 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
     let ALL_LANGUAGE_NAMES_MAP = {};
 
 
-    const DEFAULT_DEBUG_MODE = false;
+    // --- FIX: Define DEBUG at the top level ---
+    let DEBUG = false; // Default to false
+    // --- END FIX ---
+
+    const DEFAULT_DEBUG_MODE = false; // This is just the default value for the setting
     const NUM_TO_WORD = { 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
 
     // --- Centralized Prompt Definitions ---
@@ -87,6 +91,10 @@ After providing bullet points for article summary, add a bonus one - your insigh
     let activeAutocompleteInput = null;
     let autocompleteDropdown = null;
     let highlightedAutocompleteIndex = -1;
+
+    // --- Drag and Drop State ---
+    let draggedItemIndex = null;
+    let dragOverElement = null; // Element currently being dragged over
 
 
     // --- Functions ---
@@ -139,7 +147,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
                     const firstValidRadio = modelSelectionArea.querySelector('input[type="radio"]:not(:disabled)');
                     if (firstValidRadio) {
                         firstValidRadio.checked = true;
-                        currentSelectedModel = firstValidRadio.value;
+                        currentSelectedModel = firstValidModel.value;
                     } else {
                         currentSelectedModel = ''; // No valid models left
                     }
@@ -465,6 +473,10 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
     // Renders the list of available languages in the options UI
     function renderLanguageOptions() {
+        // --- ADDED LOG HERE ---
+        if (DEBUG) console.log('[LLM Options Render] renderLanguageOptions called. Current languages:', [...currentAvailableLanguages]);
+        // --- END ADDED LOG ---
+
         if (!languageSelectionArea) return;
         languageSelectionArea.innerHTML = ''; // Clear existing options
 
@@ -472,6 +484,32 @@ After providing bullet points for article summary, add a bonus one - your insigh
         currentAvailableLanguages.forEach((langName, index) => { // langName is the language name here
             const group = document.createElement('div');
             group.className = 'option-group language-option';
+            group.dataset.index = index; // Store index for drag/drop
+            // group.draggable = true; // Make the group draggable - MOVED TO GRAB HANDLE
+
+            // --- Create Grab Handle ---
+            const grabHandle = document.createElement('div');
+            grabHandle.className = 'grab-handle';
+            grabHandle.draggable = true; // Make the handle draggable
+            grabHandle.title = 'Drag to reorder'; // Tooltip
+            grabHandle.setAttribute('aria-label', 'Drag to reorder language'); // Accessibility
+            grabHandle.setAttribute('role', 'button'); // Indicate it's interactive
+            grabHandle.setAttribute('tabindex', '0'); // Make it focusable
+
+            const dotsContainer = document.createElement('div');
+            dotsContainer.className = 'grab-handle-dots';
+            for (let i = 0; i < 3; i++) { // Create 3 dots
+                 const dot = document.createElement('div');
+                 dot.className = 'grab-handle-dot';
+                 dotsContainer.appendChild(dot);
+            }
+            grabHandle.appendChild(dotsContainer);
+
+            // Add dragstart and dragend event listeners to the GRAB HANDLE
+            grabHandle.addEventListener('dragstart', handleDragStart);
+            grabHandle.addEventListener('dragend', handleDragEnd);
+            // --- End Grab Handle ---
+
 
             // Removed radio button creation
 
@@ -529,8 +567,16 @@ After providing bullet points for article summary, add a bonus one - your insigh
             label.appendChild(textInput);
 
             // Removed appending radio
+            group.appendChild(grabHandle); // Add the grab handle first
             group.appendChild(label);
             group.appendChild(removeBtn);
+
+            // --- ADD dragover, dragleave, drop listeners to the GROUP (language-option) ---
+            group.addEventListener('dragover', handleDragOver);
+            group.addEventListener('dragleave', handleDragLeave);
+            group.addEventListener('drop', handleDrop);
+            // --- END ADD ---
+
 
             languageSelectionArea.appendChild(group);
 
@@ -610,6 +656,157 @@ After providing bullet points for article summary, add a bonus one - your insigh
      }
     // --- End Language Selection & Autocomplete Functions ---
 
+    // --- Drag and Drop Handlers ---
+
+    function handleDragStart(event) {
+        // event.target is the grab-handle div
+        const languageOptionElement = event.target.closest('.language-option'); // Get the parent language option div
+        if (!languageOptionElement) {
+             if (DEBUG) console.warn('[LLM Options Drag] Drag start failed: Could not find parent language option.');
+             event.preventDefault(); // Prevent drag if parent not found
+             return;
+        }
+
+        // Set the data to be transferred - in this case, the index of the dragged item
+        draggedItemIndex = parseInt(languageOptionElement.dataset.index, 10);
+        event.dataTransfer.setData('text/plain', draggedItemIndex);
+        event.dataTransfer.effectAllowed = 'move';
+
+        // Add a class to the dragged item for styling
+        languageOptionElement.classList.add('dragging');
+
+        if (DEBUG) console.log('[LLM Options Drag] Drag start for index:', draggedItemIndex);
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault(); // Necessary to allow dropping
+
+        // event.target could be the grab handle, label, input, flag, or remove button *within the target language-option*
+        const targetElement = event.target.closest('.language-option'); // Find the closest draggable language option
+
+        if (!targetElement || targetElement.classList.contains('dragging')) {
+            // If not dragging over a language option or dragging over itself, remove highlight
+            if (dragOverElement) {
+                dragOverElement.classList.remove('drag-over-top', 'drag-over-bottom');
+                dragOverElement = null;
+            }
+            return;
+        }
+
+        // Determine if dragging over the top or bottom half of the target element
+        const rect = targetElement.getBoundingClientRect();
+        const mouseY = event.clientY;
+        const midpoint = rect.top + rect.height / 2;
+
+        // Remove highlight from the previous dragOverElement if it's different
+        if (dragOverElement && dragOverElement !== targetElement) {
+            dragOverElement.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+
+        // Add highlight to the current target element
+        if (mouseY < midpoint) {
+            targetElement.classList.add('drag-over-top');
+            targetElement.classList.remove('drag-over-bottom');
+        } else {
+            targetElement.classList.add('drag-over-bottom');
+            targetElement.classList.remove('drag-over-top');
+        }
+        dragOverElement = targetElement; // Update the element being dragged over
+        event.dataTransfer.dropEffect = 'move'; // Set drop effect here
+    }
+
+    function handleDragLeave(event) {
+        // Check if the mouse is leaving the element and not entering a child element
+        // Use closest('.language-option') to check if the relatedTarget is still within the same list item
+        if (event.relatedTarget && event.relatedTarget.closest('.language-option') === event.target.closest('.language-option')) {
+            return; // Still inside the same language option or its children
+        }
+        // If leaving the language option entirely, remove highlight
+        if (dragOverElement) {
+            dragOverElement.classList.remove('drag-over-top', 'drag-over-bottom');
+            dragOverElement = null;
+        }
+    }
+
+    function handleDrop(event) {
+        event.preventDefault(); // Prevent default drop behavior
+
+        if (dragOverElement) {
+            dragOverElement.classList.remove('drag-over-top', 'drag-over-bottom');
+            dragOverElement = null;
+        }
+
+        const droppedItemIndex = parseInt(event.dataTransfer.getData('text/plain'), 10);
+        // event.target could be the grab handle, label, input, flag, or remove button *within the target language-option*
+        const targetElement = event.target.closest('.language-option'); // Find the closest language option
+
+        if (!targetElement || droppedItemIndex === null || droppedItemIndex === undefined) {
+            if (DEBUG) console.warn('[LLM Options Drag] Drop failed: Invalid target or dragged item index.');
+            return; // Invalid drop target or data
+        }
+
+        const targetIndex = parseInt(targetElement.dataset.index, 10);
+        const rect = targetElement.getBoundingClientRect();
+        const mouseY = event.clientY;
+        const midpoint = rect.top + rect.height / 2;
+
+        let newIndex = targetIndex;
+        // If dropping onto the bottom half, the new index is after the target
+        if (mouseY >= midpoint) {
+            newIndex = targetIndex + 1;
+        }
+
+        // Ensure newIndex is within bounds
+        newIndex = Math.max(0, Math.min(newIndex, currentAvailableLanguages.length));
+
+        // Prevent dropping onto the original position
+        // If newIndex is the same as the original index, or if newIndex is one greater than
+        // the original index (which happens when dropping onto the bottom half of the original element)
+        if (newIndex === droppedItemIndex || (newIndex === droppedItemIndex + 1 && newIndex <= currentAvailableLanguages.length)) {
+             if (DEBUG) console.log('[LLM Options Drag] Dropped onto original position, no change.');
+             return;
+        }
+
+        if (DEBUG) console.log(`[LLM Options Drag] Dropped index ${droppedItemIndex} onto target index ${targetIndex}. Calculated new index: ${newIndex}.`);
+        if (DEBUG) console.log('[LLM Options Drag] Array before splice:', [...currentAvailableLanguages]);
+
+        // Perform the reordering in the currentAvailableLanguages array
+        const [draggedLanguage] = currentAvailableLanguages.splice(droppedItemIndex, 1);
+
+        // Adjust the insertion index if the item was moved from a lower index to a higher index
+        const insertionIndex = newIndex > droppedItemIndex ? newIndex - 1 : newIndex;
+
+        currentAvailableLanguages.splice(insertionIndex, 0, draggedLanguage);
+
+        if (DEBUG) console.log('[LLM Options Drag] Array after splice:', [...currentAvailableLanguages]);
+
+        // Re-render the list to reflect the new order
+        renderLanguageOptions(); // <--- This is the call that should update the UI
+
+        // Optional: Automatically save after reordering? Or rely on user clicking save?
+        // Let's rely on the user clicking save for now.
+    }
+
+    function handleDragEnd(event) {
+        // event.target is the grab-handle div
+        const languageOptionElement = event.target.closest('.language-option'); // Get the parent language option div
+        if (languageOptionElement) {
+             // Remove the 'dragging' class from the element that was dragged
+             languageOptionElement.classList.remove('dragging');
+        }
+
+        // Ensure any lingering drag-over highlight is removed
+        if (dragOverElement) {
+            dragOverElement.classList.remove('drag-over-top', 'drag-over-bottom');
+            dragOverElement = null;
+        }
+        draggedItemIndex = null; // Clear state
+        if (DEBUG) console.log('[LLM Options Drag] Drag end.');
+    }
+
+    // --- End Drag and Drop Handlers ---
+
+
     // --- Prompt Preview Function (mostly unchanged) ---
     function updatePromptPreview() {
         console.log("Updating prompt preview...");
@@ -656,6 +853,12 @@ After providing bullet points for article summary, add a bonus one - your insigh
             } else {
                 console.log("Loaded data:", data);
             }
+
+            // --- FIX: Update DEBUG state variable here ---
+            DEBUG = !!data.debug;
+            if (DEBUG) console.log('[LLM Options] Debug mode enabled.');
+            // --- END FIX ---
+
 
             let validationErrors = []; // Keep the validation array
 
@@ -754,7 +957,7 @@ After providing bullet points for article summary, add a bonus one - your insigh
                 // Display the first error in the status message area
                  statusMessage.textContent = `Validation issue: ${validationErrors[0].split('\n')[0]}`;
                  statusMessage.className = 'status-message error';
-                console.warn("[Options Load] Validation failed for stored settings:", validationErrors);
+                console.warn("[LLM Options Load] Validation failed for stored settings:", validationErrors);
             } else {
                  statusMessage.textContent = 'Options loaded.';
                  statusMessage.className = 'status-message success';

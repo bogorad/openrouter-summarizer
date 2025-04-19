@@ -24,9 +24,8 @@ file:
 read:
   - ./CONVENTIONS.md
   - ./marked.min.js
-  - ./country-flags/countries.json
   - ./country-flags/languages.json
-  - /icons/icon128.png
-  - /icons/icon48.png
-  - /icons/icon16.png
-  - /icons/icon.png
+  - ./icons/icon128.png
+  - ./icons/icon48.png
+  - ./icons/icon16.png
+  - ./icons/icon.png

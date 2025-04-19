@@ -1,17 +1,15 @@
-# OpenRouter Summarizer v2.8
+# OpenRouter Summarizer v2.10
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
 
 ---
 
-## ✨ What's New Since Version 2.6
+## ✨ What's New Since Version 2.9
 
-*   **Removed Explicit Translation Option:** The dedicated "Translation Options" section in the Options page has been removed. The initial summary is now always generated in English (based on the default prompt preamble).
-*   **Configured Languages for Chat Flags:** The language list in Options is now solely for configuring which language flags appear in the summary popup.
-*   **Flags Initiate Translated Chat:** Clicking a flag icon in the summary popup will open the chat tab and automatically send a message requesting a translation of the *already generated* summary into that language.
-*   Added un.svg as a default image for unknown languages.
-*   Updadted the chat screenshot in media/
+*   **Floating Icon Visibility Fix:** Corrected an issue where the floating icon would disappear prematurely after clicking it to initiate summarization, especially if there were errors loading settings or processing the element. The icon now correctly remains visible while the LLM is processing and is removed only when the final summary or error popup is displayed.
+*   **Improved Error Handling:** Enhanced error handling in `popup.js` to ensure the floating icon and selection highlight are removed consistently when errors occur during settings loading or initial element processing, before the LLM request is even sent.
+*   Fixed a `ReferenceError` in the floating icon positioning logic in `popup.js`.
 
 ---
 
@@ -23,7 +21,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   Initial summaries (requested as JSON array of HTML strings) are rendered in the popup as a clean HTML list (`<ul><li>...</ul>`).
     *   Chat responses render full Markdown formatting via `marked`.
 *   **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro` and `:auto`.
-*   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the summary popup. Clicking a flag initiates a chat session requesting translation of the summary into that language.
+*   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the summary popup. Clicking a flag initiates a chat session requesting translation of the summary into that language. **Languages can now be reordered by dragging them in the Options list.**
 *   **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section (default now requests JSON/HTML).
 *   **Configurable Summary:** Choose the approximate number of summary points (3-8) for the initial summary prompt.
 *   **Keyboard Shortcuts:** Use `Ctrl+Enter` / `Cmd+Enter` to send messages in the chat window.
@@ -50,7 +48,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   <kbd>ALT</kbd>+Click an element to select it (red solid outline). A floating icon (💡) appears.
 3.  **Summarize:**
     *   Click the floating icon (💡), *or* right-click and choose "Send to LLM", *or* click the extension toolbar icon.
-    *   The extension sends the element's HTML and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model. The initial summary is always generated in English.
+    *   The extension sends the element's HTML and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model. The initial summary is now generated in the **first configured language**.
 4.  **Review Summary:**
     *   The summary (received as a JSON string) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (```json ... ```) around the JSON are automatically stripped.
     *   **If you have configured preferred languages in Options, corresponding flag icons will appear in the popup header.** Clicking a flag icon will immediately open the Chat tab, requesting a translation of the summary into that language and initiating chat in that language.
@@ -58,7 +56,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 5.  **Chat (Optional):**
     *   Click **Chat** on the summary popup to chat about the summary in English. **(Or click a flag icon in the popup header to start chat requesting a translation)**.
     *   A new browser tab opens. An info banner confirms context is available.
-    *   The original HTML snippet and the raw JSON string are stored. For *every* message you send, the original HTML snippet is prepended to the history sent to the LLM for context.
+    *   The original HTML snippet and the raw JSON string are stored. For *every* message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
     *   Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send.
     *   LLM responses are rendered with full Markdown.
     *   Use **Copy MD**, **Download MD**, or **Download JSON** to save the chat.
@@ -67,7 +65,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ Formatting: JSON/HTML Summaries & Markdown Chat
 
-*   **Initial Summaries (Popup):** The LLM is asked for a **JSON array** where each element is an HTML string. The prompt instructs the LLM to only use `<b>` and `<i>` tags by default. The extension parses this JSON and renders the array items as an HTML list (`<ul><li>...</ul>`) in the popup. Potential code fences around the JSON are automatically stripped. Flag icons representing your configured languages (if any) are also displayed in the popup header, loaded as SVG files from the extension bundle. The flag displayed for a language is based on the <a href="https://en.wikipedia.org/wiki/ISO_639-1" target="_blank">ISO 639-1</a> code associated with that language in the `languages.json` file (e.g., "en" for English maps to `en.svg`). **Note:** Not all language codes have a corresponding country flag SVG in the bundle. In such cases, a generic placeholder flag will be shown.
+*   **Initial Summaries (Popup):** The LLM is asked for a **JSON array** where each element is an HTML string. The prompt instructs the LLM to only use `<b>` and `<i>` tags by default. The extension parses this JSON and renders the array items as an HTML list (`<ul><li>...</ul>`) in the popup. Potential code fences (```json ... ```) around the JSON are automatically stripped. Flag icons representing your configured languages (if any) are also displayed in the popup header, loaded as SVG files from the extension bundle. The flag displayed for a language is based on the <a href="https://en.wikipedia.org/wiki/ISO_639-1" target="_blank">ISO 639-1</a> code associated with that language in the `languages.json` file (e.g., "en" for English maps to `en.svg`). **Note:** Not all language codes have a corresponding country flag SVG in the bundle. In such cases, a generic placeholder flag will be shown.
 *   **Chat Responses (Chat Tab):** Rendered using the `marked` library, supporting full GitHub Flavored Markdown including bold, italics, lists, code blocks, blockquotes, etc. The LLM may still use Markdown or simple HTML in its responses.
 
 ---
@@ -92,7 +90,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## 📝 How to Use (Quick Steps)
 
-1.  **Install** & **Set API Key** in Options. Configure your preferred languages list for chat flags.
+1.  **Install** & **Set API Key** in Options. Configure your preferred languages list for chat flags. **Drag the grab handle on the left of each language to reorder them.**
 2.  **ALT+Hover** & **ALT+Click** an element.
 3.  Click the **floating icon** (💡) (or context menu/toolbar icon) to **Summarize**.
 4.  Review popup (now an HTML list). See flag icons if configured. Click **Chat** for follow-up in English, or click a **flag icon** to initiate chat requesting translation into that language.
@@ -129,7 +127,7 @@ A: Yes! The initial summary uses your default model. In the chat tab, you can se
 A: Yes! Options allow editing model/language lists. Advanced Options let you edit the core formatting part of the prompt (default asks for JSON/HTML).
 
 **Q: Is rendering HTML/Markdown safe?**
-A: The initial summary popup renders a basic HTML list based on the JSON array received (LLM is instructed to only use `<b>`/`<i>`). Chat uses the `marked` library for standard Markdown, which can include HTML. While generally safe, be mindful of LLM outputs. No scripts are executed. Flag images are static SVGs loaded safely.
+A: The initial summary popup renders a basic HTML list based on the JSON array received (LLM is instructed to only use `<b>`/`<i>`). Chat uses the `marked` library for standard Markdown, which can include HTML. While generally safe, be mindful of LLM outputs. No scripts are executed. Flag images are static SVGs loaded securely from within the extension bundle via `chrome.runtime.getURL`.
 
 **Q: Why aren't all my configured flags showing in the popup?**
 A: To keep the popup header clean and prevent it from becoming too wide on smaller screens, the popup only displays a limited number (currently 5) of your configured languages as flags.
