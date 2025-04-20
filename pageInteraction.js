@@ -1,7 +1,7 @@
 // pageInteraction.js
-// v2.20
+// v2.24
 
-console.log("[LLM Content] Script Start (v2.16 - Fixed Languages)");
+console.log("[LLM Content] Script Start (v2.24");
 
 // --- Module Imports ---
 let Highlighter = null;

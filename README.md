@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.21
+# OpenRouter Summarizer v2.24
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -130,6 +130,8 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **v2.21:**
+    *   Now allowing for erroneous output by llama4scout, which returns two JSON arrays instead of one: [["aa","bb"]["cc"]].
 *   **v2.21:**
     *   Improved parsing logic in `chat.js` to better handle LLM responses containing embedded JSON structures within surrounding text, even without code fences.
 *   **v2.20:**
