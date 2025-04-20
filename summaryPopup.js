@@ -1,5 +1,5 @@
 // summaryPopup.js
-// v2.16 - Added updatePopupFlags function
+// v2.20
 
 // --- Constants ---
 const POPUP_CLASS = 'summarizer-popup';

@@ -1,6 +1,6 @@
 // highlighter.js
 // Manages element highlighting and selection logic
-// v2.2
+// v2.20
 
 const HIGHLIGHT_PREVIEW_CLASS = 'llm-highlight-preview';
 const HIGHLIGHT_SELECTED_CLASS = 'llm-highlight';

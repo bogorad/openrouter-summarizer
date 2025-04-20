@@ -1,6 +1,6 @@
 // floatingIcon.js
 // Manages the floating action icon
-// v2.2
+// v2.20
 
 const FLOATING_ICON_CLASS = 'llm-floating-icon';
 const FALLBACK_ICON_CLASS = 'llm-fallback-icon'; // Added for consistency

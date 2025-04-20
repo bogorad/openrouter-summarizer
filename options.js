@@ -1,5 +1,5 @@
 // options.js
-// v2.2
+// v2.20
 
 import {
   // Keep prompt keys for saving
