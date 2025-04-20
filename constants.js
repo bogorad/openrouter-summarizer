@@ -1,5 +1,5 @@
 // constants.js
-// v 2.2
+// v 2.20
 
 // --- Prompt Storage Keys ---
 export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';

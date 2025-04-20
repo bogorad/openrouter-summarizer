@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.2
+# OpenRouter Summarizer v2.20
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,11 +7,11 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
-*   **v2.1:**
+*   **v2.10:**
     *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
     *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
     *   Languages can now be reordered by dragging them in the Options list.
-*   **v2.2:**
+*   **v2.20:**
     *   **Major Code Refactoring:** The internal structure of the extension has been significantly refactored for better maintainability and separation of concerns (see Technical Updates). This should not change functionality but improves the codebase health.
     *   Centralized settings access via the background script.
 
@@ -128,12 +128,12 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
-*   **v2.2:**
+*   **v2.20:**
     *   Major refactoring of the content script (`pageInteraction.js`) into separate modules (`highlighter.js`, `floatingIcon.js`, `summaryPopup.js`) using dynamic imports.
     *   Centralized settings access: `background.js` now handles fetching settings from storage and providing them to other scripts (`pageInteraction.js`, `options.js`, `chat.js`) via message passing.
     *   Improved debug logging consistency and API key sanitization in logs.
     *   Fixed issues related to language data loading and availability in `options.js` and `pageInteraction.js`.
-*   **v2.1:**
+*   **v2.10:**
     *   Refactored language handling: Added `languages.json`, dynamic flag display based on configuration, drag-and-drop reordering in Options.
     *   Initial summary now requested in the first configured language.
 

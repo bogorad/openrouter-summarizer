@@ -1,5 +1,5 @@
 // pageInteraction.js
-// v2.2
+// v2.20
 
 console.log('[LLM Content] Script Start (v2.16 - Fixed Languages)');
 
