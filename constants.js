@@ -2,10 +2,12 @@
 // v 2.20
 
 // --- Prompt Storage Keys ---
-export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
-export const PROMPT_STORAGE_KEY_PREAMBLE = 'prompt_preamble_template';
-export const PROMPT_STORAGE_KEY_POSTAMBLE = 'prompt_postamble_text';
-export const PROMPT_STORAGE_KEY_DEFAULT_FORMAT = 'prompt_default_format_instructions';
+export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT =
+  "prompt_custom_format_instructions";
+export const PROMPT_STORAGE_KEY_PREAMBLE = "prompt_preamble_template";
+export const PROMPT_STORAGE_KEY_POSTAMBLE = "prompt_postamble_text";
+export const PROMPT_STORAGE_KEY_DEFAULT_FORMAT =
+  "prompt_default_format_instructions";
 
 // --- Default Prompt Templates ---
 export const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article_text.
@@ -25,20 +27,26 @@ After providing bullet points for article summary, add a bonus one - your insigh
 export const DEFAULT_MODEL_OPTIONS = [
   { id: "google/gemini-2.0-flash-lite-001", label: "Gemini 2.0 Flash Lite" },
   { id: "x-ai/grok-3-mini-beta", label: "Grok 3 Mini Beta" },
-  { id: "deepseek/deepseek-chat-v3-0324:nitro", label: "Deepseek Chat v3 Nitro" },
+  {
+    id: "deepseek/deepseek-chat-v3-0324:nitro",
+    label: "Deepseek Chat v3 Nitro",
+  },
   { id: "deepseek/deepseek-r1", label: "Deepseek R1" },
   { id: "openai/gpt-4.1-nano", label: "GPT-4.1 Nano" },
-  { id: "anthropic/claude-3.7-sonnet", label: "Claude 3.7 Sonnet" }
+  { id: "anthropic/claude-3.7-sonnet", label: "Claude 3.7 Sonnet" },
 ];
 
 // --- Default Languages for Pre-population ---
 // These names must match names in languages.json
 export const DEFAULT_PREPOPULATE_LANGUAGES = [
-  "English", "Spanish", "Hebrew", "French"
+  "English",
+  "Spanish",
+  "Hebrew",
+  "French",
 ];
 
 // --- Paths ---
 // These paths are relative to the extension root, used by background.js
-export const LANGUAGES_JSON_PATH = 'country-flags/languages.json';
-export const SVG_PATH_PREFIX = 'country-flags/svg/';
-export const FALLBACK_SVG_PATH = 'country-flags/svg/un.svg'; // Generic placeholder flag
+export const LANGUAGES_JSON_PATH = "country-flags/languages.json";
+export const SVG_PATH_PREFIX = "country-flags/svg/";
+export const FALLBACK_SVG_PATH = "country-flags/svg/un.svg"; // Generic placeholder flag

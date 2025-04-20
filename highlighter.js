@@ -2,8 +2,8 @@
 // Manages element highlighting and selection logic
 // v2.20
 
-const HIGHLIGHT_PREVIEW_CLASS = 'llm-highlight-preview';
-const HIGHLIGHT_SELECTED_CLASS = 'llm-highlight';
+const HIGHLIGHT_PREVIEW_CLASS = "llm-highlight-preview";
+const HIGHLIGHT_SELECTED_CLASS = "llm-highlight";
 
 let altKeyDown = false;
 let previewHighlighted = null;
@@ -16,14 +16,22 @@ let DEBUG = false; // Will be set by initializeHighlighter
 // --- Internal Event Handlers ---
 
 function handleKeyDown(e) {
-  if (e.key === 'Alt' && !altKeyDown) {
+  if (e.key === "Alt" && !altKeyDown) {
     const activeEl = document.activeElement;
-    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
-      if (DEBUG) console.log('[LLM Highlighter] Ignoring Alt down in input/editable element.');
+    if (
+      activeEl &&
+      (activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.isContentEditable)
+    ) {
+      if (DEBUG)
+        console.log(
+          "[LLM Highlighter] Ignoring Alt down in input/editable element.",
+        );
       return;
     }
     altKeyDown = true;
-    if (DEBUG) console.log('[LLM Highlighter] Alt key down.');
+    if (DEBUG) console.log("[LLM Highlighter] Alt key down.");
   }
 }
 
@@ -31,8 +39,8 @@ function handleKeyUp(e) {
   // Note: We don't reset altKeyDown here directly on keyup.
   // It's reset on blur, visibility change, or when a selection/deselection occurs.
   // This prevents losing the highlight state if Alt is briefly released during mouse movement.
-  if (e.key === 'Alt') {
-    if (DEBUG) console.log('[LLM Highlighter] Alt key up.');
+  if (e.key === "Alt") {
+    if (DEBUG) console.log("[LLM Highlighter] Alt key up.");
     // If alt is released AND no element is currently selected, reset the state fully.
     // This handles cases where Alt is released without clicking.
     if (!selectedElement) {
@@ -50,15 +58,26 @@ function handleMouseOver(e) {
   let target = document.elementFromPoint(e.clientX, e.clientY);
 
   // Ignore highlighting UI elements (popup, icon)
-  if (!target || target.closest('.summarizer-popup') || target.closest('.llm-floating-icon')) {
+  if (
+    !target ||
+    target.closest(".summarizer-popup") ||
+    target.closest(".llm-floating-icon")
+  ) {
     removePreviewHighlight();
     return;
   }
 
   // Handle body/html target by checking deeper elements
-  if ((target === document.body || target === document.documentElement) && document.elementsFromPoint(e.clientX, e.clientY).length > 1) {
+  if (
+    (target === document.body || target === document.documentElement) &&
+    document.elementsFromPoint(e.clientX, e.clientY).length > 1
+  ) {
     const deeperTarget = document.elementsFromPoint(e.clientX, e.clientY)[1];
-    if (deeperTarget && !deeperTarget.closest('.summarizer-popup') && !deeperTarget.closest('.llm-floating-icon')) {
+    if (
+      deeperTarget &&
+      !deeperTarget.closest(".summarizer-popup") &&
+      !deeperTarget.closest(".llm-floating-icon")
+    ) {
       target = deeperTarget;
     } else {
       removePreviewHighlight();
@@ -85,7 +104,7 @@ function handleMouseOver(e) {
 function handleMouseOut(e) {
   // If mouse leaves the window entirely
   if (!e.relatedTarget && previewHighlighted) {
-    if (DEBUG) console.log('[LLM Highlighter] Mouse left window.');
+    if (DEBUG) console.log("[LLM Highlighter] Mouse left window.");
     removePreviewHighlight();
   }
 }
@@ -94,8 +113,12 @@ function handleMouseDown(e) {
   // Ignore clicks inside floating icon or popup
   // Note: The main script should handle preventing clicks on its own UI elements if needed *before* calling highlighter logic,
   // but this check adds robustness.
-  if (e.target.closest('.llm-floating-icon') || e.target.closest('.summarizer-popup')) {
-    if (DEBUG) console.log('[LLM Highlighter] Mousedown ignored on icon or popup.');
+  if (
+    e.target.closest(".llm-floating-icon") ||
+    e.target.closest(".summarizer-popup")
+  ) {
+    if (DEBUG)
+      console.log("[LLM Highlighter] Mousedown ignored on icon or popup.");
     return;
   }
 
@@ -109,7 +132,7 @@ function handleMouseDown(e) {
 
     if (selectedElement === clickedTarget) {
       // --- Deselect ---
-      if (DEBUG) console.log('[LLM Highlighter] Deselecting element.');
+      if (DEBUG) console.log("[LLM Highlighter] Deselecting element.");
       removeSelectionHighlight(); // Removes class and clears selectedElement
       lastHighlighted = null;
       altKeyDown = false; // Reset alt state on deselect
@@ -119,7 +142,8 @@ function handleMouseDown(e) {
     } else {
       // --- Select ---
       if (clickedTarget) {
-        if (DEBUG) console.log('[LLM Highlighter] Selecting element:', clickedTarget);
+        if (DEBUG)
+          console.log("[LLM Highlighter] Selecting element:", clickedTarget);
         removeSelectionHighlight(); // Clear previous selection (if any)
         selectedElement = clickedTarget;
         lastHighlighted = clickedTarget; // Update last highlighted as well
@@ -129,7 +153,7 @@ function handleMouseDown(e) {
           onElementSelectedCallback(selectedElement, e.pageX, e.pageY); // Pass coordinates
         }
       } else {
-        if (DEBUG) console.warn('[LLM Highlighter] Alt+Click target invalid.');
+        if (DEBUG) console.warn("[LLM Highlighter] Alt+Click target invalid.");
         removeSelectionHighlight(); // Ensure clean state
         lastHighlighted = null;
         altKeyDown = false;
@@ -142,7 +166,8 @@ function handleMouseDown(e) {
   if (!e.altKey && e.button === 0) {
     // If an element is selected and the click is outside it (and outside our UI)
     if (selectedElement && !selectedElement.contains(e.target)) {
-      if (DEBUG) console.log('[LLM Highlighter] Click outside detected. Deselecting.');
+      if (DEBUG)
+        console.log("[LLM Highlighter] Click outside detected. Deselecting.");
       removeSelectionHighlight();
       lastHighlighted = null;
       altKeyDown = false; // Reset alt state
@@ -167,7 +192,8 @@ function removePreviewHighlight() {
 function resetAltState() {
   // Only reset fully if no element is currently selected
   if (!selectedElement && (altKeyDown || previewHighlighted)) {
-    if (DEBUG) console.log('[LLM Highlighter] Resetting Alt state (no selection).');
+    if (DEBUG)
+      console.log("[LLM Highlighter] Resetting Alt state (no selection).");
     altKeyDown = false;
     removePreviewHighlight();
   } else if (altKeyDown || previewHighlighted) {
@@ -177,7 +203,10 @@ function resetAltState() {
     removePreviewHighlight();
     // Let's also reset altKeyDown here for simplicity on blur/visibility change
     altKeyDown = false;
-    if (DEBUG) console.log('[LLM Highlighter] Resetting Alt state (on blur/visibility change).');
+    if (DEBUG)
+      console.log(
+        "[LLM Highlighter] Resetting Alt state (on blur/visibility change).",
+      );
   }
 }
 
@@ -191,7 +220,7 @@ export function removeSelectionHighlight() {
     if (document.body.contains(selectedElement)) {
       selectedElement.classList.remove(HIGHLIGHT_SELECTED_CLASS);
     }
-    if (DEBUG) console.log('[LLM Highlighter] Selection highlight removed.');
+    if (DEBUG) console.log("[LLM Highlighter] Selection highlight removed.");
     selectedElement = null; // Clear state here
   }
 }
@@ -212,8 +241,14 @@ export function getSelectedElement() {
  * @param {boolean} [options.initialDebugState=false] - Initial debug logging state.
  */
 export function initializeHighlighter(options) {
-  if (!options || typeof options.onElementSelected !== 'function' || typeof options.onElementDeselected !== 'function') {
-    console.error('[LLM Highlighter] Initialization failed: Required callbacks missing.');
+  if (
+    !options ||
+    typeof options.onElementSelected !== "function" ||
+    typeof options.onElementDeselected !== "function"
+  ) {
+    console.error(
+      "[LLM Highlighter] Initialization failed: Required callbacks missing.",
+    );
     return;
   }
   onElementSelectedCallback = options.onElementSelected;
@@ -221,13 +256,17 @@ export function initializeHighlighter(options) {
   DEBUG = !!options.initialDebugState;
 
   // Add event listeners managed by this module
-  window.addEventListener('keydown', handleKeyDown, true); // Use capture for keydown
-  window.addEventListener('keyup', handleKeyUp, true);     // Use capture for keyup
-  window.addEventListener('blur', resetAltState);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { resetAltState(); } });
-  document.addEventListener('mousemove', handleMouseOver, true); // Use capture for mousemove
-  window.addEventListener('mouseout', handleMouseOut);
-  document.addEventListener('mousedown', handleMouseDown, true); // Use capture for mousedown
+  window.addEventListener("keydown", handleKeyDown, true); // Use capture for keydown
+  window.addEventListener("keyup", handleKeyUp, true); // Use capture for keyup
+  window.addEventListener("blur", resetAltState);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      resetAltState();
+    }
+  });
+  document.addEventListener("mousemove", handleMouseOver, true); // Use capture for mousemove
+  window.addEventListener("mouseout", handleMouseOut);
+  document.addEventListener("mousedown", handleMouseDown, true); // Use capture for mousedown
 
-  if (DEBUG) console.log('[LLM Highlighter] Initialized.');
+  if (DEBUG) console.log("[LLM Highlighter] Initialized.");
 }
