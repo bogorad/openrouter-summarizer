@@ -1,52 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <title>OpenRouter Summarizer Options</title>
     <link rel="stylesheet" href="options.css"> <!-- Link to the CSS -->
-</head>
-<body>
+  </head>
+  <body>
 
-<div class="container">
-    <h1>OpenRouter Summarizer Options</h1>
+    <div class="container">
+      <h1>OpenRouter Summarizer Options</h1>
 
-    <!-- API Key Section -->
-    <div class="section">
+      <!-- API Key Section -->
+      <div class="section">
         <h2>API Key</h2>
         <p>Enter your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter.ai</a>.</p>
         <input type="password" id="apiKey" placeholder="sk-or-v1-..." class="wide-input">
         <p class="note">Your key is stored locally in your browser and only sent directly to OpenRouter.</p>
-    </div>
+      </div>
 
-    <!-- Model Selection Section -->
-    <div class="section">
+      <!-- Model Selection Section -->
+      <div class="section">
         <h2>Model Selection</h2>
         <p>Select the default model to use for summarization. You can edit the model names/IDs directly.</p>
         <div id="modelSelectionArea">
-            <p>Loading models...</p>
+          <p>Loading models...</p>
         </div>
         <button id="addModelBtn" class="button add-button">Add Another Model</button>
-         <p class="note">Use valid model strings from OpenRouter (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>). You can use <code>:nitro</code> for the fastest model or <code>:auto</code>.</p>
-    </div>
+        <p class="note">Use valid model strings from OpenRouter (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>). You can use <code>:nitro</code> for the fastest model or <code>:auto</code>.</p>
+      </div>
 
-    <!-- Summary Options Section -->
-    <div class="section">
+      <!-- Summary Options Section -->
+      <div class="section">
         <h2>Summary Options</h2>
         <div class="option-group">
-            <label>Number of Bullet Points:</label>
-            <div class="radio-group">
-                <label><input type="radio" name="bulletCount" value="3"> 3</label>
-                <label><input type="radio" name="bulletCount" value="4"> 4</label>
-                <label><input type="radio" name="bulletCount" value="5" checked> 5</label>
-                <label><input type="radio" name="bulletCount" value="6"> 6</label>
-                <label><input type="radio" name="bulletCount" value="7"> 7</label>
-                <label><input type="radio" name="bulletCount" value="8"> 8</label>
-            </div>
+          <label>Number of Bullet Points:</label>
+          <div class="radio-group">
+            <label><input type="radio" name="bulletCount" value="3"> 3</label>
+            <label><input type="radio" name="bulletCount" value="4"> 4</label>
+            <label><input type="radio" name="bulletCount" value="5" checked> 5</label>
+            <label><input type="radio" name="bulletCount" value="6"> 6</label>
+            <label><input type="radio" name="bulletCount" value="7"> 7</label>
+            <label><input type="radio" name="bulletCount" value="8"> 8</label>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <!-- Configured Languages for Chat Flags Section -->
-    <div class="section">
+      <!-- Configured Languages for Chat Flags Section -->
+      <div class="section">
         <h2>Configured Languages for Chat Flags</h2>
         <p><ul>
           <li>Add languages here to show their flags in the summary popup.</li>
@@ -55,67 +55,67 @@
           <li>Drag the grab handle on the left of each language row to change their order.</li>
         </ul></p>
         <div id="languageSelectionArea">
-            <p>Loading languages...</p>
+          <p>Loading languages...</p>
         </div>
         <button id="addLangBtn" class="button add-button">Add Another Language</button>
         <p class="note">Start typing a language name to see suggestions. The flag displayed is based on the language's ISO 639-1 code if available.</p>
-    </div>
+      </div>
 
 
-    <!-- Other Settings Section -->
-    <div class="section">
+      <!-- Other Settings Section -->
+      <div class="section">
         <h2>Other Settings</h2>
         <div class="option-group checkbox-group">
-            <input type="checkbox" id="debug">
-            <label for="debug">Enable Debug Logging (requires DevTools console)</label>
+          <input type="checkbox" id="debug">
+          <label for="debug">Enable Debug Logging (requires DevTools console)</label>
         </div>
-    </div>
+      </div>
 
-    <!-- Advanced Options / Prompt Customization Section (MOVED & COLLAPSIBLE) -->
-    <div class="section">
+      <!-- Advanced Options / Prompt Customization Section (MOVED & COLLAPSIBLE) -->
+      <div class="section">
         <h2 class="collapsible-header" id="advancedOptionsToggle" role="button" tabindex="0" aria-expanded="false">
-            Advanced Options <span class="toggle-indicator">►</span>
+          Advanced Options <span class="toggle-indicator">►</span>
         </h2>
         <div class="collapsible-content" id="advancedOptionsContent">
-            <!-- Content moved inside here -->
-            <h3>Prompt Customization</h3>
-            <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle formatting instructions section.</p>
-            <div class="prompt-display-area">
-                <div class="prompt-label">Intro (sample):</div>
-                <div class="prompt-part prompt-preamble" id="promptPreamble">
-                    <!-- Preamble text will be loaded by JS -->
-                </div>
-
-                 <div class="prompt-label">Outro:</div>
-                <div class="prompt-part prompt-postamble" id="promptPostamble">
-                    <!-- Postamble text will be loaded by JS -->
-                </div>
+          <!-- Content moved inside here -->
+          <h3>Prompt Customization</h3>
+          <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle formatting instructions section.</p>
+          <div class="prompt-display-area">
+            <div class="prompt-label">Intro (sample):</div>
+            <div class="prompt-part prompt-preamble" id="promptPreamble">
+              <!-- Preamble text will be loaded by JS -->
             </div>
-            <p class="note">The preamble and postamble are fixed. The initial summary is generated in the <b>first configured language</b> based on the preamble. It replaces US English.</p>
 
-             <!-- Custom Instructions Input -->
-            <h3 style="margin-top: 25px;">Formatting Instructions</h3>
-             <p>Customize the core instructions for how the summary points should be formatted. Keep it concise.</p>
-            <textarea id="promptFormatInstructions" rows="6" class="prompt-part prompt-editable" spellcheck="false">
-                <!-- Editable instructions loaded/defaulted by JS -->
-            </textarea>
-             <p class="note">This text is inserted between the intro and the outro.</p>
+            <div class="prompt-label">Outro:</div>
+            <div class="prompt-part prompt-postamble" id="promptPostamble">
+              <!-- Postamble text will be loaded by JS -->
+            </div>
+          </div>
+          <p class="note">The preamble and postamble are fixed. The initial summary is generated in the <b>first configured language</b> based on the preamble. It replaces US English.</p>
+
+          <!-- Custom Instructions Input -->
+          <h3 style="margin-top: 25px;">Formatting Instructions</h3>
+          <p>Customize the core instructions for how the summary points should be formatted. Keep it concise.</p>
+          <textarea id="promptFormatInstructions" rows="6" class="prompt-part prompt-editable" spellcheck="false">
+            <!-- Editable instructions loaded/defaulted by JS -->
+          </textarea>
+          <p class="note">This text is inserted between the intro and the outro.</p>
 
 
         </div>
-    </div>
-    <!-- End Advanced Options Section -->
+      </div>
+      <!-- End Advanced Options Section -->
 
 
-    <!-- Actions Area -->
-    <div class="actions">
+      <!-- Actions Area -->
+      <div class="actions">
         <button id="save" class="button save-button">Save Options</button>
         <button id="resetDefaultsBtn" class="button reset-button">Reset to Defaults</button>
         <span id="status" class="status-message"></span>
+      </div>
+
     </div>
 
-</div>
-
-<script src="options.js", type="module"></script>
-</body>
+    <script src="options.js", type="module"></script>
+  </body>
 </html>
