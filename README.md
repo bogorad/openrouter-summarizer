@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.10
+# OpenRouter Summarizer v2.2
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,8 +7,13 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
-*   **Changed the logic for languages:** Now the user can set their own languages, with flags, and fast lookup!
-*   **The first language is the default for summaries. Others show up in the popup header, can be clicked.
+*   **v2.1:**
+    *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
+    *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
+    *   Languages can now be reordered by dragging them in the Options list.
+*   **v2.2:**
+    *   **Major Code Refactoring:** The internal structure of the extension has been significantly refactored for better maintainability and separation of concerns (see Technical Updates). This should not change functionality but improves the codebase health.
+    *   Centralized settings access via the background script.
 
 ---
 
@@ -18,7 +23,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content and the original HTML snippet (context is now persistent!).
 *   **Rich Formatting:**
     *   Initial summaries are rendered in the popup as a clean HTML list (`<ul><li>...</ul>`).
-    *   Chat responses support  both full Markdown formatting via `marked` and basic HTML (`<b>`).
+    *   Chat responses support both full Markdown formatting via `marked` and basic HTML (`<b>`).
 *   **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
 *   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the summary popup. Clicking a flag initiates a chat session requesting translation of the summary into that language.
 *   **Languages can now be reordered** by dragging them in the Options list.
@@ -72,14 +77,14 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   `contextMenus`: For the right-click menu option.
     *   `storage`: To save API key/preferences (`sync`) and temporary chat context (`session`).
     *   `<all_urls>`: To allow selection on any website.
-    *   **`web_accessible_resources`**: Used for accessing static assets like icon images, country flag SVGs, and necessary libraries (`marked.min.js`) from content scripts/pages.
+    *   **`web_accessible_resources`**: Used for accessing static assets (icons, flags, JS libraries like `marked.min.js`) and dynamically imported content script modules (`highlighter.js`, `floatingIcon.js`, `summaryPopup.js`, `constants.js`) from content scripts/pages.
 *   **Your Data:**
     *   **API Key & Settings:** Stored locally in `chrome.storage.sync`. Only sent to OpenRouter.ai upon request. Prompt templates and your configured language list are also stored here.
     *   **Selected HTML & Summary:** Sent to OpenRouter.ai for summary/chat requests.
     *   **Chat Context:** Original HTML snippet and raw JSON string stored temporarily in `chrome.storage.session` for the chat tab. Cleared when the browser session ends. The HTML snippet is re-sent with subsequent chat messages for context.
     *   **No Analytics:** No tracking or ads.
 *   **Security:**
-    *   Renders HTML list/Markdown. Does **not** execute scripts or load external resources from LLM responses. Relies on `marked` for chat rendering. Static assets like SVGs are loaded securely from within the extension bundle via `chrome.runtime.getURL`.
+    *   Renders HTML list/Markdown. Does **not** execute scripts or load external resources from LLM responses. Relies on `marked` for chat rendering. Static assets like SVGs and dynamically imported JS modules are loaded securely from within the extension bundle via `chrome.runtime.getURL`.
 
 ---
 
@@ -114,7 +119,7 @@ A: Yes! Options allow editing model/language lists. Advanced Options let you edi
 A: The initial summary popup renders a basic HTML list based on the JSON array received (LLM is instructed to only use `<b>`/`<i>`). Chat uses the `marked` library for standard Markdown, which can include HTML. While generally safe, be mindful of LLM outputs. No scripts are executed. Flag images are static SVGs loaded securely from within the extension bundle via `chrome.runtime.getURL`.
 
 **Q: Why aren't all my configured flags showing in the popup?**
-A: To keep the popup header clean and prevent it from becoming too wide on smaller screens, the popup only displays a limited number (currently  up to 4) of your configured languages as flags.
+A: To keep the popup header clean and prevent it from becoming too wide on smaller screens, the popup only displays a limited number (currently up to 4, excluding the first/default language) of your configured languages as flags.
 
 **Q: How are flags chosen for languages?**
 A: The extension attempts to use an SVG flag file (`[language_code].svg`) from the `country-flags/svg/` directory based on the <a href="https://en.wikipedia.org/wiki/ISO_639-1" target="_blank">ISO 639-1</a> code associated with that language in the `languages.json` file. If a flag file for a specific language code is not available in the extension bundle, a generic placeholder flag will be displayed.
@@ -123,9 +128,17 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **v2.2:**
+    *   Major refactoring of the content script (`pageInteraction.js`) into separate modules (`highlighter.js`, `floatingIcon.js`, `summaryPopup.js`) using dynamic imports.
+    *   Centralized settings access: `background.js` now handles fetching settings from storage and providing them to other scripts (`pageInteraction.js`, `options.js`, `chat.js`) via message passing.
+    *   Improved debug logging consistency and API key sanitization in logs.
+    *   Fixed issues related to language data loading and availability in `options.js` and `pageInteraction.js`.
+*   **v2.1:**
+    *   Refactored language handling: Added `languages.json`, dynamic flag display based on configuration, drag-and-drop reordering in Options.
+    *   Initial summary now requested in the first configured language.
+
 ---
 
 ## 🏷️ Tags
 
 `Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`
-

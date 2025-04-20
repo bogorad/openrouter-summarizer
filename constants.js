@@ -1,5 +1,5 @@
 // constants.js
-// v 2.11
+// v 2.2
 
 // --- Prompt Storage Keys ---
 export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT = 'prompt_custom_format_instructions';
@@ -23,18 +23,18 @@ After providing bullet points for article summary, add a bonus one - your insigh
 
 // --- Default Models ---
 export const DEFAULT_MODEL_OPTIONS = [
-    { id: "google/gemini-2.0-flash-lite-001", label: "Gemini 2.0 Flash Lite" },
-    { id: "x-ai/grok-3-mini-beta", label: "Grok 3 Mini Beta" },
-    { id: "deepseek/deepseek-chat-v3-0324:nitro", label: "Deepseek Chat v3 Nitro" },
-    { id: "deepseek/deepseek-r1", label: "Deepseek R1" },
-    { id: "openai/gpt-4.1-nano", label: "GPT-4.1 Nano" },
-    { id: "anthropic/claude-3.7-sonnet", label: "Claude 3.7 Sonnet" }
+  { id: "google/gemini-2.0-flash-lite-001", label: "Gemini 2.0 Flash Lite" },
+  { id: "x-ai/grok-3-mini-beta", label: "Grok 3 Mini Beta" },
+  { id: "deepseek/deepseek-chat-v3-0324:nitro", label: "Deepseek Chat v3 Nitro" },
+  { id: "deepseek/deepseek-r1", label: "Deepseek R1" },
+  { id: "openai/gpt-4.1-nano", label: "GPT-4.1 Nano" },
+  { id: "anthropic/claude-3.7-sonnet", label: "Claude 3.7 Sonnet" }
 ];
 
 // --- Default Languages for Pre-population ---
 // These names must match names in languages.json
 export const DEFAULT_PREPOPULATE_LANGUAGES = [
-    "English", "Spanish", "Hebrew", "French"
+  "English", "Spanish", "Hebrew", "French"
 ];
 
 // --- Paths ---
