@@ -1,6 +1,7 @@
 /* ========================================= */
-/* OpenRouter Summarizer Popup Styles v2.20  */
-/* Added Font Hint for Flags, Limited Flags  */
+/* OpenRouter Summarizer pageInteraction.css */
+/* (Formerly popup.css) v2.24               */
+/* Styles for Popup and Page Interactions    */
 /* ========================================= */
 
 /* --- Globals --- */
@@ -26,10 +27,7 @@
   width: auto; /* Width based on content */
   max-width: 750px; /* Max width constraint */
   min-width: 320px; /* Min width constraint */
-
-  /* --- CORE FIX for Vertical Adjacency --- */
   height: min-content; /* Force container height to fit content exactly */
-  /* --- END CORE FIX --- */
 
   /* Visual Appearance */
   background-color: #ffffff;
@@ -40,21 +38,34 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Emoji", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", "Noto Color Emoji", sans-serif;
   font-size: 16px;
 
-  /* Clipping */
+  /* Clipping & Transitions */
   overflow: hidden; /* Clip children to rounded corners */
+  opacity: 0; /* Start hidden for transition */
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+  transform: translateX(-50%) translateY(-10px); /* Start slightly up */
 }
+
+.summarizer-popup.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0); /* End at correct position */
+}
+
 
 /* --- Popup Header Container (holds title and flags) --- */
 .summarizer-header-container {
-    /* This container provides the padding for both the title and the flags */
-    padding: 14px 20px; /* Match original header padding */
+    /* Padding */
+    padding: 14px 20px;
+    /* Appearance */
     background-color: #2196F3;
     color: #ffffff;
-    flex-shrink: 0; /* Prevent shrinking */
-    margin: 0; /* Ensure no margin */
-    display: flex; /* Still use flex to easily center the title */
-    align-items: center; /* Vertically center title */
-    position: relative; /* Crucial for absolute positioning of flags inside */
+    /* Layout */
+    flex-shrink: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    /* --- CRUCIAL: Establishes positioning context for flags --- */
+    position: relative;
+    /* --- --- */
 }
 
 
@@ -62,50 +73,52 @@
 .summarizer-header {
   font-size: 1.1em;
   font-weight: 600;
-  margin: 0; /* Ensure no margin */
-  text-align: center; /* Center text within its space */
+  margin: 0;
+  text-align: center;
   flex-grow: 1; /* Allow header title to take available space */
-  padding-right: 50px; /* Increased padding to prevent title from overlapping flags */
-  /* Add some flex basis to ensure it takes *at least* some space */
-  flex-basis: 0; /* Allows flex-grow to work correctly */
-  min-width: 0; /* Prevent potential overflow issues with flex */
+  /* Add padding to prevent title overlapping flags */
+  padding-right: 50px; /* Adjust as needed based on max flag width */
+  flex-basis: 0;
+  min-width: 0;
 }
 
 /* --- Flags Area --- */
 .summarizer-flags {
-    position: absolute; /* Position flags absolutely relative to the header container */
-    top: 50%; /* Vertically center */
-    transform: translateY(-50%); /* Adjust for vertical centering */
+    /* --- CRUCIAL: Absolute positioning relative to header container --- */
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
     right: 20px; /* Position from the right, aligned with container padding */
+    /* --- --- */
     display: flex; /* Arrange flags horizontally */
     gap: 5px; /* Space between flags */
-    align-items: center; /* Vertically align flags (redundant with transform: translateY) */
-    flex-shrink: 0; /* Prevent flags area from shrinking */
+    align-items: center;
+    flex-shrink: 0;
     z-index: 1; /* Ensure flags are above header text if needed */
     max-width: 300px; /* Limit total width of flags area */
     overflow: hidden; /* Hide extra flags if they exceed max-width */
 }
 
 /* Style for the flag image */
-/* Reusing the language-flag class name from options for consistency */
 img.language-flag {
-    display: block; /* Ensure it behaves like a block element for sizing */
-    width: 1.6em; /* Fixed width for flag image */
-    height: auto; /* Maintain aspect ratio */
-    line-height: 1; /* Ensure line height doesn't add extra height */
+    display: block;
+    width: 1.6em;
+    height: auto;
+    line-height: 1;
     vertical-align: middle;
-    flex-shrink: 0; /* Prevent img from shrinking */
-    border: 1px solid rgba(0,0,0,0.1); /* Add a subtle border around the flag */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Subtle shadow */
-    background-color: #eee; /* Background for transparency issues */
-    object-fit: contain; /* Ensure the entire flag is visible */
-    border-radius: 3px; /* Slightly round corners */
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background-color: #eee;
+    object-fit: contain;
+    border-radius: 3px;
+    cursor: pointer; /* Indicate flags are clickable */
+    transition: transform 0.1s ease-out; /* Add transition for hover */
 }
 
-/* Hover effect for flags - Optional interaction */
+/* Optional hover effect */
 img.language-flag:hover {
-    transform: scale(1.1); /* Slightly enlarge on hover */
-    /* opacity: 0.9; */
+    transform: scale(1.1);
 }
 
 
@@ -173,25 +186,32 @@ img.language-flag:hover {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 .summarizer-btn:hover {
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15); /* Corrected box-shadow property */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
   transform: translateY(-1px);
 }
 .summarizer-btn:active {
   transform: translateY(0px);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
+.summarizer-btn:disabled {
+  background-color: #bdbdbd !important; /* Use important to override specific styles */
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 
 /* Specific Button Colors */
 .summarizer-btn.copy-btn { background-color: #1976D2; color: #ffffff; }
-.summarizer-btn.copy-btn:hover { background-color: #1565C0; }
+.summarizer-btn.copy-btn:hover:not(:disabled) { background-color: #1565C0; } /* Add :not(:disabled) */
 .summarizer-btn.chat-btn { background-color: #2196F3; color: #ffffff; }
-.summarizer-btn.chat-btn:hover { background-color: #1785db; }
+.summarizer-btn.chat-btn:hover:not(:disabled) { background-color: #1785db; } /* Add :not(:disabled) */
 .summarizer-btn.close-btn { background-color: #e53935; color: #ffffff; }
-.summarizer-btn.close-btn:hover { background-color: #d32f2f; }
+.summarizer-btn.close-btn:hover:not(:disabled) { background-color: #d32f2f; } /* Add :not(:disabled) */
 
 
 /* --- Responsive Adjustments --- */
-@media (max-width: 780px) { /* Adjust breakpoint slightly below max-width */
+@media (max-width: 780px) {
   .summarizer-popup {
     width: 95vw;
     max-width: 95vw;
@@ -199,7 +219,7 @@ img.language-flag:hover {
     top: 2.5vh;
   }
 
-  .summarizer-header-container, /* Apply padding to the container */
+  .summarizer-header-container,
   .summarizer-body,
   .summarizer-actions {
     padding-left: 15px;
@@ -208,13 +228,11 @@ img.language-flag:hover {
 
   .summarizer-flags {
       right: 15px; /* Adjust position for smaller screens padding */
-      /* top and transform remain for vertical centering */
   }
 
   .summarizer-header {
        padding-right: 40px; /* Adjust padding to prevent title overlap */
   }
-
 
   .summarizer-actions { gap: 10px; }
   .summarizer-btn { padding: 7px 16px; font-size: 0.9em; }
@@ -232,7 +250,7 @@ img.language-flag:hover {
   box-shadow: 0 0 0 3px rgba(33,150,243,0.08);
   transition: outline 0.12s, box-shadow 0.16s, background 0.22s;
   cursor: pointer;
-  z-index: 2147483645;
+  z-index: 2147483645; /* Below icon/popup */
 }
 
 /* Selection Highlight (Red Solid - after ALT+Click) */
@@ -240,7 +258,7 @@ img.language-flag:hover {
   outline: 3px solid red !important;
   background-color: rgba(255, 0, 0, 0.1) !important;
   box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
-  z-index: 2147483644;
+  z-index: 2147483644; /* Below preview/icon/popup */
 }
 
 /* Floating Icon (Appears on ALT+Click) */
@@ -255,8 +273,9 @@ img.language-flag:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 2147483646;
+  z-index: 2147483646; /* Below popup, above highlights */
   transition: transform 0.1s ease-out;
+  border: 1px solid #ccc; /* Subtle border */
 }
 .llm-floating-icon:hover {
   transform: scale(1.1);
@@ -266,6 +285,8 @@ img.language-flag:hover {
   height: 24px;
   display: block;
 }
+/* Fallback text/emoji icon style */
 .llm-fallback-icon {
   font-size: 22px;
+  line-height: 1;
 }

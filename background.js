@@ -1,7 +1,9 @@
 // background.js
-/* background.js */
-// v2.2
+const VER = "v2.26"; // Or appropriate version reflecting these changes
+const LASTUPD =
+  "Update DEBUG state reliably, simplify stream handler debug fetch";
 
+// --- Existing imports start here ---
 import {
   DEFAULT_MODEL_OPTIONS,
   LANGUAGES_JSON_PATH,
@@ -18,6 +20,8 @@ import {
   PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
   // --- End Added Imports ---
 } from "./constants.js";
+
+console.log(`[LLM Background] Service Worker Start (${VER})`);
 
 // --- Language Data Storage ---
 let ALL_LANGUAGES_MAP = {};
@@ -148,6 +152,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const keysToFetch = [
         "apiKey",
         "model",
+        "models", // Fetch models array of objects
         "debug",
         "bulletCount",
         "availableLanguages",
@@ -165,13 +170,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ error: chrome.runtime.lastError.message });
           return;
         }
+
+        // Load/Default Models Array (Objects)
+        let loadedModels = DEFAULT_MODEL_OPTIONS; // Start with default
+        if (
+          Array.isArray(data.models) &&
+          data.models.length > 0 &&
+          data.models.every(
+            (m) =>
+              typeof m === "object" && m !== null && typeof m.id === "string",
+          )
+        ) {
+          loadedModels = data.models.map((m) => ({
+            id: m.id,
+            label:
+              typeof m.label === "string" && m.label.trim() !== ""
+                ? m.label
+                : m.id,
+          }));
+          if (DEBUG)
+            console.log(
+              `[LLM Background] Using ${loadedModels.length} models from storage.`,
+            );
+        } else {
+          if (DEBUG)
+            console.log(
+              `[LLM Background] No valid models found in storage, using ${loadedModels.length} defaults.`,
+            );
+        }
+
+        // Determine selected model ID
+        const availableModelIds = loadedModels.map((m) => m.id);
+        let finalSelectedModelId = "";
+        if (data.model && availableModelIds.includes(data.model)) {
+          finalSelectedModelId = data.model;
+        } else if (loadedModels.length > 0) {
+          finalSelectedModelId = loadedModels[0].id;
+        }
+
+        // Construct final settings object
         const settings = {
           apiKey: data.apiKey || "",
-          model:
-            data.model ||
-            (DEFAULT_MODEL_OPTIONS.length > 0
-              ? DEFAULT_MODEL_OPTIONS[0].id
-              : ""),
+          model: finalSelectedModelId,
+          models: loadedModels, // Use the loaded/defaulted array of objects
           debug: DEBUG, // Use the already updated global DEBUG
           bulletCount: data.bulletCount || DEFAULT_BULLET_COUNT,
           availableLanguages: Array.isArray(data.availableLanguages)
@@ -206,7 +247,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     else if (request.action === "getChatContext") {
       if (DEBUG)
         console.log("[LLM Background] Received getChatContext request.");
-      // No need to fetch 'debug' here again, use global DEBUG
+      // Fetch models (array of objects) from storage
       chrome.storage.sync.get(["models"], (syncData) => {
         // Only fetch models needed here
         chrome.storage.session.get(["chatContext"], (sessionData) => {
@@ -236,25 +277,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               storedContext,
             );
 
-          let modelsToSend = [];
+          // Load/Default Models Array (Objects)
+          let modelsToSend = DEFAULT_MODEL_OPTIONS; // Start with default
           if (
             Array.isArray(syncData.models) &&
             syncData.models.length > 0 &&
-            syncData.models.every((m) => typeof m === "string")
+            syncData.models.every(
+              (m) =>
+                typeof m === "object" && m !== null && typeof m.id === "string",
+            )
           ) {
-            modelsToSend = syncData.models.map((id) => {
-              const defaultModel = DEFAULT_MODEL_OPTIONS.find(
-                (m) => m.id === id,
-              );
-              return { id: id, label: defaultModel ? defaultModel.label : id };
-            });
+            modelsToSend = syncData.models.map((m) => ({
+              id: m.id,
+              label:
+                typeof m.label === "string" && m.label.trim() !== ""
+                  ? m.label
+                  : m.id,
+            }));
             if (DEBUG)
               console.log(
                 "[LLM Background] Using models from storage for chat dropdown:",
                 modelsToSend,
               );
           } else {
-            modelsToSend = DEFAULT_MODEL_OPTIONS;
             if (DEBUG)
               console.log(
                 "[LLM Background] No valid models found in storage, using defaults for chat dropdown.",
@@ -265,7 +310,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             domSnippet: storedContext.domSnippet,
             summary: storedContext.summary,
             chatTargetLanguage: storedContext.chatTargetLanguage,
-            models: modelsToSend,
+            models: modelsToSend, // Send the array of objects
             debug: DEBUG, // Send the current global DEBUG state
           };
           if (DEBUG)
@@ -281,9 +326,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // --- Get Models List ---
     else if (request.action === "getModelsList") {
+      // This is now somewhat redundant as getSettings provides the models,
+      // but keep it for potential direct use by options page if needed initially.
       if (DEBUG)
         console.log("[LLM Background] Received getModelsList request.");
-      sendResponse({ models: DEFAULT_MODEL_OPTIONS });
+      sendResponse({ models: DEFAULT_MODEL_OPTIONS }); // Still send the constant default list
       // No return true needed here
     }
 
@@ -302,10 +349,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // --- LLM Streaming ---
     else if (request.action === "llmChatStream") {
-      // handleLLMStream is async, call it directly
-      // It will now use the global DEBUG variable
       handleLLMStream(request, sender);
-      // No sendResponse needed from here, stream uses tabs.sendMessage
+      // No sendResponse needed from here
     }
 
     // --- Set Chat Context ---
@@ -397,9 +442,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 }); // End onMessage listener
 
-// --- STREAMING LLM HANDLER --- (MODIFIED)
+// --- STREAMING LLM HANDLER ---
 async function handleLLMStream(request, sender) {
-  // --- *** Fetch ONLY apiKey here *** ---
+  // Fetch ONLY apiKey here
   // Use the global DEBUG variable for logging checks
   chrome.storage.sync.get(["apiKey"], async (config) => {
     const apiKey = config.apiKey;
@@ -450,7 +495,6 @@ async function handleLLMStream(request, sender) {
       stream: true,
     };
 
-    // Use global DEBUG for logging conditional
     if (DEBUG)
       console.log(
         "[LLM Background Stream] Sending payload to OpenRouter:",

@@ -1,5 +1,6 @@
-// options.js
-// v2.20
+// options.jsThat maens NEVER!!!
+const VER = "v2.26"; // Update this as needed
+const LASTUPD = "Improved multi-array JSON parsing in LLM response";
 
 import {
   // Keep prompt keys for saving
@@ -16,6 +17,12 @@ import {
   // SVG paths and full language map are fetched from background
 } from "./constants.js";
 
+// --- Version Info ---
+const VER = "v2.26";
+const LASTUPD = "Correctly save/load custom model list with labels";
+
+console.log(`[LLM Options] Script Start (${VER})`);
+
 document.addEventListener("DOMContentLoaded", async () => {
   // --- DOM Elements ---
   const apiKeyInput = document.getElementById("apiKey");
@@ -31,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
   const saveButton = document.getElementById("save");
   const resetButton = document.getElementById("resetDefaultsBtn");
-  const statusMessage = document.getElementById("status"); // Ensure this element exists in options.html
+  const statusMessage = document.getElementById("status");
   const promptPreambleDiv = document.getElementById("promptPreamble");
   const promptFormatInstructionsTextarea = document.getElementById(
     "promptFormatInstructions",
@@ -58,14 +65,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // --- Language Data Storage (Populated from background) ---
-  let ALL_LANGUAGE_NAMES_MAP = {}; // Populated from background.js
-  let SVG_PATH_PREFIX = ""; // Populated from background.js
-  let FALLBACK_SVG_PATH = ""; // Populated from background.js
+  let ALL_LANGUAGE_NAMES_MAP = {};
+  let SVG_PATH_PREFIX = "";
+  let FALLBACK_SVG_PATH = "";
 
   // --- State Variables ---
-  let DEBUG = false; // Will be updated during loadSettings
+  let DEBUG = false;
   let currentModels = []; // Stores {id, label} objects
-  let currentSelectedModel = "";
+  let currentSelectedModel = ""; // Stores the ID of the selected model
   let currentAvailableLanguages = []; // Stores saved language names
   let currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
 
@@ -92,6 +99,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
       if (addModelBtn) addModelBtn.disabled = false;
     }
+
+    // Ensure selected model ID exists in the current list
     const availableModelIds = currentModels.map((m) => m.id);
     if (
       !currentSelectedModel ||
@@ -99,7 +108,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     ) {
       currentSelectedModel =
         currentModels.length > 0 ? currentModels[0].id : "";
+      if (DEBUG)
+        console.log(
+          `[Options Debug] Selected model '${currentSelectedModel}' invalid or missing, defaulting to first available: '${currentSelectedModel}'`,
+        );
     }
+
     currentModels.forEach((model, index) => {
       const isChecked =
         model.id === currentSelectedModel && model.id.trim() !== "";
@@ -260,21 +274,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       !ALL_LANGUAGE_NAMES_MAP ||
       Object.keys(ALL_LANGUAGE_NAMES_MAP).length === 0
     ) {
-      // --- DEBUG LOG ---
       if (DEBUG && name?.trim())
         console.warn(
           `[Options Debug] findLanguageByName: Map empty or not loaded when searching for "${name}". Map keys:`,
           Object.keys(ALL_LANGUAGE_NAMES_MAP || {}).length,
         );
-      // --- END DEBUG LOG ---
       return undefined;
     }
     const cleanName = name.trim().toLowerCase();
-    const result = ALL_LANGUAGE_NAMES_MAP[cleanName];
-    // --- DEBUG LOG ---
-    // if (DEBUG && name?.trim()) console.log(`[Options Debug] findLanguageByName: Searched for "${cleanName}", found:`, result ? {...result} : 'undefined');
-    // --- END DEBUG LOG ---
-    return result; // Returns { code, name } or undefined
+    return ALL_LANGUAGE_NAMES_MAP[cleanName];
   }
   function filterLanguages(query) {
     const lowerQuery = query.toLowerCase().trim();
@@ -284,31 +292,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       Object.keys(ALL_LANGUAGE_NAMES_MAP).length === 0
     )
       return [];
-    // --- DEBUG LOG ---
     if (DEBUG)
       console.log(
         `[Options Debug] filterLanguages: Filtering for "${lowerQuery}". Map size: ${Object.keys(ALL_LANGUAGE_NAMES_MAP).length}`,
       );
-    // --- END DEBUG LOG ---
     const results = Object.keys(ALL_LANGUAGE_NAMES_MAP)
       .filter((lowerName) => lowerName.includes(lowerQuery))
-      .map((lowerName) => ALL_LANGUAGE_NAMES_MAP[lowerName]); // Return {code, name} objects
-    // --- DEBUG LOG ---
+      .map((lowerName) => ALL_LANGUAGE_NAMES_MAP[lowerName]);
     if (DEBUG)
       console.log(
         `[Options Debug] filterLanguages: Found ${results.length} results.`,
       );
-    // --- END DEBUG LOG ---
     return results;
   }
   function showAutocompleteSuggestions(inputElement, suggestions) {
-    // --- DEBUG LOG ---
     if (DEBUG)
       console.log(
         `[Options Debug] showAutocompleteSuggestions called with ${suggestions.length} suggestions for input:`,
         inputElement.id,
       );
-    // --- END DEBUG LOG ---
     if (!autocompleteDropdown) {
       autocompleteDropdown = document.createElement("div");
       autocompleteDropdown.className = "autocomplete-dropdown";
@@ -356,12 +358,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     autocompleteDropdown.style.left = `${rect.left + window.scrollX}px`;
     autocompleteDropdown.style.width = `${rect.width}px`;
     autocompleteDropdown.style.display = "block";
-    // --- DEBUG LOG ---
     if (DEBUG)
       console.log(
         `[Options Debug] showAutocompleteSuggestions: Dropdown positioned at top: ${autocompleteDropdown.style.top}, left: ${autocompleteDropdown.style.left}, width: ${autocompleteDropdown.style.width}`,
       );
-    // --- END DEBUG LOG ---
     activeAutocompleteInput = inputElement;
   }
   function hideAutocompleteSuggestions() {
@@ -381,12 +381,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!itemElement || !inputElement) return;
     const languageName = itemElement.dataset.languageName;
     const languageCode = itemElement.dataset.languageCode;
-    // --- DEBUG LOG ---
     if (DEBUG)
       console.log(
         `[Options Debug] selectAutocompleteSuggestion: Selecting "${languageName}" (Code: ${languageCode}) for input #${inputElement.id}`,
       );
-    // --- END DEBUG LOG ---
     inputElement.value = languageName;
     const flagImg = inputElement.parentElement?.querySelector(".language-flag");
     if (flagImg && languageCode) {
@@ -457,25 +455,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   function setupAutocomplete(inputElement) {
     inputElement.addEventListener("input", (event) => {
       const query = event.target.value;
-      // --- DEBUG LOG ---
       if (DEBUG)
         console.log(
           `[Options Debug] Input event on #${inputElement.id}. Query: "${query}". Checking map size: ${Object.keys(ALL_LANGUAGE_NAMES_MAP).length}`,
         );
-      // --- END DEBUG LOG ---
       const suggestions = filterLanguages(query);
-      // --- DEBUG LOG ---
       if (DEBUG)
         console.log(
           `[Options Debug] Input event on #${inputElement.id}. Suggestions found: ${suggestions.length}`,
         );
-      // --- END DEBUG LOG ---
       if (query.length > 0 && suggestions.length > 0) {
         showAutocompleteSuggestions(event.target, suggestions);
       } else {
         hideAutocompleteSuggestions();
       }
-      handleLanguageTextChange(event); // Update flag/state
+      handleLanguageTextChange(event);
     });
     inputElement.addEventListener("focus", (event) => {
       const query = event.target.value;
@@ -494,12 +488,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderLanguageOptions() {
     if (!languageSelectionArea) return;
     languageSelectionArea.innerHTML = "";
-    // --- DEBUG LOG ---
     if (DEBUG)
       console.log(
         `[Options Debug] renderLanguageOptions: Rendering ${currentAvailableLanguages.length} languages. SVG Prefix: ${SVG_PATH_PREFIX ? "Loaded" : "Not Loaded"}`,
       );
-    // --- END DEBUG LOG ---
     currentAvailableLanguages.forEach((langName, index) => {
       const group = document.createElement("div");
       group.className = "option-group language-option";
@@ -568,7 +560,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       group.addEventListener("dragleave", handleDragLeave);
       group.addEventListener("drop", handleDrop);
       languageSelectionArea.appendChild(group);
-      setupAutocomplete(textInput); // Setup autocomplete which relies on filterLanguages -> findLanguageByName
+      setupAutocomplete(textInput);
     });
   }
   function handleLanguageTextChange(event) {
@@ -584,9 +576,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (flagImg) {
       const languageData = findLanguageByName(newLangName);
       const languageCode = languageData ? languageData.code : null;
-      // --- DEBUG LOG ---
-      // if (DEBUG) console.log(`[Options Debug] handleLanguageTextChange for #${idx}: Name="${newLangName}", Found Code: ${languageCode}`);
-      // --- END DEBUG LOG ---
       if (languageCode && SVG_PATH_PREFIX) {
         flagImg.src = `${SVG_PATH_PREFIX}${languageCode.toLowerCase()}.svg`;
         flagImg.alt = `${languageData.name} flag`;
@@ -757,20 +746,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   /** Loads settings and populates the form */
   async function loadSettings() {
-    // Get initial debug state first to enable logging during load
     try {
       const initialDebug = await chrome.storage.sync.get("debug");
       DEBUG = !!initialDebug.debug;
     } catch (e) {
       DEBUG = false;
-    } // Default if error
+    }
     console.log(
       "[Options Debug] Starting loadSettings. Initial DEBUG state:",
       DEBUG,
     );
 
     if (statusMessage) {
-      // Check if element exists
       statusMessage.textContent = "Loading...";
       statusMessage.className = "status-message";
     } else {
@@ -778,18 +765,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-      const [langDataResponse, modelsResponse, settingsResponse] =
-        await Promise.all([
-          new Promise((resolve) =>
-            chrome.runtime.sendMessage({ action: "getLanguageData" }, resolve),
-          ),
-          new Promise((resolve) =>
-            chrome.runtime.sendMessage({ action: "getModelsList" }, resolve),
-          ),
-          new Promise((resolve) =>
-            chrome.runtime.sendMessage({ action: "getSettings" }, resolve),
-          ),
-        ]);
+      const [langDataResponse, settingsResponse] = await Promise.all([
+        new Promise((resolve) =>
+          chrome.runtime.sendMessage({ action: "getLanguageData" }, resolve),
+        ),
+        new Promise((resolve) =>
+          chrome.runtime.sendMessage({ action: "getSettings" }, resolve),
+        ), // Settings includes models now
+      ]);
 
       let langError = false;
       // Process Language Data FIRST
@@ -820,26 +803,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           );
       }
 
-      // Process Models List
-      if (chrome.runtime.lastError || !modelsResponse?.models) {
-        console.error(
-          "Error fetching models list:",
-          chrome.runtime.lastError || "Invalid response",
-        );
-        if (statusMessage) {
-          statusMessage.textContent = `Error loading models list. Using defaults.`;
-          statusMessage.className = "status-message error";
-        }
-        currentModels = [...DEFAULT_MODEL_OPTIONS];
-      } else {
-        currentModels = modelsResponse.models;
-        if (DEBUG)
-          console.log(
-            `[Options Debug] Fetched ${currentModels.length} models.`,
-          );
-      }
-
-      // Process Settings
+      // Process Settings (which includes models)
       if (chrome.runtime.lastError || settingsResponse?.error) {
         console.error(
           "Error loading settings:",
@@ -856,11 +820,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         bulletCountRadios.forEach(
           (radio) => (radio.checked = radio.value === DEFAULT_BULLET_COUNT),
         );
+        currentModels = [...DEFAULT_MODEL_OPTIONS]; // Use default models on error
         currentSelectedModel =
           currentModels.length > 0 ? currentModels[0].id : "";
         currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter(
           (name) => findLanguageByName(name),
-        ); // Use filter with potentially loaded map
+        );
         currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
         if (promptFormatInstructionsTextarea)
           promptFormatInstructionsTextarea.value =
@@ -886,16 +851,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           (radio) => (radio.checked = radio.value === countValue),
         );
 
-        const storedSelectedModel = data.model ? data.model.trim() : "";
-        const availableModelIds = currentModels.map((m) => m.id);
+        // Use models array directly from settings response
+        currentModels = data.models || [...DEFAULT_MODEL_OPTIONS]; // Use saved or default
+        currentSelectedModel =
+          data.model || (currentModels.length > 0 ? currentModels[0].id : ""); // Use saved or default selected ID
+        // Ensure selected model actually exists in the list
         if (
-          storedSelectedModel &&
-          availableModelIds.includes(storedSelectedModel)
+          !currentModels.some((m) => m.id === currentSelectedModel) &&
+          currentModels.length > 0
         ) {
-          currentSelectedModel = storedSelectedModel;
-        } else if (currentModels.length > 0) {
           currentSelectedModel = currentModels[0].id;
-        } else {
+        } else if (currentModels.length === 0) {
           currentSelectedModel = "";
         }
 
@@ -965,7 +931,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Render UI elements ---
     renderModelOptions();
-    renderLanguageOptions(); // This now has the language data needed for flags/validation
+    renderLanguageOptions();
     updatePromptPreview();
     if (DEBUG) console.log("[Options Debug] Settings loaded and UI populated.");
   }
@@ -984,18 +950,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       : currentCustomFormatInstructions;
     currentCustomFormatInstructions = customFormatInstructionsToSave;
 
+    // Filter and save the whole model objects
     const modelsToSave = currentModels
-      .filter((m) => m.id.trim() !== "")
-      .map((m) => m.id);
+      .map((m) => ({ id: m.id.trim(), label: m.label.trim() }))
+      .filter((m) => m.id !== "");
 
     let finalSelectedModel = "";
-    if (currentSelectedModel && modelsToSave.includes(currentSelectedModel)) {
+    const savedModelIds = modelsToSave.map((m) => m.id);
+    if (currentSelectedModel && savedModelIds.includes(currentSelectedModel)) {
       finalSelectedModel = currentSelectedModel;
     } else if (modelsToSave.length > 0) {
-      finalSelectedModel = modelsToSave[0];
+      finalSelectedModel = modelsToSave[0].id;
     } else {
       finalSelectedModel = "";
     }
+    currentSelectedModel = finalSelectedModel; // Update state
 
     // Validate languages before saving
     const languageInputs = languageSelectionArea.querySelectorAll(
@@ -1026,18 +995,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? "red"
             : "";
       });
-      // Decide whether to proceed with saving only valid ones, or stop. Let's save valid ones.
     } else {
-      languageInputs.forEach((input) => (input.style.borderColor = "")); // Reset borders if all valid
+      languageInputs.forEach((input) => (input.style.borderColor = ""));
     }
 
     const settingsToSave = {
       apiKey,
       model: finalSelectedModel,
-      models: modelsToSave,
+      models: modelsToSave, // Save array of objects
       debug,
       bulletCount,
-      availableLanguages: languagesToSave, // Save only valid ones
+      availableLanguages: languagesToSave,
       [PROMPT_STORAGE_KEY_CUSTOM_FORMAT]: customFormatInstructionsToSave,
       [PROMPT_STORAGE_KEY_PREAMBLE]: DEFAULT_PREAMBLE_TEMPLATE,
       [PROMPT_STORAGE_KEY_POSTAMBLE]: DEFAULT_POSTAMBLE_TEXT,
@@ -1063,19 +1031,15 @@ document.addEventListener("DOMContentLoaded", async () => {
           statusMessage.className = "status-message success";
         }
         if (DEBUG) console.log("[Options Debug] Options saved successfully.");
-        // Update state *after* successful save
-        currentAvailableLanguages = languagesToSave;
-        // Re-render ONLY if no invalid languages were found during the save attempt
-        // Otherwise, keep the invalid ones displayed for correction
+        currentAvailableLanguages = languagesToSave; // Update state *after* successful save
         if (!invalidLanguagesFound) {
           renderModelOptions();
-          renderLanguageOptions(); // Re-render languages
+          renderLanguageOptions();
           updatePromptPreview();
         } else {
-          // If invalid found, just update models/prompt preview, keep languages as is
           renderModelOptions();
           updatePromptPreview();
-        }
+        } // Don't re-render languages if invalid ones were shown
       }
       if (statusMessage) {
         setTimeout(() => {
@@ -1098,7 +1062,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentSelectedModel = currentModels.length > 0 ? currentModels[0].id : "";
     currentAvailableLanguages = DEFAULT_PREPOPULATE_LANGUAGES.filter((name) =>
       findLanguageByName(name),
-    ); // Use filter with potentially loaded map
+    );
     if (currentAvailableLanguages.length === 0) {
       currentAvailableLanguages.push("");
     }

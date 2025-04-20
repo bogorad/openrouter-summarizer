@@ -1,5 +1,8 @@
 // summaryPopup.js
-// v2.24
+const VER = "v2.26";
+const LASTUPD = "Reverted header/flag creation to direct DOM manipulation"; // Replace if needed
+
+console.log(`[LLM Popup] Script Loaded (${VER})`);
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -14,12 +17,17 @@ const POPUP_CHAT_BTN_CLASS = "chat-btn";
 const POPUP_CLOSE_BTN_CLASS = "close-btn";
 const LANGUAGE_FLAG_CLASS = "language-flag";
 const MAX_FLAGS_DISPLAY = 5;
-// Removed FLAGS_HIDDEN_CLASS as we won't hide the container
+const FLAGS_HIDDEN_CLASS = "flags-hidden";
 
-// --- HTML Template String (Simplified - Header created manually) ---
-const POPUP_SHELL_TEMPLATE_HTML = `
+// --- HTML Template String ---
+const POPUP_TEMPLATE_HTML = `
 <div class="${POPUP_CLASS}" style="display: none;">
-    <!-- Header container added manually -->
+    <div class="${POPUP_HEADER_CONTAINER_CLASS}">
+        <div class="${POPUP_HEADER_CLASS}">Summary</div>
+        <div class="${POPUP_FLAGS_CLASS} ${FLAGS_HIDDEN_CLASS}">
+            <!-- Flags added dynamically -->
+        </div>
+    </div>
     <div class="${POPUP_BODY_CLASS}"></div>
     <div class="${POPUP_ACTIONS_CLASS}">
         <button class="${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}">Copy</button>
@@ -30,8 +38,7 @@ const POPUP_SHELL_TEMPLATE_HTML = `
 `;
 
 // --- Module State ---
-let popup = null; // Reference to the main popup shell
-let flagsContainer = null; // Direct reference to the flags div
+let popup = null;
 let currentContent = "";
 let currentAvailableLanguages = [];
 let popupCallbacks = { onCopy: null, onChat: null, onClose: null };
@@ -53,77 +60,69 @@ function findLanguageByName(name) {
   return languageData ? languageData : undefined;
 }
 
-// Renders flags into the existing flagsContainer
+// Renders flags into the existing popup's flag container
 function _renderHeaderFlagsInternal() {
-  // Use the module-scoped flagsContainer reference
+  if (!popup) return;
+  const flagsContainer = popup.querySelector(`.${POPUP_FLAGS_CLASS}`);
   if (!flagsContainer) {
-    if (DEBUG)
-      console.warn(
-        "[Popup Debug] _renderHeaderFlagsInternal called but flagsContainer is null.",
-      );
+    console.warn(
+      "[LLM Popup] Flags container not found in popup DOM during render.",
+    );
     return;
   }
-  flagsContainer.innerHTML = ""; // Clear existing flags
-
-  // --- Visibility controlled by adding/removing flag images ---
-  let hasVisibleFlags = false;
+  flagsContainer.innerHTML = "";
 
   if (
-    Array.isArray(currentAvailableLanguages) &&
-    currentAvailableLanguages.length > 0 &&
-    svgPathPrefixUrl
+    !Array.isArray(currentAvailableLanguages) ||
+    currentAvailableLanguages.length === 0 ||
+    !svgPathPrefixUrl
   ) {
-    const validLanguageData = currentAvailableLanguages
-      .map((name) => findLanguageByName(name))
-      .filter((lang) => lang !== undefined);
-
-    if (validLanguageData.length > 0) {
-      const flagsToDisplay = validLanguageData.slice(1, MAX_FLAGS_DISPLAY);
-
-      if (flagsToDisplay.length > 0) {
-        hasVisibleFlags = true; // Flags will be added
-        flagsToDisplay.forEach((lang) => {
-          const flagImg = document.createElement("img");
-          flagImg.className = LANGUAGE_FLAG_CLASS; // Rely on CSS for styling
-          flagImg.src = `${svgPathPrefixUrl}${lang.code.toLowerCase()}.svg`;
-          flagImg.alt = `${lang.name} flag`;
-          flagImg.title = `Translate summary and chat in ${lang.name}`;
-          flagImg.onerror = function () {
-            this.src = fallbackSvgPathUrl || "";
-            this.alt = "Flag not found";
-            this.title = "Flag not found";
-            if (DEBUG)
-              console.warn(
-                `[LLM Popup] Missing SVG for code: ${lang.code}, using fallback.`,
-              );
-          };
-          flagImg.addEventListener("click", (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (DEBUG)
-              console.log(
-                `[LLM Popup] Flag clicked for language: ${lang.name}`,
-              );
-            if (popupCallbacks.onChat) {
-              popupCallbacks.onChat(lang.name);
-            } else {
-              console.warn("[LLM Popup] onChat callback not defined.");
-            }
-          });
-          flagsContainer.appendChild(flagImg);
-        });
-        if (DEBUG)
-          console.log(
-            `[Popup Debug] Appended ${flagsToDisplay.length} flag images.`,
-          );
-      }
-    }
+    flagsContainer.classList.add(FLAGS_HIDDEN_CLASS);
+    return;
   }
 
-  // Hide/show container based on whether flags were added (optional, CSS might handle empty)
-  flagsContainer.style.display = hasVisibleFlags ? "flex" : "none";
-  if (DEBUG && !hasVisibleFlags)
-    console.log(`[Popup Debug] No valid flags to display.`);
+  const validLanguageData = currentAvailableLanguages
+    .map((name) => findLanguageByName(name))
+    .filter((lang) => lang !== undefined);
+
+  if (validLanguageData.length === 0) {
+    flagsContainer.classList.add(FLAGS_HIDDEN_CLASS);
+    return;
+  }
+
+  // Use classList to control visibility
+  flagsContainer.classList.remove(FLAGS_HIDDEN_CLASS);
+
+  const flagsToDisplay = validLanguageData.slice(1, MAX_FLAGS_DISPLAY);
+
+  flagsToDisplay.forEach((lang) => {
+    const flagImg = document.createElement("img");
+    flagImg.className = LANGUAGE_FLAG_CLASS;
+    flagImg.src = `${svgPathPrefixUrl}${lang.code.toLowerCase()}.svg`;
+    flagImg.alt = `${lang.name} flag`;
+    flagImg.title = `Translate summary and chat in ${lang.name}`;
+    flagImg.onerror = function () {
+      this.src = fallbackSvgPathUrl || "";
+      this.alt = "Flag not found";
+      this.title = "Flag not found";
+      if (DEBUG)
+        console.warn(
+          `[LLM Popup] Missing SVG for code: ${lang.code}, using fallback.`,
+        );
+    };
+    flagImg.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (DEBUG)
+        console.log(`[LLM Popup] Flag clicked for language: ${lang.name}`);
+      if (popupCallbacks.onChat) {
+        popupCallbacks.onChat(lang.name);
+      } else {
+        console.warn("[LLM Popup] onChat callback not defined.");
+      }
+    });
+    flagsContainer.appendChild(flagImg);
+  });
 }
 
 // Handles copy logic
@@ -167,7 +166,7 @@ function handleCopyClick(contentDiv, copyBtn) {
 // --- Public Functions ---
 
 /**
- * Creates and shows the summary popup. Header created via DOM manipulation.
+ * Creates and shows the summary popup using an HTML template.
  */
 export function showPopup(content, callbacks) {
   hidePopup();
@@ -185,50 +184,34 @@ export function showPopup(content, callbacks) {
   currentAvailableLanguages = [];
   currentContent = content;
 
-  // --- Create Shell from Template ---
   try {
     const template = document.createElement("template");
-    template.innerHTML = POPUP_SHELL_TEMPLATE_HTML.trim();
-    popup = template.content.firstChild.cloneNode(true); // Assign main shell to popup
+    template.innerHTML = POPUP_TEMPLATE_HTML.trim();
+    popup = template.content.firstChild.cloneNode(true);
   } catch (e) {
-    console.error(
-      "[LLM Popup] Error parsing or cloning popup shell template:",
-      e,
-    );
+    console.error("[LLM Popup] Error parsing or cloning popup template:", e);
     return;
   }
-  // --- End Shell Creation ---
 
-  // --- *** Manually Create Header Section *** ---
-  const headerContainer = document.createElement("div");
-  headerContainer.className = POPUP_HEADER_CONTAINER_CLASS;
-  // Ensure relative positioning for absolute children (flags)
-  headerContainer.style.position = "relative"; // Crucial for flag positioning
-
-  const headerTitle = document.createElement("div");
-  headerTitle.className = POPUP_HEADER_CLASS;
-  headerTitle.textContent = "Summary";
-
-  // Create and store reference to flags container
-  flagsContainer = document.createElement("div");
-  flagsContainer.className = POPUP_FLAGS_CLASS;
-  flagsContainer.style.display = "none"; // Start hidden
-
-  headerContainer.appendChild(headerTitle);
-  headerContainer.appendChild(flagsContainer); // Append flags to header container
-
-  // Prepend the manually created header to the popup shell
-  popup.insertBefore(headerContainer, popup.firstChild);
-  // --- *** End Manual Header Creation *** ---
-
-  // --- Query elements within the popup ---
+  const headerContainer = popup.querySelector(
+    `.${POPUP_HEADER_CONTAINER_CLASS}`,
+  ); // Get header container
   const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
+  const flagsContainer = popup.querySelector(`.${POPUP_FLAGS_CLASS}`);
   const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
   const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
   const closeBtn = popup.querySelector(`.${POPUP_CLOSE_BTN_CLASS}`);
-  // --- End querying elements ---
 
-  // --- Populate initial content ---
+  // --- *** FIX: Explicitly set position: relative on header container *** ---
+  if (headerContainer) {
+    headerContainer.style.position = "relative";
+    if (DEBUG)
+      console.log("[Popup Debug] Set header container position to relative.");
+  } else {
+    console.error("[LLM Popup] Header container not found in template clone!");
+  }
+  // --- *** END FIX *** ---
+
   if (contentDiv) {
     if (typeof content === "string") {
       contentDiv.textContent = content;
@@ -241,11 +224,10 @@ export function showPopup(content, callbacks) {
     }
   } else {
     console.error(
-      "[LLM Popup] Cannot set initial content: Popup body div not found.",
+      "[LLM Popup] Cannot set initial content: Popup body div not found in template clone.",
     );
   }
 
-  // --- Attach button listeners ---
   if (copyBtn && contentDiv) {
     copyBtn.onclick = () => handleCopyClick(contentDiv, copyBtn);
   } else {
@@ -269,11 +251,15 @@ export function showPopup(content, callbacks) {
       "[LLM Popup] Could not attach close listener: Button missing.",
     );
   }
-  // --- End attaching listeners ---
 
-  // Append to body and show
+  // Ensure flags container starts hidden by class
+  if (flagsContainer) flagsContainer.classList.add(FLAGS_HIDDEN_CLASS);
+
   document.body.appendChild(popup);
-  if (DEBUG) console.log("[LLM Popup] Popup added to page (manual header).");
+  if (DEBUG)
+    console.log(
+      "[LLM Popup] Popup added to page from template (flags hidden initially).",
+    );
 
   popup.style.display = "flex";
   requestAnimationFrame(() => {
@@ -288,7 +274,6 @@ export function hidePopup() {
   if (popup) {
     const popupElement = popup;
     popup = null;
-    flagsContainer = null; // Clear flags container reference
     popupCallbacks = { onCopy: null, onChat: null, onClose: null };
     currentAvailableLanguages = [];
     currentContent = "";

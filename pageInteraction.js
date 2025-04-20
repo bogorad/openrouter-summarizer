@@ -1,25 +1,26 @@
 // pageInteraction.js
-// v2.24
+const VER = "v2.26";
+const LASTUPD = "Improved multi-array JSON parsing in LLM response";
 
-console.log("[LLM Content] Script Start (v2.24");
+console.log(`[LLM Content] Script Start (${VER})`);
 
-// --- Module Imports ---
+// --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
 let FloatingIcon = null;
 let SummaryPopup = null;
 let constants = null;
 
 // --- Global State Variables ---
-let DEBUG = false;
-let lastSummary = "";
-let lastModelUsed = "";
+let DEBUG = false; // Debug logging state
+let lastSummary = ""; // Raw or Cleaned/Combined summary string for chat context
+let lastModelUsed = ""; // Model used for the last summary
 
-// --- Language Data ---
+// --- Language Data (Fetched once during initialization) ---
 let ALL_LANGUAGE_NAMES_MAP = {};
 let svgPathPrefixUrl = "";
 let fallbackSvgPathUrl = "";
 
-// --- Prompt Assembly Function ---
+// --- Prompt Assembly Function (Needs constants) ---
 const numToWord = {
   3: "three",
   4: "four",
@@ -28,6 +29,7 @@ const numToWord = {
   7: "seven",
   8: "eight",
 };
+
 function getSystemPrompt(
   bulletCount,
   customFormatInstructions,
@@ -36,6 +38,7 @@ function getSystemPrompt(
   defaultFormatInstructions,
   targetLanguage,
 ) {
+  // Ensure constants are loaded before calling this
   if (!constants) {
     console.error(
       "[LLM Content] getSystemPrompt called before constants loaded!",
@@ -46,18 +49,22 @@ function getSystemPrompt(
     DEFAULT_PREAMBLE_TEMPLATE,
     DEFAULT_POSTAMBLE_TEXT,
     DEFAULT_FORMAT_INSTRUCTIONS,
-    PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
+    PROMPT_STORAGE_KEY_CUSTOM_FORMAT, // Needed to reference keys from config
     PROMPT_STORAGE_KEY_PREAMBLE,
     PROMPT_STORAGE_KEY_POSTAMBLE,
     PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
   } = constants;
+
   const bcNum = Number(bulletCount) || 5;
   const word = numToWord[bcNum] || "five";
+
+  // Use provided values or fall back to defaults from constants
   const finalPreamble = (
     preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE
   )
     .replace("${bulletWord}", word)
     .replace("US English", targetLanguage);
+  // Use custom instructions from config, fallback to default instructions from config, fallback to hardcoded default
   const finalFormatInstructions = customFormatInstructions?.trim()
     ? customFormatInstructions
     : defaultFormatInstructions?.trim()
@@ -66,6 +73,7 @@ function getSystemPrompt(
   const finalPostamble = postambleText?.trim()
     ? postambleText
     : DEFAULT_POSTAMBLE_TEXT;
+
   return `${finalPreamble}\n${finalFormatInstructions}\n${finalPostamble}`;
 }
 
@@ -79,10 +87,12 @@ function findLanguageByName(name) {
 }
 
 // --- Callback Functions for Modules ---
+
 function handleElementSelected(element, clickX, clickY) {
-  if (!FloatingIcon) return;
+  if (!FloatingIcon) return; // Check if module is loaded
   if (DEBUG)
     console.log("[LLM Content] handleElementSelected called for:", element);
+  // When an element is selected by the highlighter, create the floating icon.
   FloatingIcon.createFloatingIcon(
     clickX,
     clickY,
@@ -90,55 +100,70 @@ function handleElementSelected(element, clickX, clickY) {
     handleIconDismiss,
   );
 }
+
 function handleElementDeselected() {
-  if (!FloatingIcon || !SummaryPopup) return;
+  if (!FloatingIcon || !SummaryPopup) return; // Check if modules are loaded
   if (DEBUG) console.log("[LLM Content] handleElementDeselected called.");
+  // When deselection occurs (via highlighter), remove the icon and hide the popup.
   FloatingIcon.removeFloatingIcon();
   SummaryPopup.hidePopup();
+  // Clear summary state as well
   lastSummary = "";
   lastModelUsed = "";
 }
+
 function handleIconClick() {
   if (DEBUG) console.log("[LLM Content] handleIconClick called.");
-  processSelectedElement();
+  // When the floating icon is clicked, start the summarization process.
+  processSelectedElement(); // Assume modules are loaded if icon exists
 }
+
 function handleIconDismiss() {
-  if (!Highlighter || !SummaryPopup) return;
+  if (!Highlighter || !SummaryPopup) return; // Check if modules are loaded
   if (DEBUG)
     console.log(
       "[LLM Content] handleIconDismiss called (Escape pressed on icon).",
     );
-  Highlighter.removeSelectionHighlight();
+  // When the icon is dismissed (e.g., Escape key), deselect the element.
+  Highlighter.removeSelectionHighlight(); // This will trigger handleElementDeselected via its internal logic if needed
   SummaryPopup.hidePopup();
+  // Clear summary state as well
   lastSummary = "";
   lastModelUsed = "";
 }
+
 function handlePopupCopy() {
+  // The copy logic is now internal to summaryPopup.js's handleCopyClick.
   if (DEBUG)
     console.log(
       "[LLM Content] handlePopupCopy triggered (logic inside summaryPopup).",
     );
 }
+
 function handlePopupChat(targetLang = null) {
   if (DEBUG)
     console.log(
       `[LLM Content] handlePopupChat called. Target Language: ${targetLang}`,
     );
-  openChatWithContext(targetLang);
+  // When the Chat button (or a flag) is clicked in the popup, open the chat context.
+  openChatWithContext(targetLang); // Assume modules are loaded if popup exists
 }
+
 function handlePopupClose() {
-  if (!SummaryPopup || !Highlighter || !FloatingIcon) return;
+  if (!SummaryPopup || !Highlighter || !FloatingIcon) return; // Check if modules are loaded
   if (DEBUG) console.log("[LLM Content] handlePopupClose called.");
+  // When the Close button is clicked, hide the popup.
   SummaryPopup.hidePopup();
-  Highlighter.removeSelectionHighlight();
-  FloatingIcon.removeFloatingIcon();
+  Highlighter.removeSelectionHighlight(); // This will trigger handleElementDeselected
+  FloatingIcon.removeFloatingIcon(); // Ensure icon is removed too
+  // Clear summary state as well
   lastSummary = "";
   lastModelUsed = "";
 }
 
 // --- Chat Context Handling ---
 function openChatWithContext(targetLang = null) {
-  if (!Highlighter) return;
+  if (!Highlighter) return; // Check module loaded
   const selectedElement = Highlighter.getSelectedElement();
   if (!selectedElement) {
     alert("Cannot open chat: Original element selection lost.");
@@ -148,6 +173,7 @@ function openChatWithContext(targetLang = null) {
       );
     return;
   }
+  // Use the raw lastSummary stored in this main script's state
   if (
     !lastSummary ||
     lastSummary === "Thinking..." ||
@@ -160,22 +186,26 @@ function openChatWithContext(targetLang = null) {
       );
     return;
   }
+
   const domSnippet =
     selectedElement.outerHTML ||
     selectedElement.innerHTML ||
     selectedElement.textContent ||
     "";
-  const summaryForChat = lastSummary;
+  const summaryForChat = lastSummary; // Pass the RAW or CLEANED/COMBINED summary string
+
   const contextPayload = {
-    domSnippet,
+    domSnippet: domSnippet,
     summary: summaryForChat,
     chatTargetLanguage: targetLang,
   };
+
   if (DEBUG)
     console.log(
       "[LLM Chat Context] Preparing context payload for background:",
       contextPayload,
     );
+
   chrome.runtime.sendMessage(
     { action: "setChatContext", ...contextPayload },
     function (response) {
@@ -187,7 +217,7 @@ function openChatWithContext(targetLang = null) {
         alert(`Error preparing chat: ${chrome.runtime.lastError.message}`);
         return;
       }
-      if (response?.status === "ok") {
+      if (response && response.status === "ok") {
         if (DEBUG)
           console.log(
             "[LLM Chat Context] Background confirmed context storage. Requesting tab open.",
@@ -209,10 +239,11 @@ function openChatWithContext(targetLang = null) {
                   "[LLM Chat Context] Background ack openChatTab:",
                   openResponse,
                 );
+              // Successfully opened chat, now clean up the page interaction state
               if (SummaryPopup) SummaryPopup.hidePopup();
               if (FloatingIcon) FloatingIcon.removeFloatingIcon();
-              if (Highlighter) Highlighter.removeSelectionHighlight();
-              lastSummary = "";
+              if (Highlighter) Highlighter.removeSelectionHighlight(); // This also clears selectedElement state in highlighter
+              lastSummary = ""; // Clear summary state
               lastModelUsed = "";
             }
           },
@@ -228,7 +259,7 @@ function openChatWithContext(targetLang = null) {
   );
 }
 
-// --- LLM Interaction ---
+// --- LLM Interaction (Corrected: Full response handling + Multi-array JSON parsing) ---
 function sendToLLM(
   selectedHtml,
   apiKey,
@@ -236,6 +267,7 @@ function sendToLLM(
   systemPrompt,
   availableLanguages,
 ) {
+  // Ensure SummaryPopup is loaded before proceeding
   if (!SummaryPopup) {
     console.error(
       "[LLM Content] sendToLLM called before SummaryPopup module loaded!",
@@ -243,6 +275,7 @@ function sendToLLM(
     return;
   }
   if (DEBUG) console.log(`[LLM Request] Sending to model: ${model}`);
+
   const payload = {
     model,
     messages: [
@@ -250,85 +283,255 @@ function sendToLLM(
       { role: "user", content: selectedHtml },
     ],
   };
+
   fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
+    method: "POST", // Explicitly using POST
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
-      "X-Title": "OR-Summ",
+      "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer", // Replace with your repo if different
+      "X-Title": "OR-Summ", // Custom header
     },
     body: JSON.stringify(payload),
   })
+    // --- *** CORRECTED RESPONSE HANDLING *** ---
     .then((response) => {
       if (!response.ok) {
+        // Try to get more specific error from response body
         return response.text().then((text) => {
+          let errorDetail = text;
+          try {
+            // Attempt to parse as JSON for OpenRouter error structure
+            const errJson = JSON.parse(text);
+            errorDetail = errJson?.error?.message || text;
+          } catch (e) {
+            /* Ignore parsing error, use raw text */
+          }
+          // Construct a detailed error message
           throw new Error(
-            `API Error: ${response.status} ${response.statusText} - ${text}`,
+            `API Error: ${response.status} ${response.statusText} - ${errorDetail}`,
           );
         });
       }
+      // If response is OK, proceed to parse JSON body
       return response.json();
     })
+    // --- *** END CORRECTED RESPONSE HANDLING *** ---
     .then((data) => {
       if (DEBUG) console.log("[LLM Response] Received data:", data);
       const modelOutput = data.choices?.[0]?.message?.content?.trim();
+
       if (!modelOutput) {
         throw new Error("No response content received from LLM.");
       }
-      lastSummary = modelOutput;
-      let jsonStringToParse = modelOutput;
-      const jsonFenceMatch = modelOutput.match(
-        /^```(?:json)?\s*([\s\S]*?)\s*```$/,
-      );
-      if (jsonFenceMatch?.[1]) {
-        jsonStringToParse = jsonFenceMatch[1].trim();
-        if (DEBUG) console.log("[LLM Content] Stripped JSON code fences.");
-      }
+
+      const rawModelOutputForError = modelOutput;
+      lastSummary = ""; // Reset
+
+      let jsonArrayString = null; // String containing only the first [...]
+      let trailingText = ""; // Text after the first array's ']'
       let summaryHtml = "";
       let parseError = null;
+      let combinedSummaryItems = []; // Holds all items for display/context
+      let successfullyParsedSomething = false;
+
+      // --- REVISED EXTRACTION & PARSING LOGIC ---
       try {
-        const summaryArray = JSON.parse(jsonStringToParse);
-        if (!Array.isArray(summaryArray)) {
-          parseError = new Error("LLM response is not a valid JSON array.");
+        // 1. Prioritize ```json fences (Assume fences contain ALL intended items)
+        const fenceMatch = modelOutput.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (fenceMatch?.[1]) {
+          jsonArrayString = fenceMatch[1].trim();
+          trailingText = ""; // Assume no relevant text outside fences
+          if (DEBUG)
+            console.log("[LLM Content] Found and using fenced JSON content.");
+          // Attempt to parse the single fenced content
+          const cleanedFenceContent = jsonArrayString.replace(
+            /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,
+            "",
+          ); // Minimal cleaning
+          const parsedArray = JSON.parse(cleanedFenceContent);
+          if (Array.isArray(parsedArray)) {
+            combinedSummaryItems = parsedArray; // Use directly
+            successfullyParsedSomething = true;
+          } else {
+            throw new Error("Fenced content was not a valid JSON array.");
+          }
         } else {
-          summaryHtml =
-            "<ul>" +
-            summaryArray.map((item) => `<li>${item}</li>`).join("") +
-            "</ul>";
-          if (summaryHtml === "<ul></ul>") {
-            parseError = new Error("LLM response parsed to an empty array.");
-            summaryHtml = "";
+          // 2. If no fences, find the first opening bracket '['
+          const startIndex = modelOutput.indexOf("[");
+          if (startIndex !== -1) {
+            // 3. Find the corresponding closing bracket ']' for the *first* array
+            let bracketBalance = 0;
+            let endIndex = -1;
+            for (let i = startIndex; i < modelOutput.length; i++) {
+              if (modelOutput[i] === "[") {
+                bracketBalance++;
+              } else if (modelOutput[i] === "]") {
+                bracketBalance--;
+                if (bracketBalance === 0) {
+                  endIndex = i;
+                  break;
+                }
+              }
+              if (bracketBalance < 0) {
+                break;
+              } // Imbalanced
+            }
+
+            if (endIndex !== -1) {
+              // Extract the array part
+              jsonArrayString = modelOutput
+                .substring(startIndex, endIndex + 1)
+                .trim();
+              // Extract the text AFTER the closing bracket
+              trailingText = modelOutput.substring(endIndex + 1).trim();
+              if (DEBUG)
+                console.log(
+                  "[LLM Content] Extracted potential JSON array using balanced brackets:",
+                  jsonArrayString.substring(0, 150) + "...",
+                );
+              if (DEBUG && trailingText)
+                console.log(
+                  "[LLM Content] Extracted trailing text:",
+                  trailingText.substring(0, 100) + "...",
+                );
+            } else {
+              if (DEBUG)
+                console.log(
+                  "[LLM Content] Found opening bracket but no matching closing bracket.",
+                );
+            }
+          } else {
+            if (DEBUG)
+              console.log(
+                "[LLM Content] No opening bracket found in response.",
+              );
           }
         }
+
+        // 4. Attempt Parsing ONLY if a potential JSON string was extracted
+        if (jsonArrayString) {
+          // Clean the extracted JSON string minimally
+          const stringToParseCleaned = jsonArrayString.replace(
+            /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,
+            "",
+          );
+          if (DEBUG)
+            console.log(
+              "[LLM Content Debug] Cleaned JSON string going into JSON.parse:",
+              stringToParseCleaned,
+            );
+
+          const parsedArray = JSON.parse(stringToParseCleaned);
+
+          if (!Array.isArray(parsedArray)) {
+            throw new Error("Parsed content is not a valid JSON array.");
+          }
+
+          // --- SUCCESSFUL PARSE ---
+          combinedSummaryItems = parsedArray; // Start with items from the array
+          successfullyParsedSomething = true; // Mark success
+
+          // Add trailing text as a separate item if it exists
+          if (trailingText) {
+            combinedSummaryItems.push(trailingText);
+            if (DEBUG)
+              console.log(
+                "[LLM Content] Added trailing text to summary items.",
+              );
+          }
+
+          if (combinedSummaryItems.length === 0) {
+            throw new Error("LLM response parsed to an empty array overall.");
+          }
+
+          // Generate HTML from combined items
+          summaryHtml =
+            "<ul>" +
+            combinedSummaryItems.map((item) => `<li>${item}</li>`).join("") +
+            "</ul>";
+
+          // Store the combined result (as a stringified array) for chat context
+          lastSummary = JSON.stringify(combinedSummaryItems);
+          if (DEBUG)
+            console.log(
+              "[LLM Content] Storing COMBINED summary for chat context.",
+            );
+        } else if (trailingText) {
+          // Handle case where there was ONLY trailing text (no array found)
+          if (DEBUG)
+            console.log(
+              "[LLM Content] No JSON array found, using only trailing text.",
+            );
+          combinedSummaryItems = [trailingText]; // Treat trailing text as the only item
+          summaryHtml =
+            "<ul>" +
+            combinedSummaryItems.map((item) => `<li>${item}</li>`).join("") +
+            "</ul>"; // Still display as list
+          lastSummary = JSON.stringify(combinedSummaryItems); // Store for context
+          successfullyParsedSomething = true; // We processed *something*
+        } else {
+          // If no potential JSON string was extracted AND no trailing text
+          throw new Error(
+            "Could not find any valid JSON array structure or text in the response.",
+          );
+        }
       } catch (e) {
-        parseError = e;
+        parseError = e; // Capture any error from the process
+        lastSummary = rawModelOutputForError; // Store RAW output if parsing failed
+        if (DEBUG)
+          console.log(
+            "[LLM Content] Storing RAW summary for chat context due to error:",
+            e.message,
+          );
       }
+      // --- END REVISED EXTRACTION & PARSING LOGIC ---
+
+      // --- Update UI based on outcome ---
       if (parseError || summaryHtml === "") {
-        const errorContent = `Error: Could not parse LLM response as JSON.\n\nDetails: ${parseError ? parseError.message : "Unknown parsing issue."}\n\nRaw Output (truncated):\n"${modelOutput.substring(0, 200)}${modelOutput.length > 200 ? "..." : ""}"`;
+        // If successfullyParsedSomething is true but summaryHtml is empty, it means parsing succeeded but resulted in no items.
+        const detailMessage = parseError
+          ? parseError.message
+          : successfullyParsedSomething
+            ? "Resulting summary was empty."
+            : "Unknown processing issue.";
+        const errorContent = `Error: Could not process LLM response.\n\nDetails: ${detailMessage}\n\nRaw Output (truncated):\n"${rawModelOutputForError.substring(0, 200)}${rawModelOutputForError.length > 200 ? "..." : ""}"`;
         console.error(
-          "[LLM Error] Failed to process LLM JSON response:",
-          parseError || new Error("Parsed JSON array was empty"),
+          "[LLM Error] Failed to process LLM response:",
+          parseError || new Error("Resulting summary HTML was empty"),
         );
-        if (DEBUG) console.log("[LLM Error] Raw output received:", modelOutput);
+        if (DEBUG)
+          console.log(
+            "[LLM Error] Raw output received:",
+            rawModelOutputForError,
+          );
+
         SummaryPopup.updatePopupContent(errorContent);
         SummaryPopup.enableChatButton(false);
       } else {
+        // Success case: lastSummary already set to combined stringified array
         lastModelUsed = model;
         SummaryPopup.updatePopupContent(summaryHtml);
         SummaryPopup.enableChatButton(true);
       }
+      // --- End UI update ---
     })
     .catch((err) => {
+      // Catch errors from fetch() or response handling
       console.error("[LLM Fetch Error]", err);
-      lastSummary = `Error: ${err.message}`;
-      SummaryPopup.updatePopupContent(`Error: ${err.message}`);
+      lastSummary = `Error: ${err.message}`; // Store fetch error message
+      if (DEBUG)
+        console.log(
+          "[LLM Content] Storing FETCH ERROR message for chat context.",
+        );
+      SummaryPopup.updatePopupContent(`Error: ${err.message}`); // Display fetch error
       SummaryPopup.enableChatButton(false);
     });
-}
+} // End sendToLLM function
 
 // --- Core Process Trigger ---
 function processSelectedElement() {
+  // Ensure modules are loaded before proceeding
   if (!Highlighter || !SummaryPopup || !FloatingIcon || !constants) {
     console.error(
       "[LLM Content] processSelectedElement called before modules loaded!",
@@ -357,15 +560,34 @@ function processSelectedElement() {
   });
   SummaryPopup.enableChatButton(false);
 
+  // --- Get settings from background ---
   if (DEBUG)
     console.log("[LLM Content] Requesting settings from background...");
   chrome.runtime.sendMessage({ action: "getSettings" }, (config) => {
     // --- Start of Async Callback ---
     if (chrome.runtime.lastError || config?.error) {
-      /* ... handle settings fetch error ... */ return;
+      const errorMsg =
+        chrome.runtime.lastError?.message || config?.error || "Unknown error";
+      console.error(
+        "[LLM Content] Error fetching settings from background:",
+        errorMsg,
+      );
+      SummaryPopup.updatePopupContent(
+        `Error: Could not load settings: ${errorMsg}`,
+      );
+      FloatingIcon.removeFloatingIcon();
+      Highlighter.removeSelectionHighlight();
+      return;
     }
+
+    // Log sanitized config
     if (DEBUG) {
-      /* ... log sanitized config ... */
+      const configToLog = { ...config };
+      if (configToLog.apiKey) configToLog.apiKey = "[API Key Hidden]";
+      console.log(
+        "[LLM Content] Settings received from background:",
+        configToLog,
+      );
     }
 
     // --- Options Validation ---
@@ -373,11 +595,23 @@ function processSelectedElement() {
     if (!config.apiKey) validationErrors.push("API Key is missing.");
     if (!config.model) validationErrors.push("Default Model is not selected.");
     if (validationErrors.length > 0) {
-      /* ... handle validation error ... */ return;
+      console.error(
+        "[LLM Content] Options validation failed:",
+        validationErrors,
+      );
+      let errorMsg =
+        "Errors in options! Required settings are missing or invalid:\n- " +
+        validationErrors.join("\n- ");
+      SummaryPopup.updatePopupContent(
+        errorMsg + "\n\nPlease configure the extension options.",
+      );
+      FloatingIcon.removeFloatingIcon();
+      Highlighter.removeSelectionHighlight();
+      return;
     }
     // --- END: Options Validation ---
 
-    DEBUG = !!config.debug;
+    DEBUG = !!config.debug; // Update debug status from fetched config
 
     // --- Selection Validation ---
     const stillSelectedElement = Highlighter.getSelectedElement();
@@ -385,13 +619,18 @@ function processSelectedElement() {
       stillSelectedElement !== currentSelectedElement ||
       !document.body.contains(currentSelectedElement)
     ) {
-      /* ... handle selection changed ... */ return;
+      if (DEBUG)
+        console.warn(
+          "[LLM Content] Element selection changed or removed during settings load. Aborting.",
+        );
+      SummaryPopup.hidePopup(); // Hide the "Thinking..." popup
+      return;
     }
     // --- END: Selection Validation ---
 
-    // --- *** Update Popup Flags NOW *** ---
+    // --- Update Popup Flags NOW ---
     SummaryPopup.updatePopupFlags(config.availableLanguages || []);
-    // --- *** END Update Popup Flags *** ---
+    // --- END Update Popup Flags ---
 
     // --- Proceed with API call ---
     try {
@@ -400,37 +639,44 @@ function processSelectedElement() {
         PROMPT_STORAGE_KEY_PREAMBLE,
         PROMPT_STORAGE_KEY_POSTAMBLE,
         PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
-      } = constants;
+      } = constants; // Destructure keys here
+
       const apiKey = config.apiKey;
       const model = config.model;
       const bulletCount = config.bulletCount;
-      const availableLanguages = config.availableLanguages;
+      const availableLanguages = config.availableLanguages; // Use fetched languages
 
-      // --- *** Determine Target Language using fetched languages *** ---
+      // Determine Target Language using fetched languages
       const firstConfiguredLanguage = availableLanguages
         .map((name) => name.trim())
         .filter((name) => name !== "")
-        .find((name) => findLanguageByName(name));
-      const targetLanguageForSummary = firstConfiguredLanguage || "US English";
+        .find((name) => findLanguageByName(name)); // Use helper with loaded map
+      const targetLanguageForSummary = firstConfiguredLanguage || "English"; // Default to English if none valid
       if (DEBUG)
         console.log(
           "[LLM Content] Target language for summary:",
           targetLanguageForSummary,
         );
-      // --- *** END Determine Target Language *** ---
 
       const customFormatInstructions = config[PROMPT_STORAGE_KEY_CUSTOM_FORMAT];
       const preambleTemplate = config[PROMPT_STORAGE_KEY_PREAMBLE];
       const postambleText = config[PROMPT_STORAGE_KEY_POSTAMBLE];
       const defaultFormatInstructions =
         config[PROMPT_STORAGE_KEY_DEFAULT_FORMAT];
+
       const htmlContent =
         currentSelectedElement.outerHTML ||
         currentSelectedElement.innerHTML ||
         currentSelectedElement.textContent ||
         "";
       if (!htmlContent.trim()) {
-        /* ... handle no content ... */ return;
+        console.warn("[LLM Content] Selected element has no content.");
+        SummaryPopup.updatePopupContent(
+          "Error: Selected element has no content.",
+        );
+        FloatingIcon.removeFloatingIcon();
+        Highlighter.removeSelectionHighlight();
+        return;
       }
 
       if (DEBUG) console.log("[LLM Content] Calling getSystemPrompt...");
@@ -440,16 +686,25 @@ function processSelectedElement() {
         preambleTemplate,
         postambleText,
         defaultFormatInstructions,
-        targetLanguageForSummary,
+        targetLanguageForSummary, // Pass correct language
       );
       if (DEBUG) console.log("Using System Prompt:", systemPrompt);
 
       if (DEBUG) console.log("[LLM Content] Calling sendToLLM...");
+      // Pass availableLanguages so the popup can render flags on success/error
       sendToLLM(htmlContent, apiKey, model, systemPrompt, availableLanguages);
       if (DEBUG)
         console.log("[LLM Content] sendToLLM called. Waiting for response...");
     } catch (error) {
-      /* ... handle processing error ... */
+      console.error(
+        "[LLM Content] Error processing settings or generating prompt:",
+        error,
+      );
+      SummaryPopup.updatePopupContent(
+        `Error processing selection: ${error.message || "Unknown error"}`,
+      );
+      FloatingIcon.removeFloatingIcon();
+      Highlighter.removeSelectionHighlight();
     }
     // --- End of Async Callback ---
   });
@@ -461,6 +716,7 @@ function processSelectedElement() {
 
 // --- Message Listener from Background ---
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
+  // Ensure modules are loaded before handling messages that depend on them
   if (!Highlighter || !SummaryPopup) {
     console.warn(
       "[LLM Content] Message received before modules loaded, ignoring:",
@@ -472,21 +728,27 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     });
     return false;
   }
+
   if (DEBUG) console.log("[LLM Content] Received message:", req.action);
+
   if (req.action === "processSelection") {
     if (DEBUG) console.log("[LLM Content] Received processSelection command.");
     const currentSelectedElement = Highlighter.getSelectedElement();
     if (currentSelectedElement) {
-      processSelectedElement();
+      processSelectedElement(); // Start the process
       sendResponse({ status: "processing started" });
-      return true;
+      return true; // Indicate potential async work
     } else {
       console.warn(
         "[LLM Content] Received processSelection but no element is selected.",
       );
       SummaryPopup.showPopup(
         "Error: No element selected. Use Alt+Click first.",
-        { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup },
+        {
+          onCopy: () => {},
+          onChat: () => {},
+          onClose: SummaryPopup.hidePopup,
+        },
       );
       SummaryPopup.enableChatButton(false);
       setTimeout(SummaryPopup.hidePopup, 3000);
@@ -494,20 +756,24 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       return false;
     }
   }
-  return false;
+  return false; // Indicate synchronous handling for other messages
 });
 
 // --- Initialization Function ---
 async function initialize() {
   try {
+    // Get initial debug state first
     const result = await chrome.storage.sync.get(["debug"]);
     DEBUG = !!result.debug;
     if (DEBUG) console.log("[LLM Content] Initial Debug mode:", DEBUG);
   } catch (e) {
     console.error("[LLM Content] Error getting initial debug setting:", e);
-    DEBUG = false;
+    DEBUG = false; // Default to false on error
   }
+
   try {
+    // Dynamically import all modules
+    // Use chrome.runtime.getURL to ensure correct path resolution
     [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
       import(chrome.runtime.getURL("./highlighter.js")),
       import(chrome.runtime.getURL("./floatingIcon.js")),
@@ -515,12 +781,14 @@ async function initialize() {
       import(chrome.runtime.getURL("./constants.js")),
     ]);
     if (DEBUG) console.log("[LLM Content] All modules loaded dynamically.");
+
+    // Load language data
     try {
       const languageDataResponse = await chrome.runtime.sendMessage({
         action: "getLanguageData",
       });
       if (chrome.runtime.lastError) throw chrome.runtime.lastError;
-      if (languageDataResponse?.ALL_LANGUAGE_NAMES_MAP) {
+      if (languageDataResponse && languageDataResponse.ALL_LANGUAGE_NAMES_MAP) {
         ALL_LANGUAGE_NAMES_MAP = languageDataResponse.ALL_LANGUAGE_NAMES_MAP;
         svgPathPrefixUrl = languageDataResponse.SVG_PATH_PREFIX || "";
         fallbackSvgPathUrl = languageDataResponse.FALLBACK_SVG_PATH || "";
@@ -533,10 +801,13 @@ async function initialize() {
       }
     } catch (error) {
       console.error("[LLM Content] Error fetching language data:", error);
+      // Proceed without language data, flags won't work
       ALL_LANGUAGE_NAMES_MAP = {};
       svgPathPrefixUrl = "";
       fallbackSvgPathUrl = "";
     }
+
+    // Initialize modules with necessary data and callbacks
     Highlighter.initializeHighlighter({
       onElementSelected: handleElementSelected,
       onElementDeselected: handleElementDeselected,
@@ -551,12 +822,19 @@ async function initialize() {
       },
       initialDebugState: DEBUG,
     });
-    console.log("[LLM Content] Script Initialized (v2.16). Modules ready.");
+
+    console.log(`[LLM Content] Script Initialized (${VER}). Modules ready.`); // Use VER here
   } catch (err) {
     console.error(
       "[LLM Content] CRITICAL: Failed to load modules dynamically or initialize.",
       err,
-    ); /* ... display error on page ... */
+    );
+    // Display error on page
+    const errorDiv = document.createElement("div");
+    errorDiv.textContent = `Error: OpenRouter Summarizer failed to load components (${err.message}). Please try reloading the page or reinstalling the extension.`;
+    errorDiv.style.cssText =
+      "position:fixed; top:10px; left:10px; background:red; color:white; padding:10px; z-index:999999; border-radius:5px; font-family:sans-serif;";
+    document.body.appendChild(errorDiv);
   }
 }
 

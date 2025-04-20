@@ -1,6 +1,8 @@
 // floatingIcon.js
-// Manages the floating action icon
-// v2.20
+const VER = "v2.25";
+const LASTUPD = "Created module from pageInteraction.js"; // Replace if needed
+
+console.log(`[LLM FloatingIcon] Script Loaded (${VER})`);
 
 const FLOATING_ICON_CLASS = "llm-floating-icon";
 const FALLBACK_ICON_CLASS = "llm-fallback-icon"; // Added for consistency
