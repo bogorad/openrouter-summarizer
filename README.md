@@ -7,17 +7,20 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
-*   **v2.10:**
-    *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
-    *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
-    *   Languages can now be reordered by dragging them in the Options list.
-*   **v2.20 - v2.26:**
+*   **v2.31:**
+    *   Now you can stop a chat request by clicking the "Stop" button.
+*   **v2.30:**
+    *   Enhanced chat UI rendering and error handling for a smoother user experience.
+    *   Fixed issues with form submission and UI visibility to ensure consistent behavior.
+    *   Added stop request functionality to allow users to interrupt ongoing chat requests.
+*   **v2.10 - v2.26:**
     *   **Major Code Refactoring:** The internal structure of the extension has been significantly refactored for better maintainability and separation of concerns (see Technical Updates).
     *   Centralized settings access via the background script.
     *   Improved handling of LLM responses containing embedded/multiple JSON arrays.
     *   Fixed various bugs related to UI rendering (flags), chat context loading, and event handling (chat submit).
-*   **v2.30:**
-    *   Updated version to 2.30 with enhancements to chat UI rendering and error handling.
+    *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
+    *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
+    *   Languages can now be reordered by dragging them in the Options list.
 
 ---
 
@@ -132,11 +135,16 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **v2.31:**
+    *   Updated the version to 2.31 in `manifest.json` and `constants.js`.
+    *   Fixed the issue where the "Stop" button remained visible after a successful chat request completion in `chat.js` by adding logic to revert to the "Send" button state.
+    *   Resolved the persistence of the "Chat request stopped by user" error message after a new "Send" action by clearing the error display on form submission in `chat.js`.
 *   **v2.30:**
     *   Updated the version to 2.30 across all relevant files including `manifest.json`, `pageInteraction.js`, `background.js`, `options.js`, `chat.js`, and `constants.js`.
     *   Fixed chat UI rendering issues by adjusting CSS properties and removing unnecessary visibility checks in `chat.js` to ensure messages are displayed correctly regardless of content length or screen size.
     *   Improved error handling by updating form submission logic for Ctrl+Enter in `chat.js`, ensuring reliable message sending even in edge cases.
     *   Enhanced user experience by ensuring consistent UI rendering and interaction across chat and summary popup components, addressing previous visibility and layout issues.
+    *   Implemented stop request functionality in `chat.js` and `background.js` to allow users to cancel ongoing chat requests, improving control over long or unwanted responses.
 *   **v2.26:**
     *   Fixed chat submit issues (Ctrl+Enter and Send button).
     *   Fixed flag positioning in summary popup header.

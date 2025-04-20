@@ -183,6 +183,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ status: "error", message: "API key is required and not found in storage." });
           return;
         }
+        const controller = new AbortController();
+        const signal = controller.signal;
+        // Store the controller for potential abort
+        chrome.storage.session.set({ abortController: controller }, () => {
+          if (DEBUG) console.log("[LLM Background] AbortController stored for potential abort.");
+        });
         fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -195,6 +201,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             model: request.model,
             messages: request.messages,
           }),
+          signal: signal
         })
         .then(response => {
           if (!response.ok) {
@@ -205,13 +212,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .then(data => {
           if (DEBUG) console.log("[LLM Background] Fetch response data:", data);
           sendResponse({ status: "success", data });
+          // Clear the controller after successful response
+          chrome.storage.session.remove("abortController", () => {
+            if (DEBUG) console.log("[LLM Background] AbortController cleared after successful response.");
+          });
         })
         .catch(error => {
           if (DEBUG) console.error("[LLM Background] Error in fetch:", error);
           sendResponse({ status: "error", message: error.message });
+          // Clear the controller on error
+          chrome.storage.session.remove("abortController", () => {
+            if (DEBUG) console.log("[LLM Background] AbortController cleared after error.");
+          });
         });
       });
       if (DEBUG) console.log("[LLM Background] llmChatStream processing initiated.");
+    } else if (request.action === "abortChatRequest") {
+      if (DEBUG) console.log("[LLM Background] Handling abortChatRequest.");
+      chrome.storage.session.get("abortController", (data) => {
+        const controller = data.abortController;
+        if (controller) {
+          controller.abort();
+          if (DEBUG) console.log("[LLM Background] AbortController triggered abort.");
+          chrome.storage.session.remove("abortController", () => {
+            if (DEBUG) console.log("[LLM Background] AbortController cleared after abort.");
+          });
+          sendResponse({ status: "aborted" });
+        } else {
+          if (DEBUG) console.log("[LLM Background] No active request to abort.");
+          sendResponse({ status: "no active request" });
+        }
+      });
+      return true;
     } else if (request.action === "setChatContext") {
       if (DEBUG) console.log("[LLM Background] Handling setChatContext request.");
       chrome.storage.session.set(

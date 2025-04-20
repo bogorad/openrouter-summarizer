@@ -10,6 +10,7 @@ model: openrouter/google/gemini-2.5-flash-preview
 # model: xai/grok-3-mini-fast-beta
 model: xai/grok-3-fast-beta
 reasoning-effort: high
+edit-format: full
 # architect: true
 # read:
 file:

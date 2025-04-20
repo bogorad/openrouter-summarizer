@@ -35,7 +35,8 @@ let downloadMdBtn,
   chatForm,
   chatMessages,
   errorDisplay,
-  sendButton;
+  sendButton,
+  stopButton;
 
 // ==== INITIALIZATION ====
 
@@ -51,9 +52,8 @@ document.addEventListener("DOMContentLoaded", () => {
   chatForm = document.getElementById("chatForm");
   chatMessages = document.getElementById("chatMessages");
   errorDisplay = document.getElementById("errorDisplay");
-  sendButton = chatForm
-    ? chatForm.querySelector('button[type="submit"]')
-    : null;
+  sendButton = chatForm ? chatForm.querySelector('#sendButton') : null;
+  stopButton = chatForm ? chatForm.querySelector('#stopButton') : null;
 
   if (
     !chatMessagesInnerDiv ||
@@ -64,7 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
     !modelSelect ||
     !chatForm ||
     !chatMessages ||
-    !sendButton
+    !sendButton ||
+    !stopButton
   ) {
     console.error(
       "CRITICAL: Could not find essential UI elements! Aborting initialization.",
@@ -92,6 +93,11 @@ document.addEventListener("DOMContentLoaded", () => {
     copyMdBtn.addEventListener("click", handleCopyMd);
     downloadJsonBtn.addEventListener("click", handleDownloadJson);
     setupCtrlEnterListener();
+    if (stopButton) {
+      stopButton.addEventListener("click", handleStopRequest);
+    } else {
+      console.error("[LLM Chat] Stop button not found in DOM.");
+    }
   } catch (error) {
     console.error("[LLM Chat] Error during initialization:", error);
     showError("Error initializing chat features. Some functions may not work.");
@@ -493,6 +499,8 @@ function sendChatRequestToBackground(userText) {
   currentStreamModel = selectedModelId;
   currentStreamRawContent = "";
   console.log("[LLM Chat] Streaming started with model:", currentStreamModel);
+  if (sendButton) sendButton.style.display = "none";
+  if (stopButton) stopButton.style.display = "block";
   const messagesWrap = chatMessagesInnerDiv;
   if (!messagesWrap) {
     console.error("[LLM Chat] messagesWrap not found.");
@@ -602,6 +610,10 @@ function sendChatRequestToBackground(userText) {
         showError("Error: Failed to get response from LLM.");
       }
       streaming = false;
+      if (sendButton) sendButton.style.display = "block";
+      if (stopButton) stopButton.style.display = "none";
+      if (sendButton) sendButton.style.display = "block";
+      if (stopButton) stopButton.style.display = "none";
     },
   );
 }
@@ -613,6 +625,11 @@ function sendChatRequestToBackground(userText) {
 function handleFormSubmit(e) {
   console.log("[LLM Chat] Form submit attempted.");
   e.preventDefault();
+  if (errorDisplay) {
+    errorDisplay.style.display = "none";
+    errorDisplay.textContent = "";
+    console.log("[LLM Chat] Cleared previous error message on form submit.");
+  }
   if (streaming) {
     console.log("[LLM Chat] Streaming in progress, submit ignored.");
     return;
@@ -701,6 +718,30 @@ function handleDownloadJson() {
   a.download = "chat.json";
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Handles stopping the current chat request.
+ */
+function handleStopRequest() {
+  console.log("[LLM Chat] Stop request initiated.");
+  if (streaming) {
+    streaming = false;
+    if (sendButton) sendButton.style.display = "block";
+    if (stopButton) stopButton.style.display = "none";
+    showError("Chat request stopped by user.", false);
+    console.log("[LLM Chat] Chat request stopped.");
+    // Attempt to abort the ongoing request if possible
+    chrome.runtime.sendMessage({ action: "abortChatRequest" }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error("[LLM Chat] Error sending abort request:", chrome.runtime.lastError);
+      } else if (response && response.status === "aborted") {
+        console.log("[LLM Chat] Background confirmed request abort.");
+      } else {
+        console.log("[LLM Chat] Background could not abort request or no active request.");
+      }
+    });
+  }
 }
 
 /**
