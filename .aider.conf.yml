@@ -7,6 +7,9 @@ multiline: true
 # model: openrouter/google/gemini-2.5-pro-preview-03-25
 model: openrouter/google/gemini-2.5-flash-preview
 # model: openrouter/meta-llama/llama-4-maverick:free
+# model: xai/grok-3-mini-fast-beta
+model: xai/grok-3-fast-beta
+reasoning-effort: high
 # architect: true
 # read:
 file:
@@ -22,10 +25,10 @@ file:
   - ./options.css
   - ./options.html
   - ./options.js
+  - ./pageInteraction.css
   - ./pageInteraction.js
-  - ./popup.css
-  - ./popup.js
   - ./summaryPopup.js
+  - ./utils.js
 read:
   - ./CONVENTIONS.md
   - ./marked.min.js

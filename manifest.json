@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenRouter Summarizer",
-  "version": "2.26",
+  "version": "2.30",
   "description": "Summarize web pages with OpenRouter.ai using your chosen model.",
   "permissions": [
     "activeTab",
@@ -39,11 +39,12 @@
         "constants.js",
         "country-flags/languages.json",
         "country-flags/svg/*.svg",
-        "highlighter.js", // <-- Added
-        "floatingIcon.js", // <-- Added
-        "summaryPopup.js" // <-- Added
+        "highlighter.js",
+        "floatingIcon.js",
+        "summaryPopup.js",
+        "utils.js"
       ],
-      "matches": ["<all_urls>"] // Keep matches broad for content script imports
+      "matches": ["<all_urls>"]
     }
   ],
   "action": {

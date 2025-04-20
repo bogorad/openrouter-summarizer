@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.26
+# OpenRouter Summarizer v2.30
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -16,6 +16,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   Centralized settings access via the background script.
     *   Improved handling of LLM responses containing embedded/multiple JSON arrays.
     *   Fixed various bugs related to UI rendering (flags), chat context loading, and event handling (chat submit).
+*   **v2.30:**
+    *   Updated version to 2.30 with enhancements to chat UI rendering and error handling.
 
 ---
 
@@ -130,6 +132,11 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **v2.30:**
+    *   Updated the version to 2.30 across all relevant files including `manifest.json`, `pageInteraction.js`, `background.js`, `options.js`, `chat.js`, and `constants.js`.
+    *   Fixed chat UI rendering issues by adjusting CSS properties and removing unnecessary visibility checks in `chat.js` to ensure messages are displayed correctly regardless of content length or screen size.
+    *   Improved error handling by updating form submission logic for Ctrl+Enter in `chat.js`, ensuring reliable message sending even in edge cases.
+    *   Enhanced user experience by ensuring consistent UI rendering and interaction across chat and summary popup components, addressing previous visibility and layout issues.
 *   **v2.26:**
     *   Fixed chat submit issues (Ctrl+Enter and Send button).
     *   Fixed flag positioning in summary popup header.
