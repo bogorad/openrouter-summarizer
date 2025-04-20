@@ -18,12 +18,11 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content and the original HTML snippet (context is now persistent!).
 *   **Rich Formatting:**
     *   Initial summaries are rendered in the popup as a clean HTML list (`<ul><li>...</ul>`).
-    *   Chat responses support  both full Markdown formatting via `marked` and basic HTML (`<b>`/`<i>`).
+    *   Chat responses support  both full Markdown formatting via `marked` and basic HTML (`<b>`).
 *   **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
 *   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the summary popup. Clicking a flag initiates a chat session requesting translation of the summary into that language.
 *   **Languages can now be reordered** by dragging them in the Options list.
-*   **Lighter UI:** Since the summary is requested in the first language, there is no point of showing its flag.
-*   **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section (default now requests JSON/HTML).
+*   **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section.
 *   **Configurable Summary:** Choose the approximate number of summary points (3-8) for the initial summary prompt.
 *   **Keyboard Shortcuts:** Use `Ctrl+Enter` / `Cmd+Enter` to send messages in the chat window.
 *   **Instant Results:** Summaries appear in a clean popup; chat happens in a dedicated tab.
@@ -31,6 +30,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **Debug-Friendly:** Enable debug mode in Options for detailed console logging. The API key is filtered from the debug console messages.
 
 ---
+
+## Screenshots
 
 ![Summary](media/summary.png)
 
@@ -117,6 +118,10 @@ A: To keep the popup header clean and prevent it from becoming too wide on small
 
 **Q: How are flags chosen for languages?**
 A: The extension attempts to use an SVG flag file (`[language_code].svg`) from the `country-flags/svg/` directory based on the <a href="https://en.wikipedia.org/wiki/ISO_639-1" target="_blank">ISO 639-1</a> code associated with that language in the `languages.json` file. If a flag file for a specific language code is not available in the extension bundle, a generic placeholder flag will be displayed.
+
+---
+
+## Technical updates
 
 ---
 
