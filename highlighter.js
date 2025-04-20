@@ -1,6 +1,8 @@
 // highlighter.js
-// Manages element highlighting and selection logic
-// v2.20
+const VER = "v2.25";
+const LASTUPD = "Created module from pageInteraction.js"; // Replace if needed
+
+console.log(`[LLM Highlighter] Script Loaded (${VER})`);
 
 const HIGHLIGHT_PREVIEW_CLASS = "llm-highlight-preview";
 const HIGHLIGHT_SELECTED_CLASS = "llm-highlight";

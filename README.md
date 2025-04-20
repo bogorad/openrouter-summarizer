@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.24
+# OpenRouter Summarizer v2.26
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -11,11 +11,11 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
     *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
     *   Languages can now be reordered by dragging them in the Options list.
-*   **v2.20:**
-    *   **Major Code Refactoring:** The internal structure of the extension has been significantly refactored for better maintainability and separation of concerns (see Technical Updates). This should not change functionality but improves the codebase health.
+*   **v2.20 - v2.26:**
+    *   **Major Code Refactoring:** The internal structure of the extension has been significantly refactored for better maintainability and separation of concerns (see Technical Updates).
     *   Centralized settings access via the background script.
-*   **v2.21:**
-*   *   Improved parsing logic in `chat.js`
+    *   Improved handling of LLM responses containing embedded/multiple JSON arrays.
+    *   Fixed various bugs related to UI rendering (flags), chat context loading, and event handling (chat submit).
 
 ---
 
@@ -59,13 +59,13 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   Click the floating icon (💡), *or* right-click and choose "Send to LLM", *or* click the extension toolbar icon.
     *   The extension sends the element's HTML and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model. The initial summary is now generated in the **first configured language**.
 4.  **Review Summary:**
-    *   The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (``````json ... ``````) around the JSON are automatically stripped.
+    *   The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (``````json ... ``````) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
     *   **If you have configured preferred languages in Options, corresponding flag icons will appear in the popup header.** Clicking a flag icon will immediately open the Chat tab, requesting a translation of the summary into that language and initiating chat in that language.
     *   Use **Copy** or **Close**.
 5.  **Chat (Optional):**
     *   Click **Chat** on the summary popup to chat about the summary in English. **(Or click a flag icon in the popup header to start chat requesting a translation)**.
     *   A new browser tab opens. An info banner confirms context is available.
-    *   The original HTML snippet and the raw JSON string are stored. For *every* message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
+    *   The original HTML snippet and the raw/processed JSON string are stored. For *every* message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
     *   Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send.
     *   LLM responses are rendered with via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
     *   Use **Copy MD**, **Download MD**, or **Download JSON** to save the chat.
@@ -83,7 +83,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **Your Data:**
     *   **API Key & Settings:** Stored locally in `chrome.storage.sync`. Only sent to OpenRouter.ai upon request. Prompt templates and your configured language list are also stored here.
     *   **Selected HTML & Summary:** Sent to OpenRouter.ai for summary/chat requests.
-    *   **Chat Context:** Original HTML snippet and raw JSON string stored temporarily in `chrome.storage.session` for the chat tab. Cleared when the browser session ends. The HTML snippet is re-sent with subsequent chat messages for context.
+    *   **Chat Context:** Original HTML snippet and raw/processed JSON string stored temporarily in `chrome.storage.session` for the chat tab. Cleared when the browser session ends. The HTML snippet is re-sent with subsequent chat messages for context.
     *   **No Analytics:** No tracking or ads.
 *   **Security:**
     *   Renders HTML list/Markdown. Does **not** execute scripts or load external resources from LLM responses. Relies on `marked` for chat rendering. Static assets like SVGs and dynamically imported JS modules are loaded securely from within the extension bundle via `chrome.runtime.getURL`.
@@ -109,7 +109,7 @@ A: Access to many LLMs, good pricing/performance.
 A: Yes. Key/settings local. Text sent to OpenRouter on request. Chat context uses temporary session storage. See Privacy section.
 
 **Q: How does Chat context work?**
-A: The original selected HTML snippet and the raw JSON string are stored when chat starts. For the *first* chat message, both are sent. For *subsequent* messages, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM to help maintain context.
+A: The original selected HTML snippet and the raw/processed JSON string are stored when chat starts. For the *first* chat message, both are sent. For *subsequent* messages, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM to help maintain context.
 
 **Q: Can I mix models?**
 A: Yes! The initial summary uses your default model. In the chat tab, you can select a *different* model from the dropdown for each message you send.
@@ -130,15 +130,18 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
-*   **v2.21:**
-    *   Now allowing for erroneous output by llama4scout, which returns two JSON arrays instead of one: [["aa","bb"]["cc"]].
-*   **v2.21:**
-    *   Improved parsing logic in `chat.js` to better handle LLM responses containing embedded JSON structures within surrounding text, even without code fences.
+*   **v2.26:**
+    *   Fixed chat submit issues (Ctrl+Enter and Send button).
+    *   Fixed flag positioning in summary popup header.
+    *   Improved parsing of initial summary context in chat window.
+    *   Added standard version/update headers to JS files.
 *   **v2.20:**
     *   Major refactoring of the content script (`pageInteraction.js`) into separate modules (`highlighter.js`, `floatingIcon.js`, `summaryPopup.js`) using dynamic imports.
     *   Centralized settings access: `background.js` now handles fetching settings from storage and providing them to other scripts (`pageInteraction.js`, `options.js`, `chat.js`) via message passing.
     *   Improved debug logging consistency and API key sanitization in logs.
     *   Fixed issues related to language data loading and availability in `options.js` and `pageInteraction.js`.
+    *   Improved parsing logic in `pageInteraction.js` and `chat.js` to better handle LLM responses containing embedded/multiple JSON structures within surrounding text, even without code fences.
+    *   Fixed saving/loading of custom model list (including labels) in Options.
 *   **v2.10:**
     *   Refactored language handling: Added `languages.json`, dynamic flag display based on configuration, drag-and-drop reordering in Options.
     *   Initial summary now requested in the first configured language.

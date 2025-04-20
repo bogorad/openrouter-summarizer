@@ -1,5 +1,8 @@
 // constants.js
-// v 2.20
+const VER = "v2.25";
+const LASTUPD = "Added standard version/update header"; // Or describe last constant added/changed
+
+console.log(`[LLM Constants] Loaded (${VER})`);
 
 // --- Prompt Storage Keys ---
 export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT =
@@ -14,12 +17,12 @@ export const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article
 Using US English, prepare a summary of article_text containing no more than \${bulletWord} points.`;
 
 export const DEFAULT_POSTAMBLE_TEXT = `Format the entire result as a single JSON array of strings.
-Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<i>Point 3:</i> With italics."]
+Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<b>Point 3:</b> With more bold."]
 Do not add any comments before or after the JSON array. Do not output your deliberations.
 Just provide the JSON array string as the result. Ensure the output is valid JSON.`;
 
 export const DEFAULT_FORMAT_INSTRUCTIONS = `Each point should be a concise HTML string, starting with a bold tag-like marker and a colon, followed by the description.
-You may use ONLY the following HTML tags for emphasis: <b> for bold and <i> for italics. Do not use any other HTML tags (like <p>, <ul>, <li>, <br>, etc.).
+You may use ONLY the following HTML tags for emphasis: <b> for bold. Do not use any other HTML tags (like <p>, <ul>, <li>, <br>, etc.).
 For example: "<b>Key Finding:</b> The market showed <i>significant</i> growth in Q3."
 After providing bullet points for article summary, add a bonus one - your insights, assessment and comments, and what should a mindful reader notice about this. Call it <b>Summarizer Insight</b>.`;
 
