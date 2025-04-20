@@ -1,6 +1,5 @@
 // chat.js
 const VER = "v2.26";
-const LASTUPD = "Added debug logs for submit/Ctrl+Enter";
 
 console.log(`[LLM Chat] Script Start (${VER})`);
 

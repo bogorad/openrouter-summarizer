@@ -1,6 +1,4 @@
 // summaryPopup.js
-const VER = "v2.26";
-const LASTUPD = "Reverted header/flag creation to direct DOM manipulation"; // Replace if needed
 
 console.log(`[LLM Popup] Script Loaded (${VER})`);
 

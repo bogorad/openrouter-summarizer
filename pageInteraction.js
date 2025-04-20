@@ -1,6 +1,5 @@
 // pageInteraction.js
 const VER = "v2.26";
-const LASTUPD = "Improved multi-array JSON parsing in LLM response";
 
 console.log(`[LLM Content] Script Start (${VER})`);
 
