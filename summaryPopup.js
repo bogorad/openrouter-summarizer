@@ -1,5 +1,5 @@
 // summaryPopup.js
-// v2.24 - Reverted header/flag creation to direct DOM manipulation
+// v2.24
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
