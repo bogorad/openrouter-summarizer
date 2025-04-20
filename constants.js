@@ -1,5 +1,5 @@
 // constants.js
-const VER = "v2.26";
+const VER = "v2.30";
 
 console.log(`[LLM Constants] Loaded (${VER})`);
 
