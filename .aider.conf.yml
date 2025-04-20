@@ -16,12 +16,16 @@ file:
   - ./chat.html
   - ./chat.js
   - ./constants.js
+  - ./floatingIcon.js
+  - ./highlighter.js
+  - ./manifest.json
   - ./options.css
   - ./options.html
   - ./options.js
+  - ./pageInteraction.js
   - ./popup.css
   - ./popup.js
-  - ./manifest.json
+  - ./summaryPopup.js
 read:
   - ./CONVENTIONS.md
   - ./marked.min.js
