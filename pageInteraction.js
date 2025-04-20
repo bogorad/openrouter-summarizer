@@ -1,8 +1,8 @@
 // pageInteraction.js (formerly popup.js)
 // == OpenRouter Summarizer Content Script - Main Orchestrator ==
-// v2.13 - Refactored with dynamic module loading
+// v2.15 - Restored dynamic module loading
 
-console.log('[LLM Content] Script Start (v2.13 - Dynamic Load)');
+console.log('[LLM Content] Script Start (v2.15 - Dynamic Load)');
 
 // --- Global State Variables ---
 // These need to be accessible by functions defined before modules are loaded
@@ -44,15 +44,21 @@ function getSystemPrompt(
     const {
         DEFAULT_PREAMBLE_TEMPLATE,
         DEFAULT_POSTAMBLE_TEXT,
-        DEFAULT_FORMAT_INSTRUCTIONS
+        DEFAULT_FORMAT_INSTRUCTIONS,
+        PROMPT_STORAGE_KEY_CUSTOM_FORMAT, // Needed to reference keys from config
+        PROMPT_STORAGE_KEY_PREAMBLE,
+        PROMPT_STORAGE_KEY_POSTAMBLE,
+        PROMPT_STORAGE_KEY_DEFAULT_FORMAT
     } = constants;
 
     const bcNum = Number(bulletCount) || 5;
     const word = numToWord[bcNum] || "five";
 
+    // Use provided values or fall back to defaults from constants
     const finalPreamble = (preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE)
         .replace('${bulletWord}', word)
         .replace('US English', targetLanguage);
+    // Use custom instructions from config, fallback to default instructions from config, fallback to hardcoded default
     const finalFormatInstructions = customFormatInstructions?.trim() ? customFormatInstructions : (defaultFormatInstructions?.trim() ? defaultFormatInstructions : DEFAULT_FORMAT_INSTRUCTIONS);
     const finalPostamble = postambleText?.trim() ? postambleText : DEFAULT_POSTAMBLE_TEXT;
 
@@ -73,49 +79,59 @@ function findLanguageByName(name) {
 function handleElementSelected(element, clickX, clickY) {
     if (!FloatingIcon) return; // Check if module is loaded
     if (DEBUG) console.log('[LLM Content] handleElementSelected called for:', element);
+    // When an element is selected by the highlighter, create the floating icon.
     FloatingIcon.createFloatingIcon(clickX, clickY, handleIconClick, handleIconDismiss);
 }
 
 function handleElementDeselected() {
     if (!FloatingIcon || !SummaryPopup) return; // Check if modules are loaded
     if (DEBUG) console.log('[LLM Content] handleElementDeselected called.');
+    // When deselection occurs (via highlighter), remove the icon and hide the popup.
     FloatingIcon.removeFloatingIcon();
     SummaryPopup.hidePopup();
+    // Clear summary state as well
     lastSummary = '';
     lastModelUsed = '';
 }
 
 function handleIconClick() {
     if (DEBUG) console.log('[LLM Content] handleIconClick called.');
+    // When the floating icon is clicked, start the summarization process.
     processSelectedElement(); // Assume modules are loaded if icon exists
 }
 
 function handleIconDismiss() {
     if (!Highlighter || !SummaryPopup) return; // Check if modules are loaded
     if (DEBUG) console.log('[LLM Content] handleIconDismiss called (Escape pressed on icon).');
-    Highlighter.removeSelectionHighlight(); // This should trigger handleElementDeselected
+    // When the icon is dismissed (e.g., Escape key), deselect the element.
+    Highlighter.removeSelectionHighlight(); // This will trigger handleElementDeselected via its internal logic if needed
     SummaryPopup.hidePopup();
-    lastSummary = '';
-    lastModelUsed = '';
+     // Clear summary state as well
+     lastSummary = '';
+     lastModelUsed = '';
 }
 
 function handlePopupCopy() {
+    // The copy logic is now internal to summaryPopup.js's handleCopyClick.
     if (DEBUG) console.log('[LLM Content] handlePopupCopy triggered (logic inside summaryPopup).');
 }
 
 function handlePopupChat(targetLang = null) {
     if (DEBUG) console.log(`[LLM Content] handlePopupChat called. Target Language: ${targetLang}`);
+    // When the Chat button (or a flag) is clicked in the popup, open the chat context.
     openChatWithContext(targetLang); // Assume modules are loaded if popup exists
 }
 
 function handlePopupClose() {
     if (!SummaryPopup || !Highlighter || !FloatingIcon) return; // Check if modules are loaded
     if (DEBUG) console.log('[LLM Content] handlePopupClose called.');
+    // When the Close button is clicked, hide the popup.
     SummaryPopup.hidePopup();
-    Highlighter.removeSelectionHighlight(); // This should trigger handleElementDeselected
-    FloatingIcon.removeFloatingIcon();
-    lastSummary = '';
-    lastModelUsed = '';
+    Highlighter.removeSelectionHighlight(); // This will trigger handleElementDeselected
+    FloatingIcon.removeFloatingIcon(); // Ensure icon is removed too
+     // Clear summary state as well
+     lastSummary = '';
+     lastModelUsed = '';
 }
 
 
@@ -124,10 +140,11 @@ function openChatWithContext(targetLang = null) {
     if (!Highlighter) return; // Check module loaded
     const selectedElement = Highlighter.getSelectedElement();
     if (!selectedElement) { alert("Cannot open chat: Original element selection lost."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: selectedElement is null.'); return; }
+    // Use the raw lastSummary stored in this main script's state
     if (!lastSummary || lastSummary === 'Thinking...' || lastSummary.startsWith('Error:')) { alert("Cannot open chat: No valid summary available."); if (DEBUG) console.warn('[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.'); return; }
 
     const domSnippet = selectedElement.outerHTML || selectedElement.innerHTML || selectedElement.textContent || "";
-    const summaryForChat = lastSummary;
+    const summaryForChat = lastSummary; // Pass the RAW LLM response string
 
     const contextPayload = {
         domSnippet: domSnippet,
@@ -145,10 +162,11 @@ function openChatWithContext(targetLang = null) {
                 if (chrome.runtime.lastError) { console.error('[LLM Chat Context] Error requesting tab open:', chrome.runtime.lastError); alert(`Error opening chat tab: ${chrome.runtime.lastError.message}.`); }
                 else {
                     if (DEBUG) console.log('[LLM Chat Context] Background ack openChatTab:', openResponse);
+                    // Successfully opened chat, now clean up the page interaction state
                     if (SummaryPopup) SummaryPopup.hidePopup();
                     if (FloatingIcon) FloatingIcon.removeFloatingIcon();
-                    if (Highlighter) Highlighter.removeSelectionHighlight();
-                    lastSummary = '';
+                    if (Highlighter) Highlighter.removeSelectionHighlight(); // This also clears selectedElement state in highlighter
+                    lastSummary = ''; // Clear summary state
                     lastModelUsed = '';
                 }
             });
@@ -162,7 +180,11 @@ function openChatWithContext(targetLang = null) {
 
 // --- LLM Interaction ---
 function sendToLLM(selectedHtml, apiKey, model, systemPrompt, availableLanguages) {
-    if (!SummaryPopup) return; // Check module loaded
+    // Ensure SummaryPopup is loaded before proceeding
+    if (!SummaryPopup) {
+        console.error("[LLM Content] sendToLLM called before SummaryPopup module loaded!");
+        return;
+    }
     if (DEBUG) console.log(`[LLM Request] Sending to model: ${model}`);
 
     const payload = { model, messages: [ { role: "system", content: systemPrompt }, { role: "user", content: selectedHtml } ] };
@@ -236,6 +258,7 @@ function sendToLLM(selectedHtml, apiKey, model, systemPrompt, availableLanguages
 
 // --- Core Process Trigger ---
 function processSelectedElement() {
+    // Ensure modules are loaded before proceeding
     if (!Highlighter || !SummaryPopup || !FloatingIcon || !constants) {
         console.error("[LLM Content] processSelectedElement called before modules loaded!");
         return;
@@ -255,40 +278,29 @@ function processSelectedElement() {
     });
     SummaryPopup.enableChatButton(false);
 
-    const {
-        PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-        PROMPT_STORAGE_KEY_PREAMBLE,
-        PROMPT_STORAGE_KEY_POSTAMBLE,
-        PROMPT_STORAGE_KEY_DEFAULT_FORMAT
-    } = constants;
-
-    const keysToFetch = [
-        'apiKey', 'model', 'bulletCount', 'debug', 'availableLanguages',
-        PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-        PROMPT_STORAGE_KEY_PREAMBLE,
-        PROMPT_STORAGE_KEY_POSTAMBLE,
-        PROMPT_STORAGE_KEY_DEFAULT_FORMAT
-    ];
-
-    if (DEBUG) console.log('[LLM Content] Requesting settings from storage:', keysToFetch);
-
-    chrome.storage.sync.get(keysToFetch, (config) => {
-        if (chrome.runtime.lastError) {
-            console.error('[LLM Content] Error fetching from storage:', chrome.runtime.lastError);
-            SummaryPopup.updatePopupContent(`Error: Could not load extension settings: ${chrome.runtime.lastError.message}`);
+    // --- Get settings from background ---
+    if (DEBUG) console.log('[LLM Content] Requesting settings from background...');
+    chrome.runtime.sendMessage({ action: "getSettings" }, (config) => {
+        // --- Start of Async Callback ---
+        if (chrome.runtime.lastError || config?.error) {
+            const errorMsg = chrome.runtime.lastError?.message || config?.error || "Unknown error";
+            console.error('[LLM Content] Error fetching settings from background:', errorMsg);
+            SummaryPopup.updatePopupContent(`Error: Could not load settings: ${errorMsg}`);
             FloatingIcon.removeFloatingIcon();
             Highlighter.removeSelectionHighlight();
             return;
         }
 
-        const configToLog = { ...config };
-        if (configToLog.apiKey) configToLog.apiKey = '[API Key Hidden]';
-        if (DEBUG) console.log('[LLM Content] Settings received from storage:', configToLog);
+        if (DEBUG) {
+            const configToLog = { ...config };
+            if (configToLog.apiKey) configToLog.apiKey = '[API Key Hidden]';
+            console.log('[LLM Content] Settings received from background:', configToLog);
+        }
 
+        // --- Options Validation ---
         let validationErrors = [];
-        if (!config.apiKey?.trim()) validationErrors.push("API Key is missing.");
-        if (!config.model?.trim()) validationErrors.push("Default Model is not selected.");
-        // Add more validation if needed
+        if (!config.apiKey) validationErrors.push("API Key is missing.");
+        if (!config.model) validationErrors.push("Default Model is not selected.");
 
         if (validationErrors.length > 0) {
             console.error("[LLM Content] Options validation failed:", validationErrors);
@@ -298,21 +310,32 @@ function processSelectedElement() {
             Highlighter.removeSelectionHighlight();
             return;
         }
+        // --- END: Options Validation ---
 
-        DEBUG = !!config.debug; // Update debug status
+        DEBUG = !!config.debug; // Update debug status from fetched config
 
+        // --- Selection Validation ---
         const stillSelectedElement = Highlighter.getSelectedElement();
         if (stillSelectedElement !== currentSelectedElement || !document.body.contains(currentSelectedElement)) {
             if (DEBUG) console.warn('[LLM Content] Element selection changed or removed during settings load. Aborting.');
             SummaryPopup.hidePopup();
             return;
         }
+        // --- END: Selection Validation ---
 
+        // --- Proceed with API call ---
         try {
+            const {
+                PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
+                PROMPT_STORAGE_KEY_PREAMBLE,
+                PROMPT_STORAGE_KEY_POSTAMBLE,
+                PROMPT_STORAGE_KEY_DEFAULT_FORMAT
+            } = constants; // Destructure keys here
+
             const apiKey = config.apiKey;
             const model = config.model;
-            const bulletCount = config.bulletCount || 5;
-            const availableLanguages = Array.isArray(config.availableLanguages) ? config.availableLanguages : [];
+            const bulletCount = config.bulletCount;
+            const availableLanguages = config.availableLanguages;
 
             const firstConfiguredLanguage = availableLanguages
                 .map(name => name.trim()).filter(name => name !== '')
@@ -352,8 +375,9 @@ function processSelectedElement() {
             FloatingIcon.removeFloatingIcon();
             Highlighter.removeSelectionHighlight();
         }
+        // --- End of Async Callback ---
     });
-    if (DEBUG) console.log('[LLM Content] storage.sync.get request initiated. Waiting for callback...');
+    if (DEBUG) console.log('[LLM Content] getSettings message sent. Waiting for callback...');
 }
 
 
@@ -363,7 +387,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     if (!Highlighter || !SummaryPopup) {
         console.warn("[LLM Content] Message received before modules loaded, ignoring:", req.action);
         sendResponse({ status: "error", message: "Content script not fully initialized." });
-        return false; // Or true if you might handle it later, but likely false
+        return false;
     }
 
     if (DEBUG) console.log('[LLM Content] Received message:', req.action);
@@ -372,7 +396,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         if (DEBUG) console.log('[LLM Content] Received processSelection command.');
         const currentSelectedElement = Highlighter.getSelectedElement();
         if (currentSelectedElement) {
-            processSelectedElement();
+            processSelectedElement(); // Start the process
             sendResponse({ status: "processing started" });
             return true; // Indicate potential async work
         } else {
@@ -386,7 +410,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
             return false;
         }
     }
-    return false;
+    return false; // Indicate synchronous handling for other messages
 });
 
 
@@ -404,6 +428,7 @@ async function initialize() {
 
     try {
         // Dynamically import all modules
+        // Use chrome.runtime.getURL to ensure correct path resolution
         [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
             import(chrome.runtime.getURL('./highlighter.js')),
             import(chrome.runtime.getURL('./floatingIcon.js')),
@@ -426,6 +451,7 @@ async function initialize() {
             }
         } catch (error) {
             console.error("[LLM Content] Error fetching language data:", error);
+            // Proceed without language data, flags won't work
             ALL_LANGUAGE_NAMES_MAP = {};
             svgPathPrefixUrl = '';
             fallbackSvgPathUrl = '';
@@ -443,7 +469,7 @@ async function initialize() {
             initialDebugState: DEBUG
         });
 
-        console.log('[LLM Content] Script Initialized (v2.13). Modules ready.');
+        console.log('[LLM Content] Script Initialized (v2.15). Modules ready.');
 
     } catch (err) {
         console.error("[LLM Content] CRITICAL: Failed to load modules dynamically or initialize.", err);
