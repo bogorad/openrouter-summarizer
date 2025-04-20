@@ -1,5 +1,5 @@
-// chat.js
-// v2.20
+// cha.js
+// v2.21 - Improved parsing logic in `chat.js` to better handle LLM responses containing embedded JSON structures within surrounding text, even without code fences.
 
 // ==== GLOBAL STATE ====
 let models = [];
@@ -262,26 +262,114 @@ function setupStreamListeners() {
         break;
       case "llmChatStreamDone":
         if (streaming) {
-          if (DEBUG) console.log('[LLM Chat] Stream finished. Model reported:', req.model); if (DEBUG) console.log('[LLM Chat] Raw content received:', currentStreamRawContent);
-          let processedContent = currentStreamRawContent; let jsonExtractedText = null; let trailingText = ""; let leadingText = "";
-          const jsonMatch = currentStreamRawContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/); let potentialJsonString = null;
-          if (jsonMatch?.[1]) { potentialJsonString = jsonMatch[1].trim(); leadingText = currentStreamRawContent.substring(0, jsonMatch.index).trim(); trailingText = currentStreamRawContent.substring(jsonMatch.index + jsonMatch[0].length).trim(); if (DEBUG) console.log('[LLM Chat JSON] Found fenced JSON. Content to parse:', potentialJsonString.substring(0, 100)+'...'); if (DEBUG && leadingText) console.log('[LLM Chat JSON] Captured leading text:', leadingText.substring(0, 100)+'...'); if (DEBUG && trailingText) console.log('[LLM Chat JSON] Captured trailing text:', trailingText.substring(0, 100)+'...'); }
-          else { potentialJsonString = currentStreamRawContent.trim(); if (DEBUG) console.log('[LLM Chat JSON] No fences found, attempting to parse raw content as JSON:', potentialJsonString.substring(0, 100)+'...'); }
-          let parsedJson = null; if (potentialJsonString) {
-            // Pass false to suppress warnings for non-initial messages
-            parsedJson = tryParseJson(potentialJsonString, false);
+          if (DEBUG) console.log('[LLM Chat] Stream finished. Model reported:', req.model);
+          if (DEBUG) console.log('[LLM Chat] Raw content received:', currentStreamRawContent);
+
+          let processedContent = ""; // Will hold the primary content (parsed JSON text or raw fallback)
+          let jsonExtractedText = null;
+          let leadingText = "";
+          let trailingText = "";
+          let potentialJsonString = null;
+          let parsedJson = null;
+
+          // 1. Check for fenced JSON first
+          const fenceMatch = currentStreamRawContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+          if (fenceMatch?.[1]) {
+            potentialJsonString = fenceMatch[1].trim();
+            leadingText = currentStreamRawContent.substring(0, fenceMatch.index).trim();
+            trailingText = currentStreamRawContent.substring(fenceMatch.index + fenceMatch[0].length).trim();
+            if (DEBUG) console.log('[LLM Chat JSON] Found fenced JSON. Content to parse:', potentialJsonString.substring(0, 100)+'...');
+            if (DEBUG && leadingText) console.log('[LLM Chat JSON] Captured leading text (fenced):', leadingText.substring(0, 100)+'...');
+            if (DEBUG && trailingText) console.log('[LLM Chat JSON] Captured trailing text (fenced):', trailingText.substring(0, 100)+'...');
+            // Attempt to parse the fenced content
+            parsedJson = tryParseJson(potentialJsonString, false); // Suppress warning for subsequent messages
+          } else {
+            // 2. If no fences, try to find the first plausible JSON array/object substring
+            if (DEBUG) console.log('[LLM Chat JSON] No fences found. Searching for embedded JSON structure.');
+            let startIndex = -1;
+            let endIndex = -1;
+            const firstBracket = currentStreamRawContent.indexOf('[');
+            const firstBrace = currentStreamRawContent.indexOf('{');
+
+            if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+              // Potential array found first
+              startIndex = firstBracket;
+              endIndex = currentStreamRawContent.lastIndexOf(']');
+            } else if (firstBrace !== -1) {
+              // Potential object found first (or only)
+              startIndex = firstBrace;
+              endIndex = currentStreamRawContent.lastIndexOf('}');
+            }
+
+            if (startIndex !== -1 && endIndex > startIndex) {
+              potentialJsonString = currentStreamRawContent.substring(startIndex, endIndex + 1).trim();
+              leadingText = currentStreamRawContent.substring(0, startIndex).trim();
+              trailingText = currentStreamRawContent.substring(endIndex + 1).trim();
+              if (DEBUG) console.log('[LLM Chat JSON] Found potential embedded JSON structure. Content to parse:', potentialJsonString.substring(0, 100)+'...');
+              if (DEBUG && leadingText) console.log('[LLM Chat JSON] Captured leading text (embedded):', leadingText.substring(0, 100)+'...');
+              if (DEBUG && trailingText) console.log('[LLM Chat JSON] Captured trailing text (embedded):', trailingText.substring(0, 100)+'...');
+              // Attempt to parse the extracted substring
+              parsedJson = tryParseJson(potentialJsonString, false); // Suppress warning
+            } else {
+              // No plausible JSON structure found
+              if (DEBUG) console.log('[LLM Chat JSON] No embedded JSON structure found.');
+              potentialJsonString = null;
+              parsedJson = null;
+              // If no structure found, the whole thing is leading text
+              leadingText = currentStreamRawContent.trim();
+              trailingText = "";
+            }
           }
-          if (parsedJson !== null) { if (DEBUG) console.log('[LLM Chat JSON] Successfully parsed potential JSON (subsequent message).'); jsonExtractedText = extractTextFromJson(parsedJson); if (jsonExtractedText === null) { if (DEBUG) console.warn('[LLM Chat JSON] Parsed JSON but could not extract recognizable text structure.'); } else { if (DEBUG) console.log('[LLM Chat JSON] Successfully extracted text from parsed JSON.'); } }
-          else { if (DEBUG) console.log('[LLM Chat JSON] Failed to parse potential JSON (subsequent message - warning suppressed).'); if (jsonMatch) { processedContent = (leadingText + (leadingText && trailingText ? '\n\n' : '') + trailingText).trim(); if (DEBUG) console.log('[LLM Chat JSON] Parsing failed, using text outside fences:', processedContent.substring(0, 100)+'...'); } else { processedContent = currentStreamRawContent.trim(); if (DEBUG) console.log('[LLM Chat JSON] No fences and parsing failed, using raw content as text.'); } }
-          let finalContentParts = []; if (leadingText) finalContentParts.push(leadingText);
-          if (jsonExtractedText !== null) { finalContentParts.push(jsonExtractedText); if (trailingText) finalContentParts.push(trailingText); }
-          else { finalContentParts.push(processedContent); }
-          processedContent = finalContentParts.filter(part => part.trim() !== '').join('\n\n');
-          if (!processedContent.trim()) { console.warn(`[LLM Chat] Model ${req.model || currentStreamModel} returned an empty or non-processable response.`); messages.push({ role: "assistant", content: "(Model returned empty response)", model: req.model || currentStreamModel }); }
-          else { messages.push({ role: "assistant", content: processedContent, model: req.model || currentStreamModel }); }
-          streaming = false; currentStreamMsgSpan = null; currentStreamRawContent = ""; currentStreamModel = ""; showLoadingIndicator(false); renderMessages(); focusInput();
-        } else if (DEBUG) { console.warn('[LLM Chat] Received stream DONE but not streaming.'); }
-        break;
+
+          // 3. Process based on parsing result
+          if (parsedJson !== null) {
+            // Successfully parsed JSON (either fenced or embedded)
+            if (DEBUG) console.log('[LLM Chat JSON] Successfully parsed potential JSON.');
+            jsonExtractedText = extractTextFromJson(parsedJson);
+            if (jsonExtractedText === null) {
+              if (DEBUG) console.warn('[LLM Chat JSON] Parsed JSON but could not extract recognizable text structure. Using raw JSON string.');
+              processedContent = potentialJsonString; // Show the raw JSON if extraction fails
+            } else {
+              if (DEBUG) console.log('[LLM Chat JSON] Successfully extracted text from parsed JSON.');
+              processedContent = jsonExtractedText; // Use the extracted text
+            }
+          } else {
+            // Failed to parse JSON (or no JSON was attempted)
+            if (DEBUG && potentialJsonString !== null) console.log('[LLM Chat JSON] Failed to parse potential JSON (warning suppressed).');
+            // If parsing failed or wasn't attempted, the "processedContent" is essentially empty,
+            // and we rely on combining leading/trailing text. If no structure was found at all,
+            // leadingText holds the entire original content.
+            processedContent = ""; // Reset processed content as we use leading/trailing
+            if (!leadingText && !trailingText) { // Case where no structure was found at all
+              leadingText = currentStreamRawContent.trim();
+            }
+          }
+
+          // 4. Combine parts for the final message
+          let finalContentParts = [];
+          if (leadingText) finalContentParts.push(leadingText);
+          if (processedContent) finalContentParts.push(processedContent); // Add parsed/extracted text or raw JSON fallback
+          if (trailingText) finalContentParts.push(trailingText);
+
+          // Join parts with double newlines, filtering empty parts
+          const finalContent = finalContentParts.filter(part => part.trim() !== '').join('\n\n');
+
+          // 5. Add message to history
+          if (!finalContent.trim()) {
+            console.warn(`[LLM Chat] Model ${req.model || currentStreamModel} returned an empty or non-processable response after processing.`);
+            messages.push({ role: "assistant", content: "(Model returned empty response)", model: req.model || currentStreamModel });
+          } else {
+            messages.push({ role: "assistant", content: finalContent, model: req.model || currentStreamModel });
+          }
+
+          // 6. Cleanup
+          streaming = false; currentStreamMsgSpan = null; currentStreamRawContent = ""; currentStreamModel = "";
+          showLoadingIndicator(false); renderMessages(); focusInput();
+        } else if (DEBUG) {
+          console.warn('[LLM Chat] Received stream DONE but not streaming.');
+        }
+        break; // End case "llmChatStreamDone"
+
       case "llmChatStreamError":
         console.error('[LLM Chat] Stream Error from background:', req.error); showError(`LLM Error: ${req.error || "Unknown failure"}`, false);
         if (streaming) { const tempLabel = document.querySelector('.assistant-model-label:last-of-type'); const tempMsg = document.querySelector('.msg.assistant:last-of-type'); if (tempMsg?.querySelector('#activeStreamSpan')) { if (tempLabel) tempLabel.remove(); tempMsg.remove(); } else { messages.push({ role: "assistant", content: `Error receiving stream: ${req.error || "Unknown error"}`, model: currentStreamModel || 'Error' }); renderMessages(); } }

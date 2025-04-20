@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.20
+# OpenRouter Summarizer v2.21
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -14,6 +14,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **v2.20:**
     *   **Major Code Refactoring:** The internal structure of the extension has been significantly refactored for better maintainability and separation of concerns (see Technical Updates). This should not change functionality but improves the codebase health.
     *   Centralized settings access via the background script.
+*   **v2.21:**
+*   *   Improved parsing logic in `chat.js`
 
 ---
 
@@ -128,6 +130,8 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **v2.21:**
+    *   Improved parsing logic in `chat.js` to better handle LLM responses containing embedded JSON structures within surrounding text, even without code fences.
 *   **v2.20:**
     *   Major refactoring of the content script (`pageInteraction.js`) into separate modules (`highlighter.js`, `floatingIcon.js`, `summaryPopup.js`) using dynamic imports.
     *   Centralized settings access: `background.js` now handles fetching settings from storage and providing them to other scripts (`pageInteraction.js`, `options.js`, `chat.js`) via message passing.
