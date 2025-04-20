@@ -1,6 +1,4 @@
 // options.jsThat maens NEVER!!!
-const VER = "v2.26"; // Update this as needed
-const LASTUPD = "Improved multi-array JSON parsing in LLM response";
 
 import {
   // Keep prompt keys for saving

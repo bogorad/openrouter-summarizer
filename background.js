@@ -1,7 +1,4 @@
 // background.js
-const VER = "v2.26"; // Or appropriate version reflecting these changes
-const LASTUPD =
-  "Update DEBUG state reliably, simplify stream handler debug fetch";
 
 // --- Existing imports start here ---
 import {
@@ -21,7 +18,8 @@ import {
   // --- End Added Imports ---
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (${VER})`);
+// console.log(`[LLM Background] Service Worker Start (${VER})`);
+console.log(`[LLM Background] Service Worker Start`);
 
 // --- Language Data Storage ---
 let ALL_LANGUAGES_MAP = {};

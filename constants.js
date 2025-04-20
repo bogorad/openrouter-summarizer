@@ -1,6 +1,5 @@
 // constants.js
-const VER = "v2.25";
-const LASTUPD = "Added standard version/update header"; // Or describe last constant added/changed
+const VER = "v2.26";
 
 console.log(`[LLM Constants] Loaded (${VER})`);
 

@@ -1,6 +1,4 @@
 // highlighter.js
-const VER = "v2.25";
-const LASTUPD = "Created module from pageInteraction.js"; // Replace if needed
 
 console.log(`[LLM Highlighter] Script Loaded (${VER})`);
 
