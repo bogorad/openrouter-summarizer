@@ -189,6 +189,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.storage.session.set({ abortController: controller }, () => {
           if (DEBUG) console.log("[LLM Background] AbortController stored for potential abort.");
         });
+        const payload = {
+          model: request.model,
+          messages: request.messages,
+          structured_outputs: "true",
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "list_of_strings",
+              strict: true,
+              schema: {
+                type: "array",
+                items: {
+                  type: "string"
+                },
+                minItems: 5,
+                maxItems: 5
+              }
+            }
+          }
+        };
+        if (DEBUG) console.log("[LLM Background] Sending payload to OpenRouter:", payload);
         fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -197,10 +218,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
             "X-Title": "OR-Summ",
           },
-          body: JSON.stringify({
-            model: request.model,
-            messages: request.messages,
-          }),
+          body: JSON.stringify(payload),
           signal: signal
         })
         .then(response => {
@@ -211,7 +229,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })
         .then(data => {
           if (DEBUG) console.log("[LLM Background] Fetch response data:", data);
-          sendResponse({ status: "success", data });
+          try {
+            sendResponse({ status: "success", data });
+          } catch (e) {
+            if (DEBUG) console.warn("[LLM Background] Failed to send response, receiving end may no longer exist:", e.message);
+          }
           // Clear the controller after successful response
           chrome.storage.session.remove("abortController", () => {
             if (DEBUG) console.log("[LLM Background] AbortController cleared after successful response.");
@@ -219,7 +241,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })
         .catch(error => {
           if (DEBUG) console.error("[LLM Background] Error in fetch:", error);
-          sendResponse({ status: "error", message: error.message });
+          try {
+            sendResponse({ status: "error", message: error.message });
+          } catch (e) {
+            if (DEBUG) console.warn("[LLM Background] Failed to send error response, receiving end may no longer exist:", e.message);
+          }
           // Clear the controller on error
           chrome.storage.session.remove("abortController", () => {
             if (DEBUG) console.log("[LLM Background] AbortController cleared after error.");
@@ -237,10 +263,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           chrome.storage.session.remove("abortController", () => {
             if (DEBUG) console.log("[LLM Background] AbortController cleared after abort.");
           });
-          sendResponse({ status: "aborted" });
+          try {
+            sendResponse({ status: "aborted" });
+          } catch (e) {
+            if (DEBUG) console.warn("[LLM Background] Failed to send abort response, receiving end may no longer exist:", e.message);
+          }
         } else {
           if (DEBUG) console.log("[LLM Background] No active request to abort.");
-          sendResponse({ status: "no active request" });
+          try {
+            sendResponse({ status: "no active request" });
+          } catch (e) {
+            if (DEBUG) console.warn("[LLM Background] Failed to send no active request response, receiving end may no longer exist:", e.message);
+          }
         }
       });
       return true;
@@ -250,7 +284,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         { chatContext: request },
         () => {
           if (DEBUG) console.log("[LLM Background] Chat context set in session storage.");
-          sendResponse({ status: "ok" });
+          try {
+            sendResponse({ status: "ok" });
+          } catch (e) {
+            if (DEBUG) console.warn("[LLM Background] Failed to send setChatContext response, receiving end may no longer exist:", e.message);
+          }
         }
       );
       return true;
@@ -258,14 +296,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (DEBUG) console.log("[LLM Background] Handling openChatTab request.");
       chrome.tabs.create({ url: chrome.runtime.getURL("chat.html") }, (newTab) => {
         if (DEBUG) console.log("[LLM Background] Chat tab opened:", newTab.id);
-        sendResponse({ status: "opened", tabId: newTab.id });
+        try {
+          sendResponse({ status: "opened", tabId: newTab.id });
+        } catch (e) {
+          if (DEBUG) console.warn("[LLM Background] Failed to send openChatTab response, receiving end may no longer exist:", e.message);
+        }
       });
       return true;
     } else if (request.action === "openOptionsPage") {
       if (DEBUG) console.log("[LLM Background] Handling openOptionsPage request.");
       chrome.runtime.openOptionsPage();
       if (DEBUG) console.log("[LLM Background] Options page opened.");
-      sendResponse({ status: "options page opened" });
+      try {
+        sendResponse({ status: "options page opened" });
+      } catch (e) {
+        if (DEBUG) console.warn("[LLM Background] Failed to send openOptionsPage response, receiving end may no longer exist:", e.message);
+      }
     }
     if (DEBUG) console.log("[LLM Background] Message handler completed for action:", request.action);
   });

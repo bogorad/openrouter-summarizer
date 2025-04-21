@@ -382,34 +382,42 @@ function renderMessages() {
             processedContent.substring(0, 200) +
               (processedContent.length > 200 ? "..." : ""),
           );
-          if (typeof marked !== "undefined") {
-            try {
-              contentSpan.innerHTML = marked.parse(processedContent, {
-                sanitize: true,
-              });
+          // Attempt to extract and parse JSON array from the content
+          let finalHtml = "";
+          let jsonParsed = false;
+          try {
+            const jsonResult = extractJsonFromContent(processedContent);
+            if (jsonResult.jsonArray && Array.isArray(jsonResult.jsonArray)) {
+              jsonParsed = true;
+              // Render JSON array as an HTML list
+              const listHtml = "<ul>" + jsonResult.jsonArray.map(item => `<li>${item}</li>`).join("") + "</ul>";
+              // Combine with any surrounding text if present
+              if (jsonResult.beforeText || jsonResult.afterText) {
+                const beforeHtml = jsonResult.beforeText ? renderTextAsHtml(jsonResult.beforeText) : "";
+                const afterHtml = jsonResult.afterText ? renderTextAsHtml(jsonResult.afterText) : "";
+                finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
+              } else {
+                finalHtml = listHtml;
+              }
               console.log(
-                `[LLM Chat Render] Successfully parsed content with marked for message ${index}. Resulting HTML:`,
-                contentSpan.innerHTML.substring(0, 200) +
-                  (contentSpan.innerHTML.length > 200 ? "..." : ""),
+                `[LLM Chat Render] Successfully extracted and parsed JSON array for message ${index}. Rendered as list.`,
               );
-            } catch (parseError) {
-              console.error(
-                `[LLM Chat Render] Marked parse error for message ${index}:`,
-                parseError,
-              );
-              contentSpan.innerHTML = processedContent.replace(/\n/g, "<br>");
+            } else {
               console.log(
-                `[LLM Chat Render] Fallback text for message ${index}:`,
-                contentSpan.textContent.substring(0, 200) +
-                  (contentSpan.textContent.length > 200 ? "..." : ""),
+                `[LLM Chat Render] No valid JSON array found in message ${index}. Falling back to text rendering.`,
               );
             }
-          } else {
-            contentSpan.innerHTML = processedContent.replace(/\n/g, "<br>");
-            console.log(
-              `[LLM Chat Render] Used fallback rendering for message ${index} since marked is not available.`,
+          } catch (jsonError) {
+            console.error(
+              `[LLM Chat Render] Error parsing JSON for message ${index}:`,
+              jsonError,
             );
           }
+          // If no JSON was parsed, render the content as text/markdown
+          if (!jsonParsed) {
+            finalHtml = renderTextAsHtml(processedContent);
+          }
+          contentSpan.innerHTML = finalHtml;
         } else {
           contentSpan.innerHTML = "[Error: Invalid message content]";
           console.log(
@@ -587,6 +595,8 @@ function sendChatRequestToBackground(userText) {
         );
         showError(`Error: ${chrome.runtime.lastError.message}.`);
         streaming = false;
+        if (sendButton) sendButton.style.display = "block";
+        if (stopButton) stopButton.style.display = "none";
         return;
       }
 
@@ -610,8 +620,6 @@ function sendChatRequestToBackground(userText) {
         showError("Error: Failed to get response from LLM.");
       }
       streaming = false;
-      if (sendButton) sendButton.style.display = "block";
-      if (stopButton) stopButton.style.display = "none";
       if (sendButton) sendButton.style.display = "block";
       if (stopButton) stopButton.style.display = "none";
     },
@@ -778,8 +786,82 @@ function stripCodeFences(text) {
     console.warn("[LLM Chat] stripCodeFences received non-string input:", text);
     return "";
   }
+  // Replace code fences with a placeholder to preserve content if needed
   const regex = /```[\s\S]*?```/g;
-  return text.replace(regex, "").trim();
+  return text.replace(regex, (match) => {
+    // Extract content inside fences if it's JSON-like, otherwise remove
+    const innerContent = match.replace(/```(?:\w*)\s*/, '').replace(/\s*```/, '').trim();
+    if (innerContent.startsWith('[') && innerContent.endsWith(']')) {
+      return innerContent; // Keep potential JSON content
+    }
+    return ""; // Remove non-JSON fenced content
+  }).trim();
+}
+
+/**
+ * Extracts JSON array from content and separates surrounding text.
+ * @param {string} content - The content to process.
+ * @returns {object} - An object with beforeText, jsonArray, and afterText.
+ */
+function extractJsonFromContent(content) {
+  if (typeof content !== "string") {
+    return { beforeText: "", jsonArray: null, afterText: "" };
+  }
+  // Look for JSON array start and end
+  const startIndex = content.indexOf('[');
+  if (startIndex === -1) {
+    return { beforeText: content, jsonArray: null, afterText: "" };
+  }
+  let bracketBalance = 0;
+  let endIndex = -1;
+  for (let i = startIndex; i < content.length; i++) {
+    if (content[i] === '[') {
+      bracketBalance++;
+    } else if (content[i] === ']') {
+      bracketBalance--;
+      if (bracketBalance === 0) {
+        endIndex = i;
+        break;
+      }
+    }
+  }
+  if (endIndex === -1) {
+    return { beforeText: content, jsonArray: null, afterText: "" };
+  }
+  const jsonString = content.substring(startIndex, endIndex + 1);
+  const beforeText = content.substring(0, startIndex).trim();
+  const afterText = content.substring(endIndex + 1).trim();
+  try {
+    const jsonArray = JSON.parse(jsonString);
+    if (Array.isArray(jsonArray)) {
+      return { beforeText, jsonArray, afterText };
+    } else {
+      return { beforeText: content, jsonArray: null, afterText: "" };
+    }
+  } catch (e) {
+    return { beforeText: content, jsonArray: null, afterText: "" };
+  }
+}
+
+/**
+ * Renders text content as HTML using marked if available, or as plain text with line breaks.
+ * @param {string} text - The text to render.
+ * @returns {string} - The rendered HTML.
+ */
+function renderTextAsHtml(text) {
+  if (typeof text !== "string" || !text.trim()) {
+    return "";
+  }
+  if (typeof marked !== "undefined") {
+    try {
+      return marked.parse(text, { sanitize: true });
+    } catch (parseError) {
+      console.error("[LLM Chat Render] Marked parse error:", parseError);
+      return text.replace(/\n/g, "<br>");
+    }
+  } else {
+    return text.replace(/\n/g, "<br>");
+  }
 }
 
 /**
