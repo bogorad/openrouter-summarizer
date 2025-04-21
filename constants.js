@@ -1,5 +1,5 @@
 // constants.js
-const VER = "v2.31";
+const VER = "v2.33";
 
 console.log(`[LLM Constants] Loaded (${VER})`);
 
@@ -13,7 +13,7 @@ export const PROMPT_STORAGE_KEY_DEFAULT_FORMAT =
 
 // --- Default Prompt Templates ---
 export const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article_text.
-Using US English, prepare a summary of article_text containing no more than \${bulletWord} points.`;
+Using US English, prepare a summary of article_text containing exactly \${bulletWord} points.`;
 
 export const DEFAULT_POSTAMBLE_TEXT = `Format the entire result as a single JSON array of strings.
 Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<b>Point 3:</b> With more bold."]

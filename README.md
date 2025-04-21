@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.30
+# OpenRouter Summarizer v2.33
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,6 +7,10 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
+*   **v2.33:**
+    *   Enhanced error handling to prevent uncaught errors when the chat tab is closed during a response, addressing the "Could not establish connection. Receiving end does not exist." issue.
+    *   Improved JSON parsing in chat responses to better handle structured data from LLM outputs.
+    *   Added structured output requests to ensure LLM responses are formatted as JSON arrays for summaries and chat interactions.
 *   **v2.31:**
     *   Now you can stop a chat request by clicking the "Stop" button.
 *   **v2.30:**
@@ -135,6 +139,10 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **v2.33:**
+    *   Added robust error handling in `background.js` to prevent uncaught errors when the receiving end (e.g., chat tab) is no longer available, addressing the "Could not establish connection. Receiving end does not exist." error.
+    *   Improved JSON parsing in `chat.js` to extract and render JSON arrays from assistant responses as structured HTML lists.
+    *   Added structured output requests in `background.js` and `pageInteraction.js` to ensure LLM responses are formatted as JSON arrays with exactly 5 items for summaries and chat interactions.
 *   **v2.31:**
     *   Updated the version to 2.31 in `manifest.json` and `constants.js`.
     *   Fixed the issue where the "Stop" button remained visible after a successful chat request completion in `chat.js` by adding logic to revert to the "Send" button state.

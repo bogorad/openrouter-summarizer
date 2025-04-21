@@ -286,6 +286,26 @@ function sendToLLM(
     ],
   };
 
+  const payloadWithStructure = {
+    ...payload,
+    structured_outputs: "true",
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "list_of_strings",
+        strict: true,
+        schema: {
+          type: "array",
+          items: {
+            type: "string"
+          },
+          minItems: 5,
+          maxItems: 5
+        }
+      }
+    }
+  };
+  if (DEBUG) console.log("[LLM Content] Sending payload to OpenRouter:", payloadWithStructure);
   fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -294,7 +314,7 @@ function sendToLLM(
       "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
       "X-Title": "OR-Summ",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payloadWithStructure),
   })
     .then((response) => {
       if (!response.ok) {
