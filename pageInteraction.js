@@ -300,7 +300,7 @@ function sendToLLM(
             type: "string"
           },
           minItems: 5,
-          maxItems: 5
+          maxItems: 9
         }
       }
     }
