@@ -6,8 +6,19 @@ Arial, sans-serif; font-size: 16px; display: flex; flex-direction: column; overf
 .chat-container { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
 /* --- Info Banner --- */
-.info-banner { padding: 8px 10px; background-color: #e3f2fd; color: #0d47a1; font-size: 0.9em; text-align: center; border-bottom: 1px solid #bbdefb; flex-shrink: 0; width:
-80vw; max-width: 800px; margin: 0 auto; }
+.info-banner {
+  padding: 8px 10px;
+  background-color: #e3f2fd;
+  color: #0d47a1;
+  font-size: 2em;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 1px solid #bbdefb;
+  flex-shrink: 0;
+  width: 80vw;
+  max-width: 800px;
+  margin: 0 auto;
+}
 
 /* --- Error Display --- */
 #errorDisplay { display: none; color: red; background-color: #ffebee; padding: 10px; border: 1px solid red; border-radius: 4px; margin: 10px auto; width: 80vw; max-width:
