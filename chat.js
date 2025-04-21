@@ -52,8 +52,8 @@ document.addEventListener("DOMContentLoaded", () => {
   chatForm = document.getElementById("chatForm");
   chatMessages = document.getElementById("chatMessages");
   errorDisplay = document.getElementById("errorDisplay");
-  sendButton = chatForm ? chatForm.querySelector('#sendButton') : null;
-  stopButton = chatForm ? chatForm.querySelector('#stopButton') : null;
+  sendButton = chatForm ? chatForm.querySelector("#sendButton") : null;
+  stopButton = chatForm ? chatForm.querySelector("#stopButton") : null;
 
   if (
     !chatMessagesInnerDiv ||
@@ -390,11 +390,20 @@ function renderMessages() {
             if (jsonResult.jsonArray && Array.isArray(jsonResult.jsonArray)) {
               jsonParsed = true;
               // Render JSON array as an HTML list
-              const listHtml = "<ul>" + jsonResult.jsonArray.map(item => `<li>${item}</li>`).join("") + "</ul>";
+              const listHtml =
+                "<ul>" +
+                jsonResult.jsonArray
+                  .map((item) => `<li>${item}</li>`)
+                  .join("") +
+                "</ul>";
               // Combine with any surrounding text if present
               if (jsonResult.beforeText || jsonResult.afterText) {
-                const beforeHtml = jsonResult.beforeText ? renderTextAsHtml(jsonResult.beforeText) : "";
-                const afterHtml = jsonResult.afterText ? renderTextAsHtml(jsonResult.afterText) : "";
+                const beforeHtml = jsonResult.beforeText
+                  ? renderTextAsHtml(jsonResult.beforeText)
+                  : "";
+                const afterHtml = jsonResult.afterText
+                  ? renderTextAsHtml(jsonResult.afterText)
+                  : "";
                 finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
               } else {
                 finalHtml = listHtml;
@@ -533,8 +542,13 @@ function sendChatRequestToBackground(userText) {
   const apiMessages = [
     {
       role: "system",
-      content:
-        "Be concise and factual. Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <i>.",
+      content: `
+      Be concise and factual. 
+      Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <p>. 
+      Return a single JSON array of strings, which will be treated as bullet points. 
+      If you feel no bullet points are needed, return an array with a single string element.
+      Do not add any comments before or after the JSON array.
+    `,
     },
   ];
   const userMessageCount = messages.filter((m) => m.role === "user").length;
@@ -742,11 +756,16 @@ function handleStopRequest() {
     // Attempt to abort the ongoing request if possible
     chrome.runtime.sendMessage({ action: "abortChatRequest" }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error("[LLM Chat] Error sending abort request:", chrome.runtime.lastError);
+        console.error(
+          "[LLM Chat] Error sending abort request:",
+          chrome.runtime.lastError,
+        );
       } else if (response && response.status === "aborted") {
         console.log("[LLM Chat] Background confirmed request abort.");
       } else {
-        console.log("[LLM Chat] Background could not abort request or no active request.");
+        console.log(
+          "[LLM Chat] Background could not abort request or no active request.",
+        );
       }
     });
   }
@@ -788,14 +807,19 @@ function stripCodeFences(text) {
   }
   // Replace code fences with a placeholder to preserve content if needed
   const regex = /```[\s\S]*?```/g;
-  return text.replace(regex, (match) => {
-    // Extract content inside fences if it's JSON-like, otherwise remove
-    const innerContent = match.replace(/```(?:\w*)\s*/, '').replace(/\s*```/, '').trim();
-    if (innerContent.startsWith('[') && innerContent.endsWith(']')) {
-      return innerContent; // Keep potential JSON content
-    }
-    return ""; // Remove non-JSON fenced content
-  }).trim();
+  return text
+    .replace(regex, (match) => {
+      // Extract content inside fences if it's JSON-like, otherwise remove
+      const innerContent = match
+        .replace(/```(?:\w*)\s*/, "")
+        .replace(/\s*```/, "")
+        .trim();
+      if (innerContent.startsWith("[") && innerContent.endsWith("]")) {
+        return innerContent; // Keep potential JSON content
+      }
+      return ""; // Remove non-JSON fenced content
+    })
+    .trim();
 }
 
 /**
@@ -808,16 +832,16 @@ function extractJsonFromContent(content) {
     return { beforeText: "", jsonArray: null, afterText: "" };
   }
   // Look for JSON array start and end
-  const startIndex = content.indexOf('[');
+  const startIndex = content.indexOf("[");
   if (startIndex === -1) {
     return { beforeText: content, jsonArray: null, afterText: "" };
   }
   let bracketBalance = 0;
   let endIndex = -1;
   for (let i = startIndex; i < content.length; i++) {
-    if (content[i] === '[') {
+    if (content[i] === "[") {
       bracketBalance++;
-    } else if (content[i] === ']') {
+    } else if (content[i] === "]") {
       bracketBalance--;
       if (bracketBalance === 0) {
         endIndex = i;
