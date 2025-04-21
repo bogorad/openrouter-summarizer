@@ -16,7 +16,8 @@ Assume the role of a Senior Front-End Developer and an Expert in ReactJS, NextJS
 - Include all necessary imports and use proper naming.  
 - Comment each function with a short spec, including argument definitions and call sites.  
 - Maintain a short spec at the top of each file.  
-- After each code change, update README.md in the "Technical updates" section, remind the user to update "whatsnew," and bump the minor version number.
+- After each code change, bump the minor version number, e.g., 2.84.6 to 2.84.7, in case there is no minor version, add it - e.g., 2.9 to 2.9.1.
+- After each code change, update README.md in the "Technical updates" section, remind the user to update "whatsnew,"
 
 
 - If you think there might not be a correct answer, you say so.
