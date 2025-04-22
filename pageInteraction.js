@@ -1,23 +1,32 @@
 // pageInteraction.js
-console.log(`[LLM Content] Script Start (v2.50.13)`); // Updated version
+console.log(`[LLM Content] Script Start (v2.50.14)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
 let FloatingIcon = null;
 let SummaryPopup = null;
 let constants = null;
-let importedTryParseJson = null; // Keep for potential future use, but not for summary parsing now
+let importedTryParseJson = null; // We might use this again in chat.js
 let importedShowError = null;
+// ...
 
-// --- Global State Variables ---
+// --- Global State ---
 let DEBUG = false; // Debug logging state
 let lastSummary = ""; // Raw or Cleaned/Combined summary string for chat context
 let lastModelUsed = ""; // Model used for the last summary
 
 let language_info = [];
+// ...
 
 // --- Prompt Assembly Function (Needs constants) ---
-const numToWord = { 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
+const numToWord = {
+  3: "three",
+  4: "four",
+  5: "five",
+  6: "six",
+  7: "seven",
+  8: "eight",
+};
 
 function getSystemPrompt(
   bulletCount,
@@ -165,25 +174,24 @@ function openChatWithContext(targetLang = "") {
     if (DEBUG)
       console.warn(
         "[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.",
-        `lastSummary was: "${lastSummary}"`
+        `lastSummary was: "${lastSummary}"`,
       );
     return;
   }
-
 
   const domSnippet =
     selectedElement.outerHTML ||
     selectedElement.innerHTML ||
     selectedElement.textContent ||
     "";
-  // Pass the RAW summary string to context. Chat will handle parsing/display.
+  // Pass the potentially fixed (or error) summary string to context.
   const summaryForChat = lastSummary;
 
   const contextPayload = {
     domSnippet: domSnippet,
     summary: summaryForChat,
     chatTargetLanguage: targetLang,
-    modelUsedForSummary: lastModelUsed // Include the model used
+    modelUsedForSummary: lastModelUsed, // Include the model used
   };
 
   if (DEBUG)
@@ -247,23 +255,40 @@ function openChatWithContext(targetLang = "") {
   );
 }
 
-
 // --- LLM Interaction (Delegated to background.js) ---
 function sendToLLM(selectedHtml) {
-  if (!SummaryPopup) { console.error("[LLM Content] sendToLLM called before SummaryPopup module loaded!"); return; }
-  if (DEBUG) console.log("[LLM Request] Sending summarization request to background.");
+  if (!SummaryPopup) {
+    console.error(
+      "[LLM Content] sendToLLM called before SummaryPopup module loaded!",
+    );
+    return;
+  }
+  if (DEBUG)
+    console.log("[LLM Request] Sending summarization request to background.");
 
   const requestId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   lastSummary = "Thinking...";
-  SummaryPopup.showPopup("Thinking...", { onCopy: handlePopupCopy, onChat: handlePopupChat, onClose: handlePopupClose });
+  SummaryPopup.showPopup("Thinking...", {
+    onCopy: handlePopupCopy,
+    onChat: handlePopupChat,
+    onClose: handlePopupClose,
+  });
   SummaryPopup.enableChatButton(false);
 
   chrome.runtime.sendMessage(
-    { action: "requestSummary", requestId: requestId, selectedHtml: selectedHtml },
-    (response) => { // Handles the *immediate* response from background listener
+    {
+      action: "requestSummary",
+      requestId: requestId,
+      selectedHtml: selectedHtml,
+    },
+    (response) => {
+      // Handles the *immediate* response from background listener
       if (chrome.runtime.lastError) {
         // Error sending the initial request message
-        console.error("[LLM Content] Error sending summary request to background:", chrome.runtime.lastError);
+        console.error(
+          "[LLM Content] Error sending summary request to background:",
+          chrome.runtime.lastError,
+        );
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
         importedShowError(errorMsg);
         SummaryPopup.updatePopupContent(errorMsg);
@@ -274,10 +299,12 @@ function sendToLLM(selectedHtml) {
         return;
       }
 
-      // --- MODIFICATION: Handle immediate error response from background ---
       if (response && response.status === "error") {
         // Background validation failed before starting async fetch
-        console.error("[LLM Content] Received immediate error from background:", response.message);
+        console.error(
+          "[LLM Content] Received immediate error from background:",
+          response.message,
+        );
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         importedShowError(errorMsg);
         SummaryPopup.updatePopupContent(errorMsg);
@@ -285,14 +312,18 @@ function sendToLLM(selectedHtml) {
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = ""; // Clear state on validation error
-      }
-      // --- END MODIFICATION ---
-      else if (response && response.status === "processing") {
+      } else if (response && response.status === "processing") {
         // Correct path: Background acknowledged the request and will send result later via tabs.sendMessage
-        if (DEBUG) console.log("[LLM Content] Background acknowledged summary request processing.");
+        if (DEBUG)
+          console.log(
+            "[LLM Content] Background acknowledged summary request processing.",
+          );
       } else {
         // Incorrect path: Background listener returned something unexpected immediately
-        console.error("[LLM Content] Unexpected immediate response from background:", response);
+        console.error(
+          "[LLM Content] Unexpected immediate response from background:",
+          response,
+        );
         const errorMsg = "Error: Unexpected response from background.";
         importedShowError(errorMsg);
         SummaryPopup.updatePopupContent(errorMsg);
@@ -301,10 +332,9 @@ function sendToLLM(selectedHtml) {
         Highlighter.removeSelectionHighlight();
         lastSummary = ""; // Clear state on unexpected response
       }
-    }
+    },
   );
 }
-
 
 // --- Core Process Trigger ---
 function processSelectedElement() {
@@ -446,9 +476,14 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       sendResponse({ status: "processing started" });
       return true;
     } else {
-      console.warn("[LLM Content] Received processSelection but no element is selected.");
+      console.warn(
+        "[LLM Content] Received processSelection but no element is selected.",
+      );
       importedShowError("Error: No element selected. Use Alt+Click first.");
-      SummaryPopup.showPopup("Error: No element selected. Use Alt+Click first.", { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup });
+      SummaryPopup.showPopup(
+        "Error: No element selected. Use Alt+Click first.",
+        { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup },
+      );
       SummaryPopup.enableChatButton(false);
       setTimeout(SummaryPopup.hidePopup, 3000);
       sendResponse({ status: "no element selected" });
@@ -456,20 +491,27 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     }
   } else if (req.action === "summaryResult") {
     // This part handles the async response correctly
-    if (DEBUG) console.log("[LLM Content] Received summary result from background:", req.requestId, "Raw Summary:", req.summary, "Full Response:", req.fullResponse);
+    if (DEBUG)
+      console.log(
+        "[LLM Content] Received summary result from background:",
+        req.requestId,
+        "Raw Summary:",
+        req.summary,
+        "Full Response:",
+        req.fullResponse,
+      );
+
+    lastModelUsed = req.model || "Unknown"; // Store model regardless of success/error
 
     if (req.error) {
       // Handle async error from background (e.g., fetch failed)
-      lastSummary = `Error: ${req.error}`;
-      lastModelUsed = req.model || "Unknown"; // Store model even on error if available
+      lastSummary = `Error: ${req.error}`; // Store error state
       importedShowError(`Error: ${req.error}`);
       SummaryPopup.updatePopupContent(`Error: ${req.error}`);
       SummaryPopup.enableChatButton(false);
-    } else if (req.summary && typeof req.summary === 'string') {
-      // Handle successful async summary response
-      lastSummary = req.summary; // Store the raw summary string
-      lastModelUsed = req.model || "Unknown"; // Store the model used
-
+    } else if (req.summary && typeof req.summary === "string") {
+      // Handle successful async summary response string
+      const rawSummaryString = req.summary; // Keep original for potential raw display
       let combinedSummaryArray = [];
       let summaryHtml = "";
       let parseSuccess = false;
@@ -477,64 +519,109 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       try {
         // Robust parsing logic (find all [...], parse, merge)
         const jsonArrayRegex = /\[.*?\]/gs;
-        const matches = req.summary.match(jsonArrayRegex);
+        const matches = rawSummaryString.match(jsonArrayRegex);
         if (matches && matches.length > 0) {
-          if (DEBUG) console.log("[LLM Content] Found potential JSON array matches:", matches);
-          matches.forEach(match => {
+          if (DEBUG)
+            console.log(
+              "[LLM Content] Found potential JSON array matches:",
+              matches,
+            );
+          matches.forEach((match) => {
             try {
               const parsedArray = JSON.parse(match);
               if (Array.isArray(parsedArray)) {
-                const stringArray = parsedArray.map(item => String(item));
+                const stringArray = parsedArray.map((item) => String(item));
                 combinedSummaryArray = combinedSummaryArray.concat(stringArray);
-                if (DEBUG) console.log("[LLM Content] Successfully parsed and concatenated array:", stringArray);
-              } else { if (DEBUG) console.warn("[LLM Content] Parsed match is not an array:", parsedArray); }
-            } catch (innerError) { if (DEBUG) console.warn("[LLM Content] Failed to parse individual JSON array match:", match, innerError); }
+              } else {
+                if (DEBUG)
+                  console.warn(
+                    "[LLM Content] Parsed match is not an array:",
+                    parsedArray,
+                  );
+              }
+            } catch (innerError) {
+              if (DEBUG)
+                console.warn(
+                  "[LLM Content] Failed to parse individual JSON array match:",
+                  match,
+                  innerError,
+                );
+            }
           });
         } else {
-           if (DEBUG) console.warn("[LLM Content] No JSON array patterns found in summary string.");
-           const directParsed = JSON.parse(req.summary); // Try direct parse as fallback
-           if (Array.isArray(directParsed)) { combinedSummaryArray = directParsed.map(item => String(item)); if (DEBUG) console.log("[LLM Content] Successfully parsed entire summary string as array."); }
-           else { throw new Error("Direct parse did not result in an array."); }
+          if (DEBUG)
+            console.warn(
+              "[LLM Content] No JSON array patterns found, attempting direct parse.",
+            );
+          const directParsed = JSON.parse(rawSummaryString);
+          if (Array.isArray(directParsed)) {
+            combinedSummaryArray = directParsed.map((item) => String(item));
+          } else {
+            throw new Error("Direct parse did not result in an array.");
+          }
         }
 
         if (combinedSummaryArray.length > 0) {
-          summaryHtml = "<ul>" + combinedSummaryArray.map((item) => `<li>${item}</li>`).join("") + "</ul>";
+          // --- SUCCESSFUL PARSE ---
+          summaryHtml =
+            "<ul>" +
+            combinedSummaryArray.map((item) => `<li>${item}</li>`).join("") +
+            "</ul>";
+          // --- STORE FIXED JSON STRING ---
+          lastSummary = JSON.stringify(combinedSummaryArray);
+          // --- END STORE ---
           SummaryPopup.updatePopupContent(summaryHtml);
           SummaryPopup.enableChatButton(true);
           parseSuccess = true;
-          if (DEBUG) console.log("[LLM Content] Successfully processed summary into combined array:", combinedSummaryArray);
-        } else { throw new Error("No valid JSON arrays found or parsed from summary string."); }
-
+          if (DEBUG)
+            console.log(
+              "[LLM Content] Successfully processed summary. Stored valid JSON string for chat context:",
+              lastSummary,
+            );
+        } else {
+          throw new Error(
+            "No valid JSON arrays found or parsed from summary string.",
+          );
+        }
       } catch (e) {
-        console.error(`[LLM Content] Error processing summary string: ${e.message}`);
+        // --- PARSE FAILED ---
+        console.error(
+          `[LLM Content] Error processing summary string: ${e.message}`,
+        );
         importedShowError(`Error processing summary: ${e.message}`);
-        summaryHtml = req.summary;
-        SummaryPopup.updatePopupContent(summaryHtml + "<br><small>(Raw response shown due to parsing error)</small>");
-        SummaryPopup.enableChatButton(true);
-        lastSummary = "Error: Could not parse summary response."; // Mark as parsing error
+        summaryHtml = rawSummaryString; // Show raw string in popup
+        SummaryPopup.updatePopupContent(
+          summaryHtml +
+            "<br><small>(Raw response shown due to parsing error)</small>",
+        );
+        // --- STORE ERROR STATE ---
+        lastSummary = "Error: Could not parse summary response.";
+        // --- END STORE ---
+        SummaryPopup.enableChatButton(false); // Disable chat if parsing failed
       }
-
-      // Update flags regardless
-      language_info = Array.isArray(req.language_info) ? req.language_info : [];
-      if (DEBUG) console.log("[LLM Content] Updating popup flags with language_info from response:", language_info);
-      SummaryPopup.updatePopupFlags(language_info);
-
     } else {
       // Handle missing or invalid summary data in async response
       lastSummary = "Error: No summary data received or invalid format.";
-      lastModelUsed = req.model || "Unknown";
       importedShowError("Error: No summary data received or invalid format.");
-      SummaryPopup.updatePopupContent("Error: No summary data received or invalid format.");
+      SummaryPopup.updatePopupContent(
+        "Error: No summary data received or invalid format.",
+      );
       SummaryPopup.enableChatButton(false);
-       // Update flags even if summary is missing/invalid
-       language_info = Array.isArray(req.language_info) ? req.language_info : [];
-       SummaryPopup.updatePopupFlags(language_info);
     }
+
+    // Update flags regardless of parsing success/failure
+    language_info = Array.isArray(req.language_info) ? req.language_info : [];
+    if (DEBUG)
+      console.log(
+        "[LLM Content] Updating popup flags with language_info from response:",
+        language_info,
+      );
+    SummaryPopup.updatePopupFlags(language_info);
+
     return true; // Indicate message handled
   }
   return false; // Indicate message not handled by this listener
 });
-
 
 // --- Initialization Function ---
 async function initialize() {
@@ -550,16 +637,21 @@ async function initialize() {
       if (DEBUG) console.log("[LLM Content] utils.js loaded dynamically.");
     } catch (error) {
       console.error("[LLM Content] Failed to load utils.js:", error);
-      const errorMsg = "Error loading utility functions. Some features may not work.";
+      const errorMsg =
+        "Error loading utility functions. Some features may not work.";
       console.error(errorMsg, error);
-      try { importedShowError(errorMsg); } catch { /* ignore */ }
+      try {
+        importedShowError(errorMsg);
+      } catch {
+        /* ignore */
+      }
     }
     const {
-      tryParseJson: importedTryParseJsonFn,
+      tryParseJson: importedTryParseJsonFn, // Assign here
       showError: importedShowErrorFn,
     } = utilsModule || {};
-    importedTryParseJson = importedTryParseJsonFn;
-    importedShowError = importedShowErrorFn || console.error; // Fallback to console.error
+    importedTryParseJson = importedTryParseJsonFn; // Make available globally
+    importedShowError = importedShowErrorFn || console.error;
 
     [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
       import(chrome.runtime.getURL("./highlighter.js")),
@@ -576,9 +668,7 @@ async function initialize() {
       initialDebugState: DEBUG,
     });
     FloatingIcon.initializeFloatingIcon({ initialDebugState: DEBUG });
-    SummaryPopup.initializePopupManager({
-      initialDebugState: DEBUG,
-    });
+    SummaryPopup.initializePopupManager({ initialDebugState: DEBUG });
 
     console.log(`[LLM Content] Script Initialized. Modules ready.`);
   } catch (err) {
