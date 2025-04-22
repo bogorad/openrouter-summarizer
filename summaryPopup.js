@@ -1,6 +1,6 @@
 // summaryPopup.js
 
-console.log(`[LLM Popup] Script Loaded (v2.50.6)`); // Updated version
+console.log(`[LLM Popup] Script Loaded (v2.50.13)`); // Updated version
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
