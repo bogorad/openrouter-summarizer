@@ -12,7 +12,7 @@ import {
   // For getSystemPrompt specifically, the defaults are hardcoded below as a fallback
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v2.50.7)`); // Updated version
+console.log(`[LLM Background] Service Worker Start (v2.50.9)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
@@ -177,20 +177,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   : m.id,
             }));
           }
-          if (DEBUG)
-            console.log(
-              "[LLM Background] Sending getChatContext response - OK.",
-            );
-          sendResponse({
+
+          // --- MODIFICATION: Include modelUsedForSummary in response ---
+          const responsePayload = {
             domSnippet: storedContext.domSnippet,
             summary: storedContext.summary,
             chatTargetLanguage: storedContext.chatTargetLanguage || "",
+            modelUsedForSummary: storedContext.modelUsedForSummary || "", // Get from stored context
             models: modelsToSend,
             debug: DEBUG,
-          });
+          };
+          // --- END MODIFICATION ---
+
+          if (DEBUG)
+            console.log(
+              "[LLM Background] Sending getChatContext response - OK.",
+              responsePayload, // Log the full response payload
+            );
+          sendResponse(responsePayload);
         });
       });
-      return true;
+      return true; // Keep async
     } else if (request.action === "getLanguageData") {
       if (DEBUG)
         console.log("[LLM Background] Handling getLanguageData request.");
@@ -424,11 +431,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true;
     } else if (request.action === "setChatContext") {
+      // Stores the whole request object, which now includes modelUsedForSummary
       if (DEBUG)
         console.log("[LLM Background] Handling setChatContext request.");
       chrome.storage.session.set({ chatContext: request }, () => {
         if (DEBUG)
-          console.log("[LLM Background] Chat context set in session storage.");
+          console.log(
+            "[LLM Background] Chat context set in session storage:",
+            request,
+          );
         try {
           if (DEBUG)
             console.log(
@@ -667,7 +678,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 requestId: request.requestId,
                 summary: modelOutput,
                 model:
-                  data.model || data.model_id || request.model || "Unknown",
+                  data.model || data.model_id || request.model || "Unknown", // Get actual model used
                 language_info: language_info, // Send the full language list back
                 fullResponse: DEBUG ? data : "[Debug data omitted for brevity]",
               };
@@ -794,7 +805,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         request.action,
       );
   });
-  return true;
+  return true; // Keep async for listener
 });
 
 // --- Prompt Assembly Function ---
@@ -833,7 +844,7 @@ function getSystemPrompt(
     // --- THIS IS THE KEY CHANGE ---
     // Instead of replacing "US English" with the targetLanguage (first configured lang),
     // ask the LLM to use the original language.
-    .replace("US English", "the language of the original article_text");
+    .replace("US English", "the language of the original");
   // --- END OF CHANGE ---
 
   // Use custom instructions from config, fallback to default instructions from config, fallback to hardcoded default
