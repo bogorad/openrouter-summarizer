@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.50
+# OpenRouter Summarizer v2.50.7
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -15,6 +15,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
     *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
     *   Languages can now be reordered by dragging them in the Options list.
+    *   Updated summary popup UI: Moved language flags to the footer as buttons, grouped with a default chat icon button under a centered "CHAT" label. (v2.50.6)
+    *   Modified initial summary request prompt to ask for summary in the original text's language instead of the first configured language. (v2.50.7)
 
 ---
 
@@ -166,6 +168,9 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
     *   Fixed issues related to language data loading and availability in `options.js` and `pageInteraction.js`.
     *   Improved parsing logic in `pageInteraction.js` and `chat.js` to better handle LLM responses containing embedded/multiple JSON structures within surrounding text, even without code fences.
     *   Fixed saving/loading of custom model list (including labels) in Options.
+    *   Updated summary popup UI: Moved language flags to the footer as buttons, grouped with a default chat icon button under a centered "CHAT" label. (v2.50.6)
+    *   Modified initial summary request prompt to ask for summary in the original text's language instead of the first configured language. (v2.50.7)
+
 *   **v2.10:**
     *   Refactored language handling: Added `languages.json`, dynamic flag display based on configuration, drag-and-drop reordering in Options.
     *   Initial summary now requested in the first configured language.

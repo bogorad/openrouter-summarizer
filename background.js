@@ -1,3 +1,4 @@
+// background.js
 import {
   DEFAULT_MODEL_OPTIONS,
   DEFAULT_PREAMBLE_TEMPLATE,
@@ -7,13 +8,26 @@ import {
   PROMPT_STORAGE_KEY_PREAMBLE,
   PROMPT_STORAGE_KEY_POSTAMBLE,
   PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
+  // Import constants if they are defined in constants.js and needed here
+  // For getSystemPrompt specifically, the defaults are hardcoded below as a fallback
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v2.40.11)`);
+console.log(`[LLM Background] Service Worker Start (v2.50.7)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
 const DEFAULT_DEBUG_MODE = false;
+
+// --- numToWord mapping needed for getSystemPrompt ---
+const numToWord = {
+  3: "three",
+  4: "four",
+  5: "five",
+  6: "six",
+  7: "seven",
+  8: "eight",
+};
+// --- End numToWord ---
 
 chrome.storage.sync.get("debug", (data) => {
   DEBUG = !!data.debug;
@@ -113,7 +127,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   "[LLM Background] language_info is not an array:",
                   data.language_info,
                 );
-                throw new Error("language_info must be an array.");
+                // Provide a default empty array instead of throwing error
+                return [];
               })(),
           [PROMPT_STORAGE_KEY_CUSTOM_FORMAT]:
             data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] ||
@@ -355,20 +370,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (DEBUG) console.log("[LLM Background] Handling abortChatRequest.");
       chrome.storage.session.get("abortController", (data) => {
         const controller = data.abortController;
-        if (controller) {
-          controller.abort();
-          if (DEBUG)
-            console.log("[LLM Background] AbortController triggered abort.");
+        if (controller && typeof controller.abort === "function") {
+          // Check if controller and abort exist
+          try {
+            controller.abort();
+            if (DEBUG)
+              console.log("[LLM Background] AbortController triggered abort.");
+          } catch (abortError) {
+            if (DEBUG)
+              console.error(
+                "[LLM Background] Error calling abort():",
+                abortError,
+              );
+          }
           chrome.storage.session.remove("abortController", () => {
             if (DEBUG)
               console.log(
-                "[LLM Background] AbortController cleared after abort.",
+                "[LLM Background] AbortController cleared after abort attempt.",
               );
           });
           try {
             if (DEBUG)
               console.log(
-                "[LLM Background] Sending abortChatRequest response - OK.",
+                "[LLM Background] Sending abortChatRequest response - OK (aborted).",
               );
             sendResponse({ status: "aborted" });
           } catch (e) {
@@ -380,7 +404,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         } else {
           if (DEBUG)
-            console.log("[LLM Background] No active request to abort.");
+            console.log(
+              "[LLM Background] No active request or valid controller to abort.",
+            );
           try {
             if (DEBUG)
               console.log(
@@ -560,11 +586,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             data.bulletCount || DEFAULT_BULLET_COUNT,
             10,
           );
-          // Use the first language from language_info as the target language for summary
-          const targetLanguageForSummary =
+          // The targetLanguage argument is still passed but is ignored inside getSystemPrompt now
+          const targetLanguageForPromptGeneration =
             language_info.length > 0 && language_info[0].language_name
               ? language_info[0].language_name
-              : "English";
+              : "English"; // Fallback if needed, though not used for replacement
 
           const systemPrompt = getSystemPrompt(
             bulletCount,
@@ -575,7 +601,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             data[PROMPT_STORAGE_KEY_POSTAMBLE] || DEFAULT_POSTAMBLE_TEXT,
             data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] ||
               DEFAULT_FORMAT_INSTRUCTIONS,
-            targetLanguageForSummary,
+            targetLanguageForPromptGeneration, // Pass it, though it won't replace "US English" anymore
           );
 
           const payload = {
@@ -642,7 +668,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 summary: modelOutput,
                 model:
                   data.model || data.model_id || request.model || "Unknown",
-                language_info: language_info,
+                language_info: language_info, // Send the full language list back
                 fullResponse: DEBUG ? data : "[Debug data omitted for brevity]",
               };
               if (DEBUG)
@@ -652,15 +678,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 );
               // Send the result back to the requesting tab with language_info
               if (sender.tab?.id) {
-                chrome.tabs.sendMessage(sender.tab.id, completeResponse, (response) => {
-                  if (chrome.runtime.lastError) {
-                    if (DEBUG)
-                      console.warn(
-                        "[LLM Background] Failed to send summary response, tab may no longer exist:",
-                        chrome.runtime.lastError.message,
-                      );
-                  }
-                });
+                chrome.tabs.sendMessage(
+                  sender.tab.id,
+                  completeResponse,
+                  (response) => {
+                    if (chrome.runtime.lastError) {
+                      if (DEBUG)
+                        console.warn(
+                          "[LLM Background] Failed to send summary response, tab may no longer exist:",
+                          chrome.runtime.lastError.message,
+                        );
+                    }
+                  },
+                );
               } else {
                 if (DEBUG)
                   console.warn(
@@ -678,8 +708,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 action: "summaryResult",
                 requestId: request.requestId,
                 error: error.message,
-                language_info: language_info,
-                fullResponse: DEBUG ? data : "[Debug data omitted for brevity]",
+                language_info: language_info, // Send language list even on error
+                fullResponse: DEBUG
+                  ? { error: error.message }
+                  : "[Debug data omitted for brevity]", // Include error in debug
               };
               if (DEBUG)
                 console.log(
@@ -687,15 +719,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   errorResponse,
                 );
               if (sender.tab?.id) {
-                chrome.tabs.sendMessage(sender.tab.id, errorResponse, (response) => {
-                  if (chrome.runtime.lastError) {
-                    if (DEBUG)
-                      console.warn(
-                        "[LLM Background] Failed to send summary error response, tab may no longer exist:",
-                        chrome.runtime.lastError.message,
-                      );
-                  }
-                });
+                chrome.tabs.sendMessage(
+                  sender.tab.id,
+                  errorResponse,
+                  (response) => {
+                    if (chrome.runtime.lastError) {
+                      if (DEBUG)
+                        console.warn(
+                          "[LLM Background] Failed to send summary error response, tab may no longer exist:",
+                          chrome.runtime.lastError.message,
+                        );
+                    }
+                  },
+                );
               } else {
                 if (DEBUG)
                   console.warn(
@@ -761,24 +797,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-// --- Prompt Assembly Function (Copied from pageInteraction.js for use in summary requests) ---
-const numToWord = {
-  3: "three",
-  4: "four",
-  5: "five",
-  6: "six",
-  7: "seven",
-  8: "eight",
-};
-
+// --- Prompt Assembly Function ---
+// Modified to request summary in original language
 function getSystemPrompt(
   bulletCount,
   customFormatInstructions,
   preambleTemplate,
   postambleText,
   defaultFormatInstructions,
-  targetLanguage,
+  targetLanguage, // Argument remains but is not used for language replacement
 ) {
+  // Ensure constants are loaded (assuming they are available in this scope)
+  // Provide fallbacks just in case constants aren't loaded, though they should be.
+  const {
+    DEFAULT_PREAMBLE_TEMPLATE,
+    DEFAULT_POSTAMBLE_TEXT,
+    DEFAULT_FORMAT_INSTRUCTIONS,
+  } =
+    typeof constants !== "undefined"
+      ? constants
+      : {
+          DEFAULT_PREAMBLE_TEMPLATE: `Input is raw HTML. Treat it as article_text.\nUsing US English, prepare a summary of article_text containing no more than \${bulletWord} points.`,
+          DEFAULT_POSTAMBLE_TEXT: `Format the entire result as a single JSON array of strings.\nExample JSON array structure: ["This is a sample array. <b>Something important:</b> as HTML string.", "<b>Something else important:</b> as HTML string."]\nDo not add any comments before or after the JSON array. Do not output your deliberations.\nJust provide the JSON array string as the result. Ensure the output is valid JSON.`,
+          DEFAULT_FORMAT_INSTRUCTIONS: `Each point should be a concise HTML string, starting with a bold tag-like marker and a colon, followed by the description.\nYou may use ONLY the following HTML tags for emphasis: <b> for bold. Do not use any other HTML tags (like <p>, <ul>, <li>, <br>, etc.).\nFor example: "<b>Key Finding:</b> The market showed <i>significant</i> growth in Q3."\nAfter providing bullet points for article summary, add a bonus one - your insights, assessment and comments, and what should a mindful reader notice about this. Call it <b>Summarizer Insight</b>.`,
+        };
+
   const bcNum = Number(bulletCount) || 5;
   const word = numToWord[bcNum] || "five";
 
@@ -787,7 +830,12 @@ function getSystemPrompt(
     preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE
   )
     .replace("${bulletWord}", word)
-    .replace("US English", targetLanguage);
+    // --- THIS IS THE KEY CHANGE ---
+    // Instead of replacing "US English" with the targetLanguage (first configured lang),
+    // ask the LLM to use the original language.
+    .replace("US English", "the language of the original article_text");
+  // --- END OF CHANGE ---
+
   // Use custom instructions from config, fallback to default instructions from config, fallback to hardcoded default
   const finalFormatInstructions = customFormatInstructions?.trim()
     ? customFormatInstructions
