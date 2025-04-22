@@ -1,6 +1,6 @@
 // floatingIcon.js
 
-console.log(`[LLM FloatingIcon] Script Loaded (${VER})`);
+console.log(`[LLM FloatingIcon] Script Loaded (v2.40.10)`);
 
 const FLOATING_ICON_CLASS = "llm-floating-icon";
 const FALLBACK_ICON_CLASS = "llm-fallback-icon"; // Added for consistency

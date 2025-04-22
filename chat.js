@@ -7,15 +7,13 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-const VER = "v2.30";
-
-console.log(`[LLM Chat] Script Start (${VER})`);
+console.log(`[LLM Chat] Script Start`);
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
 let models = [];
 let selectedModelId = "";
-let chatContext = { domSnippet: null, summary: null, chatTargetLanguage: null };
+let chatContext = { domSnippet: null, summary: null, chatTargetLanguage: "" };
 let messages = [];
 let streaming = false;
 let currentStreamMsgSpan = null;
@@ -153,7 +151,7 @@ function initializeChat() {
       ) {
         chatContext.domSnippet = response.domSnippet;
         chatContext.summary = response.summary;
-        chatContext.chatTargetLanguage = response.chatTargetLanguage;
+        chatContext.chatTargetLanguage = response.chatTargetLanguage || "";
 
         if (DEBUG)
           console.log(
@@ -165,7 +163,7 @@ function initializeChat() {
         if (DEBUG)
           console.log(
             "[LLM Chat] Chat Target Language:",
-            chatContext.chatTargetLanguage,
+            chatContext.chat_target_language,
           );
 
         let initialContent;
@@ -225,19 +223,24 @@ function initializeChat() {
           "[LLM Chat] RenderMessages called with messages:",
           messages,
         );
-        if (chatContext.chatTargetLanguage?.trim()) {
+        if (
+          chatContext.chatTargetLanguage &&
+          chatContext.chatTargetLanguage.trim()
+        ) {
           if (DEBUG)
             console.log(
               `[LLM Chat Init] Initial translation requested for: ${chatContext.chatTargetLanguage}. Sending prompt.`,
             );
-          const initialPrompt = `Say that in ${chatContext.chatTargetLanguage} and let's continue our conversation in ${chatContext.chatTargetLanguage}.`;
+          const initialPrompt = `Say that in ${chatContext.chatTargetLanguage} and let's continue our conversation in that language.`;
           messages.push({ role: "user", content: initialPrompt });
           console.log("[LLM Chat] Added initial prompt to messages:", messages);
           renderMessages();
           sendChatRequestToBackground(initialPrompt);
         } else {
           if (DEBUG)
-            console.log("[LLM Chat Init] No chatTargetLanguage specified.");
+            console.log(
+              "[LLM Chat Init] No chatTargetLanguage specified or empty, displaying original summary only.",
+            );
         }
       } else {
         console.warn(
@@ -389,28 +392,76 @@ function renderMessages() {
             const jsonResult = extractJsonFromContent(processedContent);
             if (jsonResult.jsonArray && Array.isArray(jsonResult.jsonArray)) {
               jsonParsed = true;
-              // Render JSON array as an HTML list
-              const listHtml =
-                "<ul>" +
-                jsonResult.jsonArray
-                  .map((item) => `<li>${item}</li>`)
-                  .join("") +
-                "</ul>";
-              // Combine with any surrounding text if present
-              if (jsonResult.beforeText || jsonResult.afterText) {
-                const beforeHtml = jsonResult.beforeText
-                  ? renderTextAsHtml(jsonResult.beforeText)
-                  : "";
-                const afterHtml = jsonResult.afterText
-                  ? renderTextAsHtml(jsonResult.afterText)
-                  : "";
-                finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
+              // Special processing for the initial summary (first assistant message)
+              // Note: This is always rendered as a list for consistency with the summary popup,
+              // even if it has only one element. This decision may be reconsidered in the future based on user feedback.
+              if (
+                index === 0 &&
+                messages.length > 1 &&
+                messages[0].role === "assistant"
+              ) {
+                const listHtml =
+                  "<div><strong>Initial Summary:</strong></div>" +
+                  "<ul>" +
+                  jsonResult.jsonArray
+                    .map((item) => `<li>${item}</li>`)
+                    .join("") +
+                  "</ul>";
+                // Combine with any surrounding text if present
+                if (jsonResult.beforeText || jsonResult.afterText) {
+                  const beforeHtml = jsonResult.beforeText
+                    ? renderTextAsHtml(jsonResult.beforeText)
+                    : "";
+                  const afterHtml = jsonResult.afterText
+                    ? renderTextAsHtml(jsonResult.afterText)
+                    : "";
+                  finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
+                } else {
+                  finalHtml = listHtml;
+                }
+                console.log(
+                  `[LLM Chat Render] Initial summary (message ${index}) rendered as list for consistency.`,
+                );
               } else {
-                finalHtml = listHtml;
+                // For subsequent assistant messages, render single-element arrays as plain text
+                if (jsonResult.jsonArray.length === 1) {
+                  finalHtml = renderTextAsHtml(jsonResult.jsonArray[0]);
+                  if (jsonResult.beforeText || jsonResult.afterText) {
+                    const beforeHtml = jsonResult.beforeText
+                      ? renderTextAsHtml(jsonResult.beforeText)
+                      : "";
+                    const afterHtml = jsonResult.afterText
+                      ? renderTextAsHtml(jsonResult.afterText)
+                      : "";
+                    finalHtml = `${beforeHtml}${finalHtml}${afterHtml}`;
+                  }
+                  console.log(
+                    `[LLM Chat Render] Single-element array for message ${index} rendered as plain HTML.`,
+                  );
+                } else {
+                  // Multi-element arrays are rendered as lists
+                  const listHtml =
+                    "<ul>" +
+                    jsonResult.jsonArray
+                      .map((item) => `<li>${item}</li>`)
+                      .join("") +
+                    "</ul>";
+                  if (jsonResult.beforeText || jsonResult.afterText) {
+                    const beforeHtml = jsonResult.beforeText
+                      ? renderTextAsHtml(jsonResult.beforeText)
+                      : "";
+                    const afterHtml = jsonResult.afterText
+                      ? renderTextAsHtml(jsonResult.afterText)
+                      : "";
+                    finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
+                  } else {
+                    finalHtml = listHtml;
+                  }
+                  console.log(
+                    `[LLM Chat Render] Multi-element array for message ${index} rendered as list.`,
+                  );
+                }
               }
-              console.log(
-                `[LLM Chat Render] Successfully extracted and parsed JSON array for message ${index}. Rendered as list.`,
-              );
             } else {
               console.log(
                 `[LLM Chat Render] No valid JSON array found in message ${index}. Falling back to text rendering.`,

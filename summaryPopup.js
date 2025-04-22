@@ -1,6 +1,6 @@
 // summaryPopup.js
 
-console.log(`[LLM Popup] Script Loaded (${VER})`);
+console.log(`[LLM Popup] Script Loaded (v2.40.10)`);
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -38,25 +38,10 @@ const POPUP_TEMPLATE_HTML = `
 // --- Module State ---
 let popup = null;
 let currentContent = "";
-let currentAvailableLanguages = [];
+let language_info = [];
 let popupCallbacks = { onCopy: null, onChat: null, onClose: null };
 let copyTimeoutId = null;
 let DEBUG = false;
-
-// --- Language Data (Set by Initializer) ---
-let ALL_LANGUAGE_NAMES_MAP = {};
-let svgPathPrefixUrl = "";
-let fallbackSvgPathUrl = "";
-
-// --- Internal Helpers ---
-
-function findLanguageByName(name) {
-  if (!name || typeof name !== "string" || !ALL_LANGUAGE_NAMES_MAP)
-    return undefined;
-  const cleanName = name.trim().toLowerCase();
-  const languageData = ALL_LANGUAGE_NAMES_MAP[cleanName];
-  return languageData ? languageData : undefined;
-}
 
 // Renders flags into the existing popup's flag container
 function _renderHeaderFlagsInternal() {
@@ -70,51 +55,41 @@ function _renderHeaderFlagsInternal() {
   }
   flagsContainer.innerHTML = "";
 
-  if (
-    !Array.isArray(currentAvailableLanguages) ||
-    currentAvailableLanguages.length === 0 ||
-    !svgPathPrefixUrl
-  ) {
-    flagsContainer.classList.add(FLAGS_HIDDEN_CLASS);
-    return;
-  }
-
-  const validLanguageData = currentAvailableLanguages
-    .map((name) => findLanguageByName(name))
-    .filter((lang) => lang !== undefined);
-
-  if (validLanguageData.length === 0) {
+  if (!Array.isArray(language_info) || language_info.length <= 1) {
+    if (DEBUG)
+      console.log(
+        "[LLM Popup] Less than 2 languages available for flags:",
+        language_info,
+      );
     flagsContainer.classList.add(FLAGS_HIDDEN_CLASS);
     return;
   }
 
   // Use classList to control visibility
   flagsContainer.classList.remove(FLAGS_HIDDEN_CLASS);
+  if (DEBUG)
+    console.log(
+      "[LLM Popup] Flags container shown with languages:",
+      language_info,
+    );
 
-  const flagsToDisplay = validLanguageData.slice(1, MAX_FLAGS_DISPLAY);
+  const flagsToDisplay = language_info.slice(0, MAX_FLAGS_DISPLAY);
 
-  flagsToDisplay.forEach((lang) => {
+  flagsToDisplay.forEach((langInfo) => {
     const flagImg = document.createElement("img");
     flagImg.className = LANGUAGE_FLAG_CLASS;
-    flagImg.src = `${svgPathPrefixUrl}${lang.code.toLowerCase()}.svg`;
-    flagImg.alt = `${lang.name} flag`;
-    flagImg.title = `Translate summary and chat in ${lang.name}`;
-    flagImg.onerror = function () {
-      this.src = fallbackSvgPathUrl || "";
-      this.alt = "Flag not found";
-      this.title = "Flag not found";
-      if (DEBUG)
-        console.warn(
-          `[LLM Popup] Missing SVG for code: ${lang.code}, using fallback.`,
-        );
-    };
+    flagImg.src = langInfo.svg_path;
+    flagImg.alt = `${langInfo.language_name} flag`;
+    flagImg.title = `Translate summary and chat in ${langInfo.language_name}`;
     flagImg.addEventListener("click", (e) => {
       e.stopPropagation();
       e.preventDefault();
       if (DEBUG)
-        console.log(`[LLM Popup] Flag clicked for language: ${lang.name}`);
+        console.log(
+          `[LLM Popup] Flag clicked for language: ${langInfo.language_name}`,
+        );
       if (popupCallbacks.onChat) {
-        popupCallbacks.onChat(lang.name);
+        popupCallbacks.onChat(langInfo.language_name);
       } else {
         console.warn("[LLM Popup] onChat callback not defined.");
       }
@@ -179,7 +154,7 @@ export function showPopup(content, callbacks) {
     return;
   }
   popupCallbacks = callbacks;
-  currentAvailableLanguages = [];
+  language_info = [];
   currentContent = content;
 
   try {
@@ -250,7 +225,7 @@ export function showPopup(content, callbacks) {
     );
   }
 
-  // Ensure flags container starts hidden by class
+  // Ensure flags container starts hidden by class initially, will be updated by render
   if (flagsContainer) flagsContainer.classList.add(FLAGS_HIDDEN_CLASS);
 
   document.body.appendChild(popup);
@@ -273,7 +248,7 @@ export function hidePopup() {
     const popupElement = popup;
     popup = null;
     popupCallbacks = { onCopy: null, onChat: null, onClose: null };
-    currentAvailableLanguages = [];
+    language_info = [];
     currentContent = "";
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
@@ -326,12 +301,15 @@ export function updatePopupContent(newContent) {
       "[LLM Popup] Cannot update content: Popup body div not found.",
     );
   }
+  // Ensure flags are rendered correctly after content update
+  _renderHeaderFlagsInternal();
 }
 
 /**
- * Updates the available languages and renders the flags in the popup header.
+ * Updates the language info and renders the flags in the popup header.
+ * @param {Array} language_info - List of objects with language_name and svg_path.
  */
-export function updatePopupFlags(availableLanguages = []) {
+export function updatePopupFlags(languages = []) {
   if (!popup) {
     if (DEBUG)
       console.warn(
@@ -339,7 +317,12 @@ export function updatePopupFlags(availableLanguages = []) {
       );
     return;
   }
-  currentAvailableLanguages = availableLanguages;
+  language_info = languages;
+  if (DEBUG)
+    console.log(
+      "[LLM Popup] Updating flags with language info:",
+      language_info,
+    );
   _renderHeaderFlagsInternal(); // Call the internal rendering function
   if (DEBUG) console.log("[LLM Popup] Popup flags update process finished.");
 }
@@ -364,14 +347,5 @@ export function enableChatButton(enable) {
  */
 export function initializePopupManager(options) {
   DEBUG = !!options?.initialDebugState;
-  if (options?.languageData) {
-    ALL_LANGUAGE_NAMES_MAP = options.languageData.ALL_LANGUAGE_NAMES_MAP || {};
-    svgPathPrefixUrl = options.languageData.svgPathPrefixUrl || "";
-    fallbackSvgPathUrl = options.languageData.fallbackSvgPathUrl || "";
-    if (DEBUG) console.log("[LLM Popup] Initialized with language data.");
-  } else {
-    console.warn(
-      "[LLM Popup] Initialized without language data. Flags will not render.",
-    );
-  }
+  if (DEBUG) console.log("[LLM Popup] Initialized.");
 }
