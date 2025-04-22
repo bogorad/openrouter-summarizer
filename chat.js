@@ -7,7 +7,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v2.50.9)`); // Updated version
+console.log(`[LLM Chat] Script Start (v2.50.13)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
@@ -140,13 +140,18 @@ function initializeChat() {
       console.log("[LLM Chat] Models array populated:", models);
       // --- MODIFICATION: Store the specific model used for summary ---
       modelUsedForSummary = response.modelUsedForSummary || "";
-      if (DEBUG) console.log("[LLM Chat] Model used for initial summary:", modelUsedForSummary);
+      if (DEBUG)
+        console.log(
+          "[LLM Chat] Model used for initial summary:",
+          modelUsedForSummary,
+        );
       // --- END MODIFICATION ---
 
       // Populate dropdown, try selecting the actual model used for summary first,
       // then fall back to the first available model if it's not in the list (shouldn't happen ideally)
-      populateModelDropdown(modelUsedForSummary || (models.length > 0 ? models[0].id : ""));
-
+      populateModelDropdown(
+        modelUsedForSummary || (models.length > 0 ? models[0].id : ""),
+      );
 
       if (
         response.domSnippet &&
@@ -162,23 +167,23 @@ function initializeChat() {
         let initialContent;
         let parseError = false;
         // ... (parsing logic remains the same) ...
-         if (
-           typeof chatContext.summary === "string" &&
-           chatContext.summary.trim()
-         ) {
-           const parsedInitialSummary = tryParseJson(chatContext.summary, true);
-           if (Array.isArray(parsedInitialSummary)) {
-             initialContent = parsedInitialSummary
-               .map((item) => String(item))
-               .join("\n");
-           } else {
-             initialContent = chatContext.summary;
-             parseError = true;
-           }
-         } else {
-           initialContent = "(No initial summary provided)";
-           parseError = true;
-         }
+        if (
+          typeof chatContext.summary === "string" &&
+          chatContext.summary.trim()
+        ) {
+          const parsedInitialSummary = tryParseJson(chatContext.summary, true);
+          if (Array.isArray(parsedInitialSummary)) {
+            initialContent = parsedInitialSummary
+              .map((item) => String(item))
+              .join("\n");
+          } else {
+            initialContent = chatContext.summary;
+            parseError = true;
+          }
+        } else {
+          initialContent = "(No initial summary provided)";
+          parseError = true;
+        }
 
         // --- MODIFICATION: Use modelUsedForSummary for initial message ---
         messages = [
@@ -203,25 +208,24 @@ function initializeChat() {
         renderMessages(); // Render initial message with correct model label
 
         // ... (rest of language handling logic) ...
-         if (
-           chatContext.chatTargetLanguage &&
-           chatContext.chatTargetLanguage.trim()
-         ) {
-           if (DEBUG)
-             console.log(
-               `[LLM Chat Init] Initial translation requested for: ${chatContext.chatTargetLanguage}. Sending prompt.`,
-             );
-           const initialPrompt = `Say that in ${chatContext.chatTargetLanguage} and let's continue our conversation in that language.`;
-           messages.push({ role: "user", content: initialPrompt });
-           renderMessages(); // Render user prompt
-           sendChatRequestToBackground(initialPrompt); // Send request
-         } else {
-           if (DEBUG)
-             console.log(
-               "[LLM Chat Init] No chatTargetLanguage specified or empty, displaying original summary only.",
-             );
-         }
-
+        if (
+          chatContext.chatTargetLanguage &&
+          chatContext.chatTargetLanguage.trim()
+        ) {
+          if (DEBUG)
+            console.log(
+              `[LLM Chat Init] Initial translation requested for: ${chatContext.chatTargetLanguage}. Sending prompt.`,
+            );
+          const initialPrompt = `Say that in ${chatContext.chatTargetLanguage} and let's continue our conversation in that language.`;
+          messages.push({ role: "user", content: initialPrompt });
+          renderMessages(); // Render user prompt
+          sendChatRequestToBackground(initialPrompt); // Send request
+        } else {
+          if (DEBUG)
+            console.log(
+              "[LLM Chat Init] No chatTargetLanguage specified or empty, displaying original summary only.",
+            );
+        }
       } else {
         console.warn(
           "[LLM Chat] Context received from background is incomplete.",
@@ -240,7 +244,6 @@ function initializeChat() {
     }
   });
 }
-
 
 /**
  * Populates the model dropdown with available models.
@@ -498,7 +501,6 @@ function renderMessages() {
   // );
 }
 
-
 /**
  * Scrolls the chat messages to the bottom.
  */
@@ -668,7 +670,6 @@ function sendChatRequestToBackground(userText) {
     },
   );
 }
-
 
 /**
  * Handles form submission when the user sends a message.
@@ -942,14 +943,14 @@ function showLoadingIndicator(show) {
  */
 function formatChatAsMarkdown() {
   return messages
-    .map((msg) =>
-      msg.role === "user"
-        ? `**User:** ${msg.content}`
-        : `**Assistant (${msg.model || 'Unknown'}):** ${msg.content}`, // Include model in MD
+    .map(
+      (msg) =>
+        msg.role === "user"
+          ? `**User:** ${msg.content}`
+          : `**Assistant (${msg.model || "Unknown"}):** ${msg.content}`, // Include model in MD
     )
     .join("\n\n");
 }
-
 
 /**
  * Triggers a download of content with the specified filename and content type.

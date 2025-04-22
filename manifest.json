@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenRouter Summarizer",
-  "version": "2.50.9",
+  "version": "2.50.13",
   "description": "Summarize web pages with OpenRouter.ai using your chosen model.",
   "permissions": [
     "activeTab",
