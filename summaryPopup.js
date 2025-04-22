@@ -302,7 +302,7 @@ export function updatePopupContent(newContent) {
     );
   }
   // Ensure flags are rendered correctly after content update
-  _renderHeaderFlagsInternal();
+  // _renderHeaderFlagsInternal();
 }
 
 /**
