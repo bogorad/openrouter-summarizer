@@ -8,6 +8,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 ## ✨ What's New Since Version 2.0
 
 *   **v2.50:**
+    *   Modified initial summary request prompt to ask for summary in the original text's language instead of the first configured language. (v2.50.7)
+    *   Updated summary popup UI: Moved language flags to the footer as buttons, grouped with a default chat icon button under a centered "CHAT" label. (v2.50.6)
     *   Major update, may require options reset.
     *   Updated `options.js` to populate the language list with default languages (English, Spanish, Hebrew, Mandarin Chinese) if it is empty on startup or the last language is deleted by the user.
     *   Centralized LLM API calls in `background.js` for both summary and chat functionalities, simplifying content script logic.
@@ -15,8 +17,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
     *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
     *   Languages can now be reordered by dragging them in the Options list.
-    *   Updated summary popup UI: Moved language flags to the footer as buttons, grouped with a default chat icon button under a centered "CHAT" label. (v2.50.6)
-    *   Modified initial summary request prompt to ask for summary in the original text's language instead of the first configured language. (v2.50.7)
+
 
 ---
 
