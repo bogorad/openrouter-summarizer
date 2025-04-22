@@ -1,3 +1,4 @@
+// pageInteraction.js
 console.log(`[LLM Content] Script Start`);
 
 // --- Module References (will be populated after dynamic import) ---
@@ -435,7 +436,6 @@ function processSelectedElement() {
 }
 
 // --- Message Listener from Background ---
-// --- Message Listener from Background ---
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (!Highlighter || !SummaryPopup) {
     console.warn(
@@ -484,7 +484,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         "[LLM Content] Received summary result from background:",
         req.requestId,
         "Full Response:",
-        req.fullResponse
+        req.fullResponse,
       );
     if (req.error) {
       // If an error occurred, store it and display the error message
@@ -542,9 +542,9 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
           "[LLM Content] Updating popup flags with language_info from response:",
           language_info,
         );
-      // Pass the language_info starting from the second entry for flags
-      const flagsData = language_info.length > 1 ? language_info.slice(1) : [];
-      SummaryPopup.updatePopupFlags(flagsData);
+      // --- Pass the entire language_info array ---
+      SummaryPopup.updatePopupFlags(language_info);
+      // --- End ---
     } else {
       // If no summary data is received, treat it as an error
       lastSummary = "Error: No summary data received.";
