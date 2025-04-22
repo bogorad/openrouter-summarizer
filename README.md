@@ -8,6 +8,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 ## ✨ What's New Since Version 2.0
 
 *   **v2.50:**
+    *   Major update, may require options reset.
     *   Updated `options.js` to populate the language list with default languages (English, Spanish, Hebrew, Mandarin Chinese) if it is empty on startup or the last language is deleted by the user.
     *   Centralized LLM API calls in `background.js` for both summary and chat functionalities, simplifying content script logic.
     *   Now you can stop a chat request by clicking the "Stop" button.
