@@ -1,7 +1,6 @@
 // constants.js
-const VER = "v2.33";
 
-console.log(`[LLM Constants] Loaded (${VER})`);
+console.log(`[LLM Constants] Loaded`);
 
 // --- Prompt Storage Keys ---
 export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT =
@@ -13,10 +12,10 @@ export const PROMPT_STORAGE_KEY_DEFAULT_FORMAT =
 
 // --- Default Prompt Templates ---
 export const DEFAULT_PREAMBLE_TEMPLATE = `Input is raw HTML. Treat it as article_text.
-Using US English, prepare a summary of article_text containing exactly \${bulletWord} points.`;
+Using US English, prepare a summary of article_text containing no more than \${bulletWord} points.`;
 
 export const DEFAULT_POSTAMBLE_TEXT = `Format the entire result as a single JSON array of strings.
-Example JSON array structure: ["Point 1 as HTML string.", "<b>Point 2:</b> With bold.", "<b>Point 3:</b> With more bold."]
+Example JSON array structure: ["This is a sample array. <b>Something important:</b> as HTML string.", "<b>Something else important:</b> as HTML string."]
 Do not add any comments before or after the JSON array. Do not output your deliberations.
 Just provide the JSON array string as the result. Ensure the output is valid JSON.`;
 

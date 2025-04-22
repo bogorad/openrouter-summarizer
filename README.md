@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.33
+# OpenRouter Summarizer v2.50
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,21 +7,10 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
-*   **v2.33:**
-    *   Enhanced error handling to prevent uncaught errors when the chat tab is closed during a response, addressing the "Could not establish connection. Receiving end does not exist." issue.
-    *   Improved JSON parsing in chat responses to better handle structured data from LLM outputs.
-    *   Added structured output requests to ensure LLM responses are formatted as JSON arrays for summaries and chat interactions.
-*   **v2.31:**
+*   **v2.50:**
+    *   Updated `options.js` to populate the language list with default languages (English, Spanish, Hebrew, Mandarin Chinese) if it is empty on startup or the last language is deleted by the user.
+    *   Centralized LLM API calls in `background.js` for both summary and chat functionalities, simplifying content script logic.
     *   Now you can stop a chat request by clicking the "Stop" button.
-*   **v2.30:**
-    *   Enhanced chat UI rendering and error handling for a smoother user experience.
-    *   Fixed issues with form submission and UI visibility to ensure consistent behavior.
-    *   Added stop request functionality to allow users to interrupt ongoing chat requests.
-*   **v2.10 - v2.26:**
-    *   **Major Code Refactoring:** The internal structure of the extension has been significantly refactored for better maintainability and separation of concerns (see Technical Updates).
-    *   Centralized settings access via the background script.
-    *   Improved handling of LLM responses containing embedded/multiple JSON arrays.
-    *   Fixed various bugs related to UI rendering (flags), chat context loading, and event handling (chat submit).
     *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
     *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
     *   Languages can now be reordered by dragging them in the Options list.
@@ -139,26 +128,37 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
-*   **v2.33:**
+*   **v2.50:**
+    *   Updated `options.js` to force a page update after 300ms when resetting to defaults, ensuring the UI reflects the changes.
+    *   Fixed `TypeError` in `chat.js` by ensuring `chatTargetLanguage` is checked for existence before calling `trim()`, preventing errors when the value is `undefined`.
+    *   Fixed issue in `chat.js` where the target language for translation was not being recognized due to a property name mismatch, ensuring that clicking on a flag in the summary popup correctly initiates a translation request in the chat tab.
+    *   Fixed warning in `background.js` about failed message sending due to closed channels by improving error handling.
+    *   Removed debug info from popup display in `pageInteraction.js`, keeping it only in the console logs.
+    *   Prevented saving settings in `options.js` while a language selection is in progress to avoid incomplete data storage.
+    *   Added full LLM response details, including model and language information, to the summary popup in debug mode in `pageInteraction.js`.
+    *   Updated all instances of `languageInfo` to `language_info` across the codebase for consistency in property naming.
+    *   Added debug logging in `background.js` to display the complete response JSON, including language information, sent back to the content script for summary requests when debug mode is enabled.
+    *   Updated version numbers across all relevant files to maintain consistency as per CONVENTIONS.md guidelines.
+    *   Added debug logging in `pageInteraction.js` to display the result of the health check response from `background.js`.
+    *   Removed unnecessary warning about missing language data during initialization in `summaryPopup.js` since language data is handled post-LLM response.
+    *   Simplified language data structure in `pageInteraction.js` to use a single `availableLanguages` array for rendering flags in the summary popup, ensuring a unified data exchange.
+    *   Enhanced validation in `background.js` for `apiKey`, `model`, and `availableLanguages` to ensure correct format during `requestSummary` and `llmChatStream` handlers.
+    *   Added post-save verification in `options.js` to fetch and check saved settings, ensuring data integrity and notifying users of discrepancies.
     *   Added robust error handling in `background.js` to prevent uncaught errors when the receiving end (e.g., chat tab) is no longer available, addressing the "Could not establish connection. Receiving end does not exist." error.
     *   Improved JSON parsing in `chat.js` to extract and render JSON arrays from assistant responses as structured HTML lists.
     *   Added structured output requests in `background.js` and `pageInteraction.js` to ensure LLM responses are formatted as JSON arrays with exactly 5 items for summaries and chat interactions.
-*   **v2.31:**
     *   Updated the version to 2.31 in `manifest.json` and `constants.js`.
     *   Fixed the issue where the "Stop" button remained visible after a successful chat request completion in `chat.js` by adding logic to revert to the "Send" button state.
     *   Resolved the persistence of the "Chat request stopped by user" error message after a new "Send" action by clearing the error display on form submission in `chat.js`.
-*   **v2.30:**
     *   Updated the version to 2.30 across all relevant files including `manifest.json`, `pageInteraction.js`, `background.js`, `options.js`, `chat.js`, and `constants.js`.
     *   Fixed chat UI rendering issues by adjusting CSS properties and removing unnecessary visibility checks in `chat.js` to ensure messages are displayed correctly regardless of content length or screen size.
     *   Improved error handling by updating form submission logic for Ctrl+Enter in `chat.js`, ensuring reliable message sending even in edge cases.
     *   Enhanced user experience by ensuring consistent UI rendering and interaction across chat and summary popup components, addressing previous visibility and layout issues.
     *   Implemented stop request functionality in `chat.js` and `background.js` to allow users to cancel ongoing chat requests, improving control over long or unwanted responses.
-*   **v2.26:**
     *   Fixed chat submit issues (Ctrl+Enter and Send button).
     *   Fixed flag positioning in summary popup header.
     *   Improved parsing of initial summary context in chat window.
     *   Added standard version/update headers to JS files.
-*   **v2.20:**
     *   Major refactoring of the content script (`pageInteraction.js`) into separate modules (`highlighter.js`, `floatingIcon.js`, `summaryPopup.js`) using dynamic imports.
     *   Centralized settings access: `background.js` now handles fetching settings from storage and providing them to other scripts (`pageInteraction.js`, `options.js`, `chat.js`) via message passing.
     *   Improved debug logging consistency and API key sanitization in logs.
