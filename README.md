@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.50.7
+# OpenRouter Summarizer v2.50.9
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,7 +7,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
-*   **v2.50:**
+    *   Allowing for incorrect output of LLAMA4-scout model.
+    *   Almost fixed obsessive tranlation to English bug.
     *   Modified initial summary request prompt to ask for summary in the original text's language instead of the first configured language. (v2.50.7)
     *   Updated summary popup UI: Moved language flags to the footer as buttons, grouped with a default chat icon button under a centered "CHAT" label. (v2.50.6)
     *   Major update, may require options reset.
@@ -133,6 +134,12 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 ## Technical updates
 
 *   **v2.50:**
+    *   Updated summary popup UI: Moved language flags to the footer as buttons, grouped with a default chat icon button under a centered "CHAT" label. (v2.50.6)
+    *   Modified initial summary request prompt to ask for summary in the original text's language instead of the first configured language. (v2.50.7)
+    *   Changed flag button background to light gray for better visibility of white elements in flags. (v2.50.8)
+    *   Fixed bug where the model used for the initial summary wasn't correctly passed to the chat context. (v2.50.9)
+    *   **Improved summary parsing in `pageInteraction.js` to handle LLM responses containing multiple JSON arrays within the summary string by finding, parsing, and merging all valid arrays. (v2.50.10)**
+    *   Fixed a bug that prevented the correct model from being shown for the original summary in the chat. 
     *   Updated `options.js` to force a page update after 300ms when resetting to defaults, ensuring the UI reflects the changes.
     *   Fixed `TypeError` in `chat.js` by ensuring `chatTargetLanguage` is checked for existence before calling `trim()`, preventing errors when the value is `undefined`.
     *   Fixed issue in `chat.js` where the target language for translation was not being recognized due to a property name mismatch, ensuring that clicking on a flag in the summary popup correctly initiates a translation request in the chat tab.

@@ -7,7 +7,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start`);
+console.log(`[LLM Chat] Script Start (v2.50.9)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
@@ -23,6 +23,7 @@ let DEBUG = false; // Updated by getChatContext response
 let chatMessagesInnerDiv = null;
 let messageListenerAttached = false;
 const SNIPPET_TRUNCATION_LIMIT = 65536;
+let modelUsedForSummary = ""; // Add global state variable
 
 // ==== DOM Element References ====
 let downloadMdBtn,
@@ -122,15 +123,10 @@ function initializeChat() {
     DEBUG = !!response?.debug;
     console.log("[LLM Chat] Debug mode set to:", DEBUG);
     if (DEBUG) {
-      console.log("[LLM Chat] Debug mode enabled via background context.");
-      console.log("[LLM Chat] Found essential UI elements.");
-      if (typeof marked !== "undefined") {
-        console.log("[LLM Chat] Marked library loaded and configured.");
-      }
-      console.log("[LLM Chat] Initializing chat page...");
+      // ... debug logs ...
       console.log(
         "[LLM Chat] Received context response from background:",
-        response,
+        response, // Log the full response
       );
     }
 
@@ -142,7 +138,15 @@ function initializeChat() {
     ) {
       models = response.models;
       console.log("[LLM Chat] Models array populated:", models);
-      populateModelDropdown(response.summaryModel);
+      // --- MODIFICATION: Store the specific model used for summary ---
+      modelUsedForSummary = response.modelUsedForSummary || "";
+      if (DEBUG) console.log("[LLM Chat] Model used for initial summary:", modelUsedForSummary);
+      // --- END MODIFICATION ---
+
+      // Populate dropdown, try selecting the actual model used for summary first,
+      // then fall back to the first available model if it's not in the list (shouldn't happen ideally)
+      populateModelDropdown(modelUsedForSummary || (models.length > 0 ? models[0].id : ""));
+
 
       if (
         response.domSnippet &&
@@ -153,58 +157,39 @@ function initializeChat() {
         chatContext.summary = response.summary;
         chatContext.chatTargetLanguage = response.chatTargetLanguage || "";
 
-        if (DEBUG)
-          console.log(
-            "[LLM Chat] Context received. Summary assigned:",
-            typeof chatContext.summary === "string"
-              ? chatContext.summary.substring(0, 300) + "..."
-              : chatContext.summary,
-          );
-        if (DEBUG)
-          console.log(
-            "[LLM Chat] Chat Target Language:",
-            chatContext.chat_target_language,
-          );
+        // ... (rest of summary processing logic) ...
 
         let initialContent;
         let parseError = false;
-        console.log("[LLM Chat] Processing initial summary content...");
-        if (
-          typeof chatContext.summary === "string" &&
-          chatContext.summary.trim()
-        ) {
-          const parsedInitialSummary = tryParseJson(chatContext.summary, true);
-          console.log(
-            "[LLM Chat] Parsed initial summary result:",
-            parsedInitialSummary,
-          );
-          if (Array.isArray(parsedInitialSummary)) {
-            initialContent = parsedInitialSummary
-              .map((item) => String(item))
-              .join("\n");
-            console.log(
-              "[LLM Chat] Initial content after mapping array:",
-              initialContent,
-            );
-          } else {
-            initialContent = chatContext.summary;
-            parseError = true;
-            console.log(
-              "[LLM Chat] Parsing failed, using raw summary as initial content.",
-            );
-          }
-        } else {
-          initialContent = "(No initial summary provided)";
-          parseError = true;
-          console.log("[LLM Chat] Summary was not a string or was empty.");
-        }
+        // ... (parsing logic remains the same) ...
+         if (
+           typeof chatContext.summary === "string" &&
+           chatContext.summary.trim()
+         ) {
+           const parsedInitialSummary = tryParseJson(chatContext.summary, true);
+           if (Array.isArray(parsedInitialSummary)) {
+             initialContent = parsedInitialSummary
+               .map((item) => String(item))
+               .join("\n");
+           } else {
+             initialContent = chatContext.summary;
+             parseError = true;
+           }
+         } else {
+           initialContent = "(No initial summary provided)";
+           parseError = true;
+         }
+
+        // --- MODIFICATION: Use modelUsedForSummary for initial message ---
         messages = [
           {
             role: "assistant",
             content: initialContent,
-            model: models.length > 0 ? models[0].id : "Unknown",
+            model: modelUsedForSummary || "Unknown", // Use the specific model here
           },
         ];
+        // --- END MODIFICATION ---
+
         console.log(
           "[LLM Chat] Messages array after adding initial message:",
           messages,
@@ -214,47 +199,38 @@ function initializeChat() {
             "Failed to parse initial summary. Displaying raw data.",
             false,
           );
-          console.log(
-            "[LLM Chat] Parse error occurred, showing error message.",
-          );
         }
-        renderMessages();
-        console.log(
-          "[LLM Chat] RenderMessages called with messages:",
-          messages,
-        );
-        if (
-          chatContext.chatTargetLanguage &&
-          chatContext.chatTargetLanguage.trim()
-        ) {
-          if (DEBUG)
-            console.log(
-              `[LLM Chat Init] Initial translation requested for: ${chatContext.chatTargetLanguage}. Sending prompt.`,
-            );
-          const initialPrompt = `Say that in ${chatContext.chatTargetLanguage} and let's continue our conversation in that language.`;
-          messages.push({ role: "user", content: initialPrompt });
-          console.log("[LLM Chat] Added initial prompt to messages:", messages);
-          renderMessages();
-          sendChatRequestToBackground(initialPrompt);
-        } else {
-          if (DEBUG)
-            console.log(
-              "[LLM Chat Init] No chatTargetLanguage specified or empty, displaying original summary only.",
-            );
-        }
+        renderMessages(); // Render initial message with correct model label
+
+        // ... (rest of language handling logic) ...
+         if (
+           chatContext.chatTargetLanguage &&
+           chatContext.chatTargetLanguage.trim()
+         ) {
+           if (DEBUG)
+             console.log(
+               `[LLM Chat Init] Initial translation requested for: ${chatContext.chatTargetLanguage}. Sending prompt.`,
+             );
+           const initialPrompt = `Say that in ${chatContext.chatTargetLanguage} and let's continue our conversation in that language.`;
+           messages.push({ role: "user", content: initialPrompt });
+           renderMessages(); // Render user prompt
+           sendChatRequestToBackground(initialPrompt); // Send request
+         } else {
+           if (DEBUG)
+             console.log(
+               "[LLM Chat Init] No chatTargetLanguage specified or empty, displaying original summary only.",
+             );
+         }
+
       } else {
         console.warn(
           "[LLM Chat] Context received from background is incomplete.",
         );
         messages = [];
-        console.log(
-          "[LLM Chat] Messages array set to empty due to incomplete context.",
-        );
         renderMessages();
         showError("Could not load initial summary context.", false);
       }
       focusInput();
-      console.log("[LLM Chat] Input field focused.");
     } else {
       console.error(
         "[LLM Chat] Failed to get valid context or models list.",
@@ -264,6 +240,7 @@ function initializeChat() {
     }
   });
 }
+
 
 /**
  * Populates the model dropdown with available models.
@@ -296,7 +273,7 @@ function populateModelDropdown(preferredModelId) {
     opt.value = model.id;
     opt.textContent = model.label || model.id;
     modelSelect.appendChild(opt);
-    console.log("[LLM Chat] Added option to dropdown:", model);
+    // console.log("[LLM Chat] Added option to dropdown:", model); // Less verbose
   });
   const availableModelIds = models.map((m) => m.id);
   if (
@@ -331,10 +308,10 @@ function populateModelDropdown(preferredModelId) {
  * Renders the chat messages in the UI.
  */
 function renderMessages() {
-  console.log(
-    "[LLM Chat] Entering renderMessages function with messages array:",
-    messages,
-  );
+  // console.log( // Less verbose
+  //   "[LLM Chat] Entering renderMessages function with messages array:",
+  //   messages,
+  // );
   const wrap = chatMessagesInnerDiv;
   if (!wrap) {
     console.error("[LLM Chat] chatMessagesInnerDiv not found.");
@@ -346,10 +323,10 @@ function renderMessages() {
   if (messages.length === 0) {
     wrap.innerHTML =
       '<div class="msg system-info">Chat started. Ask a follow-up question...</div>';
-    console.log("[LLM Chat] No messages, added system-info message.");
+    // console.log("[LLM Chat] No messages, added system-info message."); // Less verbose
   } else {
     messages.forEach((msg, index) => {
-      console.log(`[LLM Chat Render] Processing message ${index}:`, msg);
+      // console.log(`[LLM Chat Render] Processing message ${index}:`, msg); // Less verbose
       const msgDiv = document.createElement("div");
       msgDiv.classList.add("msg");
       if (msg.role === "assistant") {
@@ -359,19 +336,19 @@ function renderMessages() {
           modelLabelDiv.className = "assistant-model-label";
           modelLabelDiv.textContent = `Model: ${msg.model}`;
           msgDiv.appendChild(modelLabelDiv);
-          console.log(
-            `[LLM Chat Render] Added model label for message ${index}:`,
-            msg.model,
-          );
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Added model label for message ${index}:`,
+          //   msg.model,
+          // );
         }
         const contentSpan = document.createElement("span");
         contentSpan.className = "assistant-inner";
         if (typeof msg.content === "string") {
-          console.log(
-            `[LLM Chat Render] Raw content for message ${index}:`,
-            msg.content.substring(0, 200) +
-              (msg.content.length > 200 ? "..." : ""),
-          );
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Raw content for message ${index}:`,
+          //   msg.content.substring(0, 200) +
+          //     (msg.content.length > 200 ? "..." : ""),
+          // );
           let processedContent = stripCodeFences(msg.content);
           if (typeof processedContent !== "string") {
             console.warn(
@@ -380,11 +357,11 @@ function renderMessages() {
             );
             processedContent = "";
           }
-          console.log(
-            `[LLM Chat Render] Processed content after stripping fences for message ${index}:`,
-            processedContent.substring(0, 200) +
-              (processedContent.length > 200 ? "..." : ""),
-          );
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Processed content after stripping fences for message ${index}:`,
+          //   processedContent.substring(0, 200) +
+          //     (processedContent.length > 200 ? "..." : ""),
+          // );
           // Attempt to extract and parse JSON array from the content
           let finalHtml = "";
           let jsonParsed = false;
@@ -419,9 +396,9 @@ function renderMessages() {
                 } else {
                   finalHtml = listHtml;
                 }
-                console.log(
-                  `[LLM Chat Render] Initial summary (message ${index}) rendered as list for consistency.`,
-                );
+                // console.log( // Less verbose
+                //   `[LLM Chat Render] Initial summary (message ${index}) rendered as list for consistency.`,
+                // );
               } else {
                 // For subsequent assistant messages, render single-element arrays as plain text
                 if (jsonResult.jsonArray.length === 1) {
@@ -435,9 +412,9 @@ function renderMessages() {
                       : "";
                     finalHtml = `${beforeHtml}${finalHtml}${afterHtml}`;
                   }
-                  console.log(
-                    `[LLM Chat Render] Single-element array for message ${index} rendered as plain HTML.`,
-                  );
+                  // console.log( // Less verbose
+                  //   `[LLM Chat Render] Single-element array for message ${index} rendered as plain HTML.`,
+                  // );
                 } else {
                   // Multi-element arrays are rendered as lists
                   const listHtml =
@@ -457,15 +434,15 @@ function renderMessages() {
                   } else {
                     finalHtml = listHtml;
                   }
-                  console.log(
-                    `[LLM Chat Render] Multi-element array for message ${index} rendered as list.`,
-                  );
+                  // console.log( // Less verbose
+                  //   `[LLM Chat Render] Multi-element array for message ${index} rendered as list.`,
+                  // );
                 }
               }
             } else {
-              console.log(
-                `[LLM Chat Render] No valid JSON array found in message ${index}. Falling back to text rendering.`,
-              );
+              // console.log( // Less verbose
+              //   `[LLM Chat Render] No valid JSON array found in message ${index}. Falling back to text rendering.`,
+              // );
             }
           } catch (jsonError) {
             console.error(
@@ -480,23 +457,23 @@ function renderMessages() {
           contentSpan.innerHTML = finalHtml;
         } else {
           contentSpan.innerHTML = "[Error: Invalid message content]";
-          console.log(
-            `[LLM Chat Render] Invalid content type for message ${index}.`,
-          );
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Invalid content type for message ${index}.`,
+          // );
         }
         msgDiv.appendChild(contentSpan);
         wrap.appendChild(msgDiv);
-        console.log(
-          `[LLM Chat Render] Appended assistant message ${index} to DOM.`,
-        );
+        // console.log( // Less verbose
+        //   `[LLM Chat Render] Appended assistant message ${index} to DOM.`,
+        // );
       } else if (msg.role === "user") {
         msgDiv.classList.add("user");
         if (typeof marked !== "undefined") {
           try {
             msgDiv.innerHTML = marked.parse(msg.content);
-            console.log(
-              `[LLM Chat Render] Successfully parsed user message ${index} with marked.`,
-            );
+            // console.log( // Less verbose
+            //   `[LLM Chat Render] Successfully parsed user message ${index} with marked.`,
+            // );
           } catch (parseError) {
             console.error(
               `[LLM Chat Render] Marked parse error for user message ${index}:`,
@@ -506,20 +483,21 @@ function renderMessages() {
           }
         } else {
           msgDiv.innerHTML = msg.content.replace(/\n/g, "<br>");
-          console.log(
-            `[LLM Chat Render] Used fallback for user message ${index}.`,
-          );
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Used fallback for user message ${index}.`,
+          // );
         }
         wrap.appendChild(msgDiv);
-        console.log(`[LLM Chat Render] Appended user message ${index} to DOM.`);
+        // console.log(`[LLM Chat Render] Appended user message ${index} to DOM.`); // Less verbose
       }
     });
   }
   scrollToBottom();
-  console.log(
-    "[LLM Chat Render] Finished rendering messages. Scrolled to bottom.",
-  );
+  // console.log( // Less verbose
+  //   "[LLM Chat Render] Finished rendering messages. Scrolled to bottom.",
+  // );
 }
+
 
 /**
  * Scrolls the chat messages to the bottom.
@@ -527,7 +505,7 @@ function renderMessages() {
 function scrollToBottom() {
   if (chatMessages) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
-    console.log("[LLM Chat] Scrolled to bottom of chat messages.");
+    // console.log("[LLM Chat] Scrolled to bottom of chat messages."); // Less verbose
   } else {
     console.warn("[LLM Chat] chatMessages element not found for scrolling.");
   }
@@ -539,7 +517,7 @@ function scrollToBottom() {
 function focusInput() {
   if (chatInput) {
     chatInput.focus();
-    console.log("[LLM Chat] Input field focused.");
+    // console.log("[LLM Chat] Input field focused."); // Less verbose
   } else {
     console.warn("[LLM Chat] chatInput element not found for focusing.");
   }
@@ -550,10 +528,10 @@ function focusInput() {
  * @param {string} userText - The text input by the user.
  */
 function sendChatRequestToBackground(userText) {
-  console.log(
-    "[LLM Chat] Entering sendChatRequestToBackground with userText:",
-    userText,
-  );
+  // console.log( // Less verbose
+  //   "[LLM Chat] Entering sendChatRequestToBackground with userText:",
+  //   userText,
+  // );
   if (streaming) {
     console.log("[LLM Chat] Streaming in progress, request ignored.");
     return;
@@ -579,7 +557,7 @@ function sendChatRequestToBackground(userText) {
   modelLabelDiv.className = "assistant-model-label";
   modelLabelDiv.textContent = `Model: ${currentStreamModel}`;
   messagesWrap.appendChild(modelLabelDiv);
-  console.log("[LLM Chat] Added model label to messages wrap.");
+  // console.log("[LLM Chat] Added model label to messages wrap."); // Less verbose
   let streamContainer = document.createElement("div");
   streamContainer.className = "msg assistant";
   streamContainer.innerHTML = `<span class="assistant-inner" id="activeStreamSpan"></span>`;
@@ -594,9 +572,9 @@ function sendChatRequestToBackground(userText) {
     {
       role: "system",
       content: `
-      Be concise and factual. 
-      Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <p>. 
-      Return a single JSON array of strings, which will be treated as bullet points. 
+      Be concise and factual.
+      Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <p>.
+      Return a single JSON array of strings, which will be treated as bullet points.
       If you feel no bullet points are needed, return an array with a single string element.
       Do not add any comments before or after the JSON array.
     `,
@@ -604,12 +582,12 @@ function sendChatRequestToBackground(userText) {
   ];
   const userMessageCount = messages.filter((m) => m.role === "user").length;
   const isFirstUserTurn = userMessageCount === 1;
-  console.log(
-    "[LLM Chat] User message count:",
-    userMessageCount,
-    "Is first turn:",
-    isFirstUserTurn,
-  );
+  // console.log( // Less verbose
+  //   "[LLM Chat] User message count:",
+  //   userMessageCount,
+  //   "Is first turn:",
+  //   isFirstUserTurn,
+  // );
   if (
     isFirstUserTurn &&
     chatContext.domSnippet &&
@@ -621,21 +599,21 @@ function sendChatRequestToBackground(userText) {
       content: `Context - Original HTML Snippet:\n\`\`\`html\n${chatContext.domSnippet}\n\`\`\`\n\nInitial Summary:\n${chatContext.summary}`,
     });
     apiMessages.push({ role: "user", content: userText });
-    console.log("[LLM Chat] Added context and user text for first turn.");
+    // console.log("[LLM Chat] Added context and user text for first turn."); // Less verbose
   } else {
     const recentHistory = messages
-      .slice(0, messages.length - 1)
-      .slice(1)
+      .slice(0, messages.length - 1) // Exclude the latest user message which is in userText
+      .slice(1) // Exclude the initial summary message
       .filter((m) => m.role === "user" || m.role === "assistant")
-      .slice(-10);
-    console.log("[LLM Chat] Recent history:", recentHistory);
+      .slice(-10); // Limit history
+    // console.log("[LLM Chat] Recent history:", recentHistory); // Less verbose
     if (chatContext.domSnippet) {
       let snippetForContext = chatContext.domSnippet;
       if (snippetForContext.length > SNIPPET_TRUNCATION_LIMIT) {
         snippetForContext =
           snippetForContext.substring(0, SNIPPET_TRUNCATION_LIMIT) +
           "[...truncated]";
-        console.log("[LLM Chat] Snippet truncated for context.");
+        // console.log("[LLM Chat] Snippet truncated for context."); // Less verbose
       }
       apiMessages.push({
         role: "user",
@@ -644,7 +622,7 @@ function sendChatRequestToBackground(userText) {
     }
     apiMessages.push(...recentHistory);
     apiMessages.push({ role: "user", content: userText });
-    console.log("[LLM Chat] Added recent history and user text.");
+    // console.log("[LLM Chat] Added recent history and user text."); // Less verbose
   }
   chrome.runtime.sendMessage(
     {
@@ -666,10 +644,10 @@ function sendChatRequestToBackground(userText) {
       }
 
       if (response.status === "success" && response.data) {
-        console.log(
-          "[LLM Chat] Received successful response from background:",
-          response.data,
-        );
+        // console.log( // Less verbose
+        //   "[LLM Chat] Received successful response from background:",
+        //   response.data,
+        // );
         const newMessage = {
           role: "assistant",
           content: response.data.choices[0].message.content,
@@ -691,17 +669,18 @@ function sendChatRequestToBackground(userText) {
   );
 }
 
+
 /**
  * Handles form submission when the user sends a message.
  * @param {Event} e - The form submission event.
  */
 function handleFormSubmit(e) {
-  console.log("[LLM Chat] Form submit attempted.");
+  // console.log("[LLM Chat] Form submit attempted."); // Less verbose
   e.preventDefault();
   if (errorDisplay) {
     errorDisplay.style.display = "none";
     errorDisplay.textContent = "";
-    console.log("[LLM Chat] Cleared previous error message on form submit.");
+    // console.log("[LLM Chat] Cleared previous error message on form submit."); // Less verbose
   }
   if (streaming) {
     console.log("[LLM Chat] Streaming in progress, submit ignored.");
@@ -714,31 +693,31 @@ function handleFormSubmit(e) {
   }
   const text = chatInput.value.trim();
   if (!text) {
-    console.log("[LLM Chat] Submit ignored: Input is empty.");
+    // console.log("[LLM Chat] Submit ignored: Input is empty."); // Less verbose
     return;
   }
   messages.push({ role: "user", content: text });
-  console.log("[LLM Chat] Added user message to messages array:", messages);
+  // console.log("[LLM Chat] Added user message to messages array:", messages); // Less verbose
   renderMessages();
   chatInput.value = "";
   chatInput.style.height = "40px";
   chatInput.focus();
   sendChatRequestToBackground(text);
-  console.log("[LLM Chat] Message sent to background.");
+  // console.log("[LLM Chat] Message sent to background."); // Less verbose
 }
 
 /**
  * Sets up stream listeners (currently a no-op implementation).
  */
 function setupStreamListeners() {
-  console.log("[LLM Chat] Setting up stream listeners (no-op implementation).");
+  // console.log("[LLM Chat] Setting up stream listeners (no-op implementation)."); // Less verbose
 }
 
 /**
  * Sets up textarea resize functionality to adjust height based on content.
  */
 function setupTextareaResize() {
-  console.log("[LLM Chat] Setting up textarea resize.");
+  // console.log("[LLM Chat] Setting up textarea resize."); // Less verbose
   if (chatInput) {
     chatInput.addEventListener("input", () => {
       chatInput.style.height = "auto";
@@ -829,7 +808,7 @@ function handleStopRequest() {
 function handleChatInputKeydown(event) {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
     event.preventDefault();
-    console.log("[LLM Chat] Ctrl+Enter detected, submitting form.");
+    // console.log("[LLM Chat] Ctrl+Enter detected, submitting form."); // Less verbose
     if (chatForm) {
       chatForm.dispatchEvent(new Event("submit", { cancelable: true }));
     }
@@ -840,7 +819,7 @@ function handleChatInputKeydown(event) {
  * Sets up the Ctrl+Enter listener for form submission.
  */
 function setupCtrlEnterListener() {
-  console.log("[LLM Chat] Setting up Ctrl+Enter listener.");
+  // console.log("[LLM Chat] Setting up Ctrl+Enter listener."); // Less verbose
   if (chatInput) {
     chatInput.addEventListener("keydown", handleChatInputKeydown);
   }
@@ -954,7 +933,7 @@ function extractTextFromJson(jsonData) {
  * @param {boolean} show - Whether to show the loading indicator.
  */
 function showLoadingIndicator(show) {
-  console.log(`[LLM Chat] Loading indicator ${show ? "shown" : "hidden"}.`);
+  // console.log(`[LLM Chat] Loading indicator ${show ? "shown" : "hidden"}.`); // Less verbose
 }
 
 /**
@@ -966,10 +945,11 @@ function formatChatAsMarkdown() {
     .map((msg) =>
       msg.role === "user"
         ? `**User:** ${msg.content}`
-        : `**Assistant:** ${msg.content}`,
+        : `**Assistant (${msg.model || 'Unknown'}):** ${msg.content}`, // Include model in MD
     )
     .join("\n\n");
 }
+
 
 /**
  * Triggers a download of content with the specified filename and content type.
