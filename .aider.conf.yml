@@ -9,9 +9,9 @@ model: openrouter/google/gemini-2.5-flash-preview
 # model: openrouter/meta-llama/llama-4-maverick:free
 # model: xai/grok-3-mini-fast-beta # fast but stupid
 ################## this for grok-3-fast-beta - it needs thinking and screws up edit-format
-model: xai/grok-3-fast-beta
-reasoning-effort: high
-edit-format: full
+# model: xai/grok-3-fast-beta
+# reasoning-effort: high
+# edit-format: full
 ################## this for grok-3-fast-beta - it needs thinking and screws up edit-format
 # architect: true
 # read:
