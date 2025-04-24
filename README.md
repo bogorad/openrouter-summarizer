@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.51
+# OpenRouter Summarizer v2.52
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,6 +7,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
+*   Slightly changed the prompt in chat to stop LLMs responding using bullet points.
 *   Allowing for incorrect output of LLAMA4-scout model.
 *   Almost fixed obsessive tranlation to English bug.
 *   Modified initial summary request prompt to ask for summary in the original text's language instead of the first configured language. (v2.50.7)

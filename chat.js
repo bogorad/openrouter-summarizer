@@ -574,10 +574,9 @@ function sendChatRequestToBackground(userText) {
     {
       role: "system",
       content: `
-      Be concise and factual.
+      Be concise and factual. We no longer need bullet points.
       Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <p>.
-      Return a single JSON array of strings, which will be treated as bullet points.
-      If you feel no bullet points are needed, return an array with a single string element.
+      Return a single JSON array containing a single string element.
       Do not add any comments before or after the JSON array.
     `,
     },
