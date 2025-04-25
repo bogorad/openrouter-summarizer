@@ -25,7 +25,7 @@ Second, using the language you determined, prepare a summary of input containing
 
 // --- Chat Prompt Templates ---
 export const CHAT_SYSTEM_PROMPT_TEMPLATE = `Be concise and factual. We no longer need bullet points.
-Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <p>.
+Format responses using Markdown where appropriate, do not use any HTML.
 Return a single JSON array containing a single string element.
 Do not add any comments before or after the JSON array. Do not output your deliberations.`;
 
