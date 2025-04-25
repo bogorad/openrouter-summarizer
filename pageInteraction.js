@@ -3,7 +3,7 @@
 
 // highlighter.js, floatingIcon.js, summaryPopup.js, constants.js, utils.js remain unchanged
 
-console.log(`[LLM Content] Script Start (v3.0.13)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.14)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -559,8 +559,6 @@ function handleMessage(req, sender, sendResponse) {
       );
       SummaryPopup.enableChatButton(false);
     }
-
-    // Removed call to SummaryPopup.updatePopupFlags(language_info);
 
     return true; // Indicate message handled
   }
