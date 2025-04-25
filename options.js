@@ -10,8 +10,6 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-const LASTUPD = "Clarified language usage in options UI"; // Updated description
-
 console.log(`[LLM Options] Script Start`);
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -26,7 +24,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const bulletCountRadios = document.querySelectorAll(
     'input[name="bulletCount"]',
   );
-  const saveButton = document.getElementById("save");
   const resetButton = document.getElementById("resetDefaultsBtn");
   const statusMessage = document.getElementById("status");
   const promptPreambleDiv = document.getElementById("promptPreamble");
@@ -66,7 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let highlightedAutocompleteIndex = -1;
 
   let draggedItemIndex = null;
-  let dragOverElement = null;
+
 
   // Define setupAutocomplete here to ensure it's available early
   function setupAutocomplete(textInput) {
@@ -684,7 +681,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderModelOptions();
     renderLanguageOptions();
     updatePromptPreview();
-    setupAutoSave();
+    // setupAutoSave(); // Auto-save is disabled
   }
 
   function saveSettings() {
@@ -923,14 +920,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // --- Auto Save Setup (Disabled) ---
-  let saveTimeout = null;
-  function setupAutoSave() {
-    // Spec: Previously set up event listeners for automatic saving of settings on input changes with debounce.
-    // Now disabled to require manual saving via the Save button.
-    console.log(
-      "[LLM Options] Auto-save is disabled. Use the Save button to save changes.",
-    );
-  }
+  // let saveTimeout = null;
+  // function setupAutoSave() {
+  //   // Spec: Previously set up event listeners for automatic saving of settings on input changes with debounce.
+  //   // Now disabled to require manual saving via the Save button.
+  //   console.log(
+  //     "[LLM Options] Auto-save is disabled. Use the Save button to save changes.",
+  //   );
+  // }
 
   // --- Drag and Drop Handlers ---
   function handleDragStart(event) {
@@ -954,7 +951,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Called from: renderLanguageOptions (on language-option elements).
     event.target.parentElement.classList.remove("dragging");
     draggedItemIndex = null;
-    dragOverElement = null;
+    // dragOverElement = null; // Removed dead code
     if (DEBUG) console.log("[LLM Options] Drag ended.");
     renderLanguageOptions(); // Re-render to reflect any changes
   }
@@ -986,7 +983,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           .closest(".language-option")
           .classList.remove("drag-over-top");
       }
-      dragOverElement = event.target.closest(".language-option");
+      // dragOverElement = event.target.closest(".language-option"); // Removed dead code
     }
     if (DEBUG) console.log(`[LLM Options] Dragging over index: ${targetIndex}`);
   }
