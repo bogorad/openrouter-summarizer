@@ -84,13 +84,13 @@ Arial, sans-serif; font-size: 16px; display: flex; flex-direction: column; overf
     border-radius: 4px; /* Slightly rounded corners */
     background-color: #f0f0f0; /* Light gray background */
     cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; /* Added opacity transition */
     height: 30px; /* Fixed height for flag buttons */
     width: auto; /* Auto width to maintain aspect ratio */
     box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
 }
 
-.language-flags-container .language-flag-button:hover {
+.language-flags-container .language-flag-button:hover:not(.language-flag-button-busy) { /* Apply hover only when not busy */
     background-color: #e0e0e0; /* Slightly darker gray on hover */
     border-color: #aaa;
 }
@@ -101,6 +101,16 @@ Arial, sans-serif; font-size: 16px; display: flex; flex-direction: column; overf
     width: auto;
     object-fit: contain;
     border-radius: 2px; /* Match button border-radius */
+    pointer-events: none; /* Ensure clicks go to the button */
+}
+
+/* New busy state style for flag buttons */
+.language-flags-container .language-flag-button-busy {
+    opacity: 0.6; /* Dim the button */
+    cursor: default; /* Change cursor */
+    border-color: #ddd; /* Lighter border */
+    background-color: #fafafa; /* Lighter background */
+    box-shadow: none; /* Remove shadow */
 }
 
 
@@ -128,6 +138,7 @@ margin: 0 auto; padding-left: 10px; padding-right: 10px; }
 padding: 8px 12px; background: #f9fcfd; color: #23272f; outline: none; box-shadow: 0 2px 7px 0 rgba(25, 118, 210, 0.05); transition: border 0.14s, box-shadow 0.13s, height 0.1s
 ease-out; overflow-y: auto; }
 #chatInput:focus { border-color: #2196f3; box-shadow: 0 4px 12px 0 rgba(33, 150, 243, 0.11); background: #fff; }
+#chatInput:disabled { background-color: #eee; cursor: not-allowed; } /* Added disabled style for input */
 #chatForm button[type="submit"] { background: #2196F3; color: #fff; border: none; border-radius: 6px; font-size: 1.0em; font-family: inherit; padding: 9px 18px; cursor:
 pointer; font-weight: bold; box-shadow: 0 1px 6px 0 rgba(21, 56, 102, 0.09); transition: background 0.18s; height: 40px; align-self: flex-end; flex-shrink: 0; }
 #chatForm button[type="submit"]:hover, #chatForm button[type="submit"]:focus { background: #166ec5; }

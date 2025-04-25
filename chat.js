@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.0.9)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.0.15)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
@@ -301,6 +301,16 @@ function renderLanguageFlags() {
  * @param {Event} event - The click event.
  */
 function handleFlagButtonClick(event) {
+  if (streaming) {
+    if (DEBUG)
+      console.log(
+        "[LLM Chat] Flag click ignored: Chat is currently streaming.",
+      );
+    // Optionally show a temporary message to the user
+    showError("Chat is busy. Please wait for the current response to finish.", false, 2000); // Show for 2 seconds
+    return; // Ignore click if streaming
+  }
+
   const targetLanguage = event.currentTarget.dataset.languageName;
   if (!targetLanguage) {
     console.error("[LLM Chat] Flag button missing language name data.");
@@ -387,6 +397,15 @@ function sendChatRequestToBackground(userText) {
   console.log("[LLM Chat] Streaming started with model:", currentStreamModel);
   if (sendButton) sendButton.style.display = "none";
   if (stopButton) stopButton.style.display = "block";
+
+  // Add busy state to flags
+  const flagButtons = languageFlagsContainer.querySelectorAll('.language-flag-button');
+  flagButtons.forEach(button => {
+      button.classList.add('language-flag-button-busy');
+      button.title = 'Chat is busy, cannot translate now';
+  });
+
+
   const messagesWrap = chatMessagesInnerDiv;
   if (!messagesWrap) {
     console.error("[LLM Chat] messagesWrap not found.");
@@ -478,6 +497,12 @@ function sendChatRequestToBackground(userText) {
         streaming = false;
         if (sendButton) sendButton.style.display = "block";
         if (stopButton) stopButton.style.display = "none";
+        // Remove busy state from flags
+        const flagButtons = languageFlagsContainer.querySelectorAll('.language-flag-button');
+        flagButtons.forEach(button => {
+            button.classList.remove('language-flag-button-busy');
+            button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+        });
         return;
       }
 
@@ -503,6 +528,12 @@ function sendChatRequestToBackground(userText) {
       streaming = false;
       if (sendButton) sendButton.style.display = "block";
       if (stopButton) stopButton.style.display = "none";
+      // Remove busy state from flags
+      const flagButtons = languageFlagsContainer.querySelectorAll('.language-flag-button');
+      flagButtons.forEach(button => {
+          button.classList.remove('language-flag-button-busy');
+          button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+      });
     },
   );
 }
@@ -946,6 +977,14 @@ function handleStopRequest() {
     if (stopButton) stopButton.style.display = "none";
     showError("Chat request stopped by user.", false);
     console.log("[LLM Chat] Chat request stopped.");
+
+    // Remove busy state from flags
+    const flagButtons = languageFlagsContainer.querySelectorAll('.language-flag-button');
+    flagButtons.forEach(button => {
+        button.classList.remove('language-flag-button-busy');
+        button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+    });
+
     // Attempt to abort the ongoing request if possible
     chrome.runtime.sendMessage({ action: "abortChatRequest" }, (response) => {
       if (chrome.runtime.lastError) {
