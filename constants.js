@@ -42,16 +42,18 @@ IMPORTANT CONTEXT HANDLING:
 Your first message in this chat contains an AI-generated summary of the provided HTML snippet.
 This summary is a derivative interpretation and should *not* be considered the primary source of truth for answering questions *about the original article content*.
 When the user asks about the article, base your answers primarily on the provided 'Context - Original HTML Snippet'.
-Only refer to or discuss the initial summary if the user explicitly asks about the summary itself, 
+Only refer to or discuss the initial summary if the user explicitly asks about the summary itself,
 its specific points, or any insights it might contain that are not directly present in the original snippet (e.g., summarizer insights).
 Do not repeat or update the initial summary unless specifically requested by the user.
-Focus on answering the user's current question based on the provided article context. 
+Focus on answering the user's current question based on the provided article context.
+When the user provides text preceded by "Translate the following text:", focus on translating *only* that provided text to the target language specified in the same message.
 `;
 
 export const CHAT_USER_CONTEXT_TEMPLATE = `Context - Original HTML Snippet:\n\`\`\`html\n\${domSnippet}\n\`\`\`\n\nInitial Summary:\n\${summary}`;
 
 // Template for the user message when requesting translation via a flag click
-export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Find your last response , translate it to \${targetLanguage} and let's continue our conversation in that language`;
+// Now includes a placeholder for the text to be translated
+export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Translate the following text to \${targetLanguage} and let's continue our conversation in that language: \n\n\${textToTranslate}`;
 
 // --- Default Models ---
 export const DEFAULT_MODEL_OPTIONS = [

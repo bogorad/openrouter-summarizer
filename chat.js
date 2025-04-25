@@ -308,16 +308,50 @@ function handleFlagButtonClick(event) {
     return;
   }
 
+  // Find the content of the last assistant message
+  const lastAssistantMessage = messages
+    .slice()
+    .reverse()
+    .find((msg) => msg.role === "assistant");
+
+  if (!lastAssistantMessage || !lastAssistantMessage.content) {
+    showError("No previous assistant message to translate.", false);
+    if (DEBUG)
+      console.log(
+        "[LLM Chat] Cannot translate: No previous assistant message found.",
+      );
+    return;
+  }
+
+  let textToTranslate = "";
+  if (Array.isArray(lastAssistantMessage.content)) {
+    // If the content is an array (like the initial summary), join it for translation
+    textToTranslate = lastAssistantMessage.content.join("\n"); // Join with newlines
+  } else if (typeof lastAssistantMessage.content === "string") {
+    // If the content is a string, use it directly
+    textToTranslate = lastAssistantMessage.content;
+  } else {
+    showError("Cannot translate: Invalid format of the last message.", false);
+    if (DEBUG)
+      console.log(
+        "[LLM Chat] Cannot translate: Invalid content type of last assistant message.",
+        lastAssistantMessage.content,
+      );
+    return;
+  }
+
   if (DEBUG)
     console.log(
-      `[LLM Chat] Flag clicked for translation to: ${targetLanguage}`,
+      `[LLM Chat] Flag clicked for translation to: ${targetLanguage}. Text to translate:`,
+      textToTranslate.substring(0, 200) +
+        (textToTranslate.length > 200 ? "..." : ""),
     );
 
-  // Construct the specific user message using the constant
+  // Construct the specific user message using the constant and the text to translate
   const userMessage = CHAT_TRANSLATION_REQUEST_TEMPLATE.replace(
     "${targetLanguage}",
     targetLanguage,
-  );
+  ).replace("${textToTranslate}", textToTranslate);
 
   // Add the user message to the chat history
   messages.push({ role: "user", content: userMessage });
@@ -636,7 +670,6 @@ function renderMessages() {
           // State changes: Initialized as empty string.
           // Error handling: N/A.
           // Side effects: N/A.
-          // Accessibility: N/A.
           // Performance: N/A.
 
 
@@ -968,7 +1001,7 @@ function stripCodeFences(text) {
   // Call site: Inside renderMessages for assistant messages.
   // Dependencies: None.
   // State changes: None.
-  // Error handling: Logs a warning if the input is not a string.
+  // Error handling: Logs a warning if the input is not a string (handled in stripCodeFences).
   // Side effects: None.
   // Accessibility: N/A.
   // Performance: Simple string replacement.
