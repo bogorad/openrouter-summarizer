@@ -10,7 +10,6 @@ let Highlighter = null;
 let FloatingIcon = null;
 let SummaryPopup = null;
 let constants = null;
-// Removed importedTryParseJson variable
 let importedShowError = null;
 // ...
 
@@ -255,7 +254,8 @@ function openChatWithContext(targetLang = "") {
 }
 
 // --- LLM Interaction (Delegated to background.js) ---
-async function sendToLLM(selectedHtml) { // Made function async
+async function sendToLLM(selectedHtml) {
+  // Made function async
   if (!SummaryPopup) {
     console.error(
       "[LLM Content] sendToLLM called before SummaryPopup module loaded!",
@@ -277,12 +277,12 @@ async function sendToLLM(selectedHtml) { // Made function async
     });
     if (DEBUG) console.log("[LLM Content] Summary popup is now ready.");
   } catch (error) {
-     console.error("[LLM Content] Error showing summary popup:", error);
-     importedShowError("Error displaying summary popup.");
-     FloatingIcon.removeFloatingIcon();
-     Highlighter.removeSelectionHighlight();
-     lastSummary = "";
-     return; // Stop if popup failed to show
+    console.error("[LLM Content] Error showing summary popup:", error);
+    importedShowError("Error displaying summary popup.");
+    FloatingIcon.removeFloatingIcon();
+    Highlighter.removeSelectionHighlight();
+    lastSummary = "";
+    return; // Stop if popup failed to show
   }
 
   SummaryPopup.enableChatButton(false);
@@ -511,7 +511,9 @@ function handleMessage(req, sender, sendResponse) {
           // --- SUCCESSFUL PARSE ---
           summaryHtml =
             "<ul>" +
-            combinedSummaryArray.map((item) => `<li>${item}</li></li>`).join("") +
+            combinedSummaryArray
+              .map((item) => `<li>${item}</li></li>`)
+              .join("") +
             "</ul>";
           // --- STORE FIXED JSON STRING ---
           lastSummary = JSON.stringify(combinedSummaryArray);
@@ -565,12 +567,16 @@ function handleMessage(req, sender, sendResponse) {
   return false; // Indicate message not handled by this listener
 }
 
-
 // --- Message Listener from Background ---
 // Handles messages from the background script. Queues messages if modules are not ready.
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   // Check if essential modules are initialized
-  if (!modulesInitialized || !SummaryPopup || !importedShowError || !Highlighter) {
+  if (
+    !modulesInitialized ||
+    !SummaryPopup ||
+    !importedShowError ||
+    !Highlighter
+  ) {
     if (DEBUG) {
       console.warn(
         "[LLM Content] Message received before modules loaded, queuing:",
@@ -589,7 +595,6 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   // If modules are initialized, handle the message directly
   return handleMessage(req, sender, sendResponse);
 });
-
 
 // --- Initialization Function ---
 async function initialize() {
@@ -615,11 +620,7 @@ async function initialize() {
         /* ignore */
       }
     }
-    const {
-      // Removed importedTryParseJsonFn assignment
-      showError: importedShowErrorFn,
-    } = utilsModule || {};
-    // Removed importedTryParseJson assignment
+    const { showError: importedShowErrorFn } = utilsModule || {};
     importedShowError = importedShowErrorFn || console.error; // Fallback to console.error
 
     [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
@@ -641,22 +642,30 @@ async function initialize() {
 
     // Set the flag indicating modules are initialized
     modulesInitialized = true;
-    if (DEBUG) console.log("[LLM Content] Modules initialized flag set to true.");
+    if (DEBUG)
+      console.log("[LLM Content] Modules initialized flag set to true.");
 
     // Process any messages that were queued before initialization completed
     if (messageQueue.length > 0) {
-      if (DEBUG) console.log(`[LLM Content] Processing ${messageQueue.length} queued messages.`);
+      if (DEBUG)
+        console.log(
+          `[LLM Content] Processing ${messageQueue.length} queued messages.`,
+        );
       while (messageQueue.length > 0) {
         const queuedMessage = messageQueue.shift(); // Get the oldest message
         // Process the message using the core handler
         // Note: We don't need to check the return value or call sendResponse here
         // because the original listener already returned true, indicating async response.
         // The handleMessage function will call sendResponse if needed.
-        handleMessage(queuedMessage.req, queuedMessage.sender, queuedMessage.sendResponse);
+        handleMessage(
+          queuedMessage.req,
+          queuedMessage.sender,
+          queuedMessage.sendResponse,
+        );
       }
-      if (DEBUG) console.log("[LLM Content] Finished processing queued messages.");
+      if (DEBUG)
+        console.log("[LLM Content] Finished processing queued messages.");
     }
-
 
     console.log(`[LLM Content] Script Initialized. Modules ready.`);
   } catch (err) {
