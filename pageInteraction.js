@@ -3,7 +3,7 @@
 
 // highlighter.js, floatingIcon.js, summaryPopup.js, constants.js, utils.js remain unchanged
 
-console.log(`[LLM Content] Script Start (v3.0.15)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.17)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -65,18 +65,14 @@ function handleIconClick() {
 
   if (DEBUG) console.log("[LLM Content] handleIconClick called.");
 
-  // --- ADDED: Reset highlighter state (including altKeyDown) ---
-  Highlighter.resetHighlightState();
-  // --- END ADDED ---
-
-  // --- ADDED: Remove the selection highlight ---
-  Highlighter.removeSelectionHighlight();
-  // --- END ADDED ---
-
   // Remove the icon immediately as the action is initiated
-  FloatingIcon.removeFloatingIcon(); // Moved this here from handleElementDeselected
+  FloatingIcon.removeFloatingIcon();
+
+  // Reset highlighter state (including altKeyDown)
+  Highlighter.resetHighlightState();
 
   // Proceed with processing the selected element
+  // The selection highlight will be removed *inside* processSelectedElement
   processSelectedElement();
 }
 
@@ -369,6 +365,10 @@ function processSelectedElement() {
     Highlighter.removeSelectionHighlight();
     return;
   }
+
+  // --- MOVED: Remove the selection highlight *after* getting content ---
+  Highlighter.removeSelectionHighlight();
+  // --- END MOVED ---
 
   // Send the HTML content to background.js for summarization directly
   // The background script will handle validation (API key, model) and respond with either the summary or an error.
