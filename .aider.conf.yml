@@ -1,4 +1,5 @@
-auto-commits: false
+chat-mode: ask
+auto-commits: true
 show-model-warnings: false
 analytics: false
 gitignore: false
@@ -34,7 +35,6 @@ file:
   - ./utils.js
 read:
   - ./CONVENTIONS.md
-  - ./GLOBAL_RULES.md
   - ./marked.min.js
   - ./country-flags/languages.json
   - ./icons/icon128.png
