@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.16
+# OpenRouter Summarizer v3.1.0
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -22,7 +22,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   Languages can now be reordered by dragging them in the Options list.
 *   Removed the explicit health check message from the content script, relying on validation within the summary request handler in the background script.
 *   Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request. (v3.0.15)
-*   **Temporary error messages (like "Chat is busy") now automatically disappear after a short duration.** (v3.0.16)
+*   Temporary error messages (like "Chat is busy") now automatically disappear after a short duration. (v3.0.16)
 
 ---
 
@@ -106,8 +106,9 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Fixed Chat Context Error:** Stored the selected element's HTML snippet in a global variable (`lastSelectedDomSnippet`) in `pageInteraction.js` when the floating icon is clicked, and used this stored snippet when opening the chat tab. This resolves the "no element selected" error when clicking the chat button after the summary appears. (v3.0.18)
 *   **Fixed Popup Callback Requirement:** Changed the `onCopy` callback passed to `SummaryPopup.showPopup` in `pageInteraction.js` from `null` to a no-op function (`() => {}`) to satisfy the function type requirement in `summaryPopup.js`. (v3.0.13)
-*   **Fixed Popup Update Timing:** Modified `summaryPopup.js` to return a Promise from `showPopup` that resolves when the popup is ready, and updated `pageInteraction.js` to `await` this Promise before calling `updatePopupContent`. This resolves the "updatePopupContent called but popup doesn't exist" error. (v3.0.12)
+*   **Fixed Popup Update Timing:** Modified `summaryPopup.js` to return a Promise from `showPopup` that resolves when the popup is visible and ready, and updated `pageInteraction.js` to `await` this Promise before calling `updatePopupContent`. This resolves the "updatePopupContent called but popup doesn't exist" error. (v3.0.12)
 *   **Centralized Translation Prompt:** Moved the user message template used for translation requests (triggered by clicking a language flag in the chat) to `constants.js` as `CHAT_TRANSLATION_REQUEST_TEMPLATE`. (v3.0.9)
 *   **Removed No-Op Function:** Removed the `updatePopupFlags` function from `summaryPopup.js` as it was explicitly a no-op and flags are now handled in the chat interface. (v3.0.14)
 *   **Exported Default Constants:** Exported `DEFAULT_FORMAT_INSTRUCTIONS` and `DEFAULT_POSTAMBLE_TEXT` from `constants.js` to resolve import errors in `background.js` and `options.js`. (v3.0.8)
