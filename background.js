@@ -10,7 +10,7 @@ import {
   PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v3.0.0)`); // Updated version
+console.log(`[LLM Background] Service Worker Start (v3.0.1)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
@@ -305,55 +305,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
        });
        return true;
     }
-    // --- requestTranslation Handler ---
-    else if (request.action === "requestTranslation") {
-        if (DEBUG) console.log("[LLM Background] Handling requestTranslation request.");
-        chrome.storage.sync.get(["apiKey", "models"], (storageResult) => {
-            const apiKey = storageResult.apiKey;
-            const models = storageResult.models || DEFAULT_MODEL_OPTIONS;
-            const modelIds = models.map((m) => m.id);
-            const model = request.model; // Use the model passed from chat.js
-
-            if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") { sendResponse({ status: "error", message: "API key required for translation." }); return; }
-            if (!model || typeof model !== "string" || model.trim() === "" || !modelIds.includes(model)) { sendResponse({ status: "error", message: "Valid model required for translation." }); return; }
-            if (!request.textToTranslate || typeof request.textToTranslate !== "string" || request.textToTranslate.trim() === "") { sendResponse({ status: "error", message: "Text to translate is empty." }); return; }
-            if (!request.targetLanguage || typeof request.targetLanguage !== "string" || request.targetLanguage.trim() === "") { sendResponse({ status: "error", message: "Target language is empty." }); return; }
-
-            const translationPrompt = `Translate the following text into ${request.targetLanguage}. Provide only the translated text as a single string. Do not include any other commentary or formatting. The text to translate is: "${request.textToTranslate}"`;
-
-            const payload = {
-                model: model,
-                messages: [{ role: "user", content: translationPrompt }],
-                // structured_outputs: "true", // Translation might not need structured output
-                // response_format: { type: "json_schema", json_schema: { name: "translated_text", strict: true, schema: { type: "string" } } } // Or request a string directly
-            };
-
-            if (DEBUG) console.log("[LLM Background] Sending payload to OpenRouter for translation:", payload);
-
-            fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
-                    "X-Title": "OR-Summ-Translate"
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP error! status: ${response.status}`)))
-            .then(data => {
-                if (DEBUG) console.log("[LLM Background] Fetch response data for translation:", data);
-                const translatedText = data.choices?.[0]?.message?.content?.trim();
-                 if (!translatedText) { throw new Error("No translated content received from LLM."); }
-                sendResponse({ status: "success", translatedText: translatedText });
-            })
-            .catch(error => {
-                if (DEBUG) console.error("[LLM Background] Error in fetch for translation:", error);
-                sendResponse({ status: "error", message: error.message });
-            });
-        });
-        return true; // Indicate async response WILL be sent later
-    }
+    // Removed requestTranslation handler
 
 
     if (DEBUG) console.log("[LLM Background] Message handler completed for action:", request.action);
