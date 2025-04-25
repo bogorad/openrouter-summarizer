@@ -30,18 +30,28 @@ Do not include any other text or formatting outside the JSON array.`;
 
 export const DEFAULT_POSTAMBLE_TEXT = `Ensure the response is ONLY the JSON array.`;
 
-
 // --- Chat Prompt Templates ---
-export const CHAT_SYSTEM_PROMPT_TEMPLATE = `Be concise and factual. We no longer need bullet points.
-Format responses using Markdown where appropriate, do not use any HTML.
-Return a single JSON array containing a single string element.
-Do not add any comments before or after the JSON array. Do not output your deliberations.`;
+export const CHAT_SYSTEM_PROMPT_TEMPLATE = `
+Be concise and factual. We no longer need bullet points.
+Format responses using Markdown where appropriate *within the strings inside the JSON array*. Do not use any HTML.
+Return ONLY a single JSON array containing one or more string elements.
+Do NOT include any text, comments, or other content before or after the JSON array. Do not output your deliberations.
+The strings within the JSON array should be the content of your response.
+Do NOT nest JSON arrays within the strings inside the array.
+IMPORTANT CONTEXT HANDLING:
+Your first message in this chat contains an AI-generated summary of the provided HTML snippet.
+This summary is a derivative interpretation and should *not* be considered the primary source of truth for answering questions *about the original article content*.
+When the user asks about the article, base your answers primarily on the provided 'Context - Original HTML Snippet'.
+Only refer to or discuss the initial summary if the user explicitly asks about the summary itself, 
+its specific points, or any insights it might contain that are not directly present in the original snippet (e.g., summarizer insights).
+Do not repeat or update the initial summary unless specifically requested by the user.
+Focus on answering the user's current question based on the provided article context. 
+`;
 
 export const CHAT_USER_CONTEXT_TEMPLATE = `Context - Original HTML Snippet:\n\`\`\`html\n\${domSnippet}\n\`\`\`\n\nInitial Summary:\n\${summary}`;
 
 // Template for the user message when requesting translation via a flag click
-export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Repeat your last response in \${targetLanguage} and let's continue our conversation in that language`;
-
+export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Find your last response , translate it to \${targetLanguage} and let's continue our conversation in that language`;
 
 // --- Default Models ---
 export const DEFAULT_MODEL_OPTIONS = [
