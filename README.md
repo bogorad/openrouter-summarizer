@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.5
+# OpenRouter Summarizer v3.0.6
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -104,6 +104,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Fixed Syntax Error:** Corrected a missing closing curly brace in the `openChatWithContext` function in `pageInteraction.js`.
 *   **Centralized Prompt Strings:** All prompt templates and fixed prompt parts have been moved to `constants.js` for better organization and maintainability.
 *   **Options Page Reload:** The options page now reloads automatically after saving settings to ensure all changes are fully applied and the UI is consistent.
 *   **Flags Moved to Chat:** Language flags are now displayed in the chat interface instead of the summary popup footer.

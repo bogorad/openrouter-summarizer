@@ -1,5 +1,9 @@
 // pageInteraction.js
-console.log(`[LLM Content] Script Start (v3.0.6)`); // Updated version
+// FIX: Added missing closing brace in openChatWithContext function
+
+// highlighter.js, floatingIcon.js, summaryPopup.js, constants.js, utils.js remain unchanged
+
+console.log(`[LLM Content] Script Start (v3.0.7)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -229,7 +233,8 @@ function openChatWithContext(targetLang = "") {
               console.error(
                 "[LLM Chat Context] Error requesting tab open:",
                 chrome.runtime.lastError,
-              } else {
+              ); // FIX: Added missing closing brace here
+            } else {
               if (DEBUG)
                 console.log(
                   "[LLM Chat Context] Background ack openChatTab:",
@@ -659,4 +664,3 @@ async function initialize() {
 
 // Start the initialization process
 initialize();
-
