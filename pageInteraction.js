@@ -3,7 +3,7 @@
 
 // highlighter.js, floatingIcon.js, summaryPopup.js, constants.js, utils.js remain unchanged
 
-console.log(`[LLM Content] Script Start (v3.0.17)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.18)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -17,6 +17,7 @@ let importedShowError = null;
 let DEBUG = false; // Debug logging state
 let lastSummary = ""; // Raw or Cleaned/Combined summary string for chat context
 let lastModelUsed = ""; // Model used for the last summary
+let lastSelectedDomSnippet = null; // ADDED: New state variable to store the HTML snippet
 
 // Queue for messages received before modules are fully initialized
 let messageQueue = [];
@@ -53,9 +54,10 @@ function handleElementDeselected() {
   if (DEBUG) console.log("[LLM Content] handleElementDeselected called.");
   // When deselection occurs (via highlighter), hide the popup.
   SummaryPopup.hidePopup();
-  // Clear summary state as well
+  // Clear state variables
   lastSummary = "";
   lastModelUsed = "";
+  lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on deselect
   // FloatingIcon.removeFloatingIcon(); // Removed - handled in handleIconClick/handleIconDismiss
 }
 
@@ -89,9 +91,10 @@ function handleIconDismiss() {
   Highlighter.removeSelectionHighlight(); // This triggers handleElementDeselected
   // FloatingIcon.removeFloatingIcon(); // This is now handled by handleElementDeselected
   // SummaryPopup.hidePopup(); // This is now handled by handleElementDeselected
-  // Clear summary state as well
+  // Clear state variables
   lastSummary = "";
   lastModelUsed = "";
+  lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on dismiss
 }
 
 function handlePopupChat(targetLang = null) {
@@ -100,6 +103,7 @@ function handlePopupChat(targetLang = null) {
       `[LLM Content] handlePopupChat called. Target Language: ${targetLang}`,
     );
   // When the Chat button (or a flag) is clicked in the popup, open the chat context.
+  // We no longer need to check for selectedElement here, as we'll use the stored snippet.
   openChatWithContext(targetLang); // Assume modules are loaded if popup exists
 }
 
@@ -110,23 +114,27 @@ function handlePopupClose() {
   SummaryPopup.hidePopup();
   Highlighter.removeSelectionHighlight(); // This will trigger handleElementDeselected
   FloatingIcon.removeFloatingIcon(); // Ensure icon is removed too
-  // Clear summary state as well
+  // Clear state variables
   lastSummary = "";
   lastModelUsed = "";
+  lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on close
 }
 
 // --- Chat Context Handling ---
 function openChatWithContext(targetLang = "") {
-  if (!Highlighter) return; // Check module loaded
-  const selectedElement = Highlighter.getSelectedElement();
-  if (!selectedElement) {
-    importedShowError("Cannot open chat: Original element selection lost.");
-    if (DEBUG)
-      console.warn(
-        "[LLM Chat Context] Chat attempt failed: selectedElement is null.",
-      );
-    return;
+  // REMOVED: Check for !Highlighter module loaded here, assume loaded if popup was shown.
+  // REMOVED: Check for selectedElement being null.
+
+  // Use the stored domSnippet instead of getting it from the element again
+  const domSnippet = lastSelectedDomSnippet;
+
+  // Check if we actually have a snippet to send
+  if (!domSnippet || !domSnippet.trim()) {
+      importedShowError("Cannot open chat: No element content available.");
+      if (DEBUG) console.warn("[LLM Chat Context] Chat attempt failed: lastSelectedDomSnippet is null or empty.");
+      return;
   }
+
   // Use the raw lastSummary stored in this main script's state
   // Check if lastSummary is valid (not empty, not "Thinking...", not an error)
   if (
@@ -144,16 +152,10 @@ function openChatWithContext(targetLang = "") {
     return;
   }
 
-  const domSnippet =
-    selectedElement.outerHTML ||
-    selectedElement.innerHTML ||
-    selectedElement.textContent ||
-    "";
-  // Pass the potentially fixed (or error) summary string to context.
   const summaryForChat = lastSummary;
 
   const contextPayload = {
-    domSnippet: domSnippet,
+    domSnippet: domSnippet, // Use the stored snippet
     summary: summaryForChat,
     chatTargetLanguage: targetLang,
     modelUsedForSummary: lastModelUsed, // Include the model used
@@ -199,10 +201,10 @@ function openChatWithContext(targetLang = "") {
                 );
               // Successfully opened chat, now clean up the page interaction state
               if (SummaryPopup) SummaryPopup.hidePopup();
-              // if (FloatingIcon) FloatingIcon.removeFloatingIcon(); // Removed - handled in handleIconClick
-              // if (Highlighter) Highlighter.removeSelectionHighlight(); // Removed - handled in handleIconClick
+              // Highlight and icon removal are handled in handleIconClick/handlePopupClose
               lastSummary = "";
-              lastModelUsed = ""; // Clear state after successful chat open
+              lastModelUsed = "";
+              lastSelectedDomSnippet = null; // ADDED: Clear stored snippet after successful chat open
             }
           },
         );
@@ -246,6 +248,7 @@ async function sendToLLM(selectedHtml) {
     FloatingIcon.removeFloatingIcon();
     Highlighter.removeSelectionHighlight();
     lastSummary = "";
+    lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on send error
     return; // Stop if popup failed to show
   }
 
@@ -274,6 +277,7 @@ async function sendToLLM(selectedHtml) {
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = ""; // Clear state on send error
+        lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on send error
         return;
       }
 
@@ -291,6 +295,7 @@ async function sendToLLM(selectedHtml) {
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = ""; // Clear state on validation error
+        lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on validation error
       } else if (response && response.status === "processing") {
         // Correct path: Background acknowledged the request and will send result later via tabs.sendMessage
         if (DEBUG)
@@ -312,6 +317,7 @@ async function sendToLLM(selectedHtml) {
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = ""; // Clear state on unexpected response
+        lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on unexpected response
       }
     },
   );
@@ -363,12 +369,15 @@ function processSelectedElement() {
     SummaryPopup.enableChatButton(false);
     FloatingIcon.removeFloatingIcon();
     Highlighter.removeSelectionHighlight();
+    lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on empty content
     return;
   }
 
-  // --- MOVED: Remove the selection highlight *after* getting content ---
+  // ADDED: Store the retrieved HTML content before removing the highlight
+  lastSelectedDomSnippet = htmlContent;
+
+  // Remove the selection highlight *after* getting content
   Highlighter.removeSelectionHighlight();
-  // --- END MOVED ---
 
   // Send the HTML content to background.js for summarization directly
   // The background script will handle validation (API key, model) and respond with either the summary or an error.
