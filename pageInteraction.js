@@ -1,5 +1,5 @@
 // pageInteraction.js
-console.log(`[LLM Content] Script Start (v3.0.5)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.6)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -16,6 +16,10 @@ let lastSummary = ""; // Raw or Cleaned/Combined summary string for chat context
 let lastModelUsed = ""; // Model used for the last summary
 
 let language_info = [];
+
+// Queue for messages received before modules are fully initialized
+let messageQueue = [];
+let modulesInitialized = false; // Flag to indicate when modules are ready
 // ...
 
 // --- Prompt Assembly Function (Needs constants) ---
@@ -386,22 +390,10 @@ function processSelectedElement() {
   sendToLLM(htmlContent);
 }
 
-// --- Message Listener from Background ---
-// Handles the *asynchronous* summaryResult message sent via tabs.sendMessage
-chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
-  if (!Highlighter || !SummaryPopup) {
-    console.warn(
-      "[LLM Content] Message received before modules loaded, ignoring:",
-      req.action,
-    );
-    sendResponse({
-      status: "error",
-      message: "Content script not fully initialized.",
-    });
-    return false;
-  }
-
-  if (DEBUG) console.log("[LLM Content] Received message:", req.action);
+// --- Core Message Handling Logic ---
+// Extracted from the listener to be reusable for queued messages
+function handleMessage(req, sender, sendResponse) {
+  if (DEBUG) console.log("[LLM Content] Handling message:", req.action);
 
   if (req.action === "processSelection") {
     if (DEBUG) console.log("[LLM Content] Received processSelection command.");
@@ -556,7 +548,33 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     return true; // Indicate message handled
   }
   return false; // Indicate message not handled by this listener
+}
+
+
+// --- Message Listener from Background ---
+// Handles messages from the background script. Queues messages if modules are not ready.
+chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
+  // Check if essential modules are initialized
+  if (!modulesInitialized || !SummaryPopup || !importedShowError || !Highlighter) {
+    if (DEBUG) {
+      console.warn(
+        "[LLM Content] Message received before modules loaded, queuing:",
+        req.action,
+        "Queue size:",
+        messageQueue.length + 1,
+      );
+    }
+    // Queue the message and its sendResponse function
+    messageQueue.push({ req, sender, sendResponse });
+    // Return true to indicate that sendResponse will be called asynchronously
+    // once the message is processed from the queue.
+    return true;
+  }
+
+  // If modules are initialized, handle the message directly
+  return handleMessage(req, sender, sendResponse);
 });
+
 
 // --- Initialization Function ---
 async function initialize() {
@@ -576,7 +594,8 @@ async function initialize() {
         "Error loading utility functions. Some features may not work.";
       console.error(errorMsg, error);
       try {
-        importedShowError(errorMsg);
+        // Use console.error as a fallback if importedShowError is not available yet
+        (importedShowError || console.error)(errorMsg);
       } catch {
         /* ignore */
       }
@@ -586,7 +605,7 @@ async function initialize() {
       showError: importedShowErrorFn,
     } = utilsModule || {};
     importedTryParseJson = importedTryParseJsonFn; // Make available globally
-    importedShowError = importedShowErrorFn || console.error;
+    importedShowError = importedShowErrorFn || console.error; // Fallback to console.error
 
     [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
       import(chrome.runtime.getURL("./highlighter.js")),
@@ -605,12 +624,32 @@ async function initialize() {
     FloatingIcon.initializeFloatingIcon({ initialDebugState: DEBUG });
     SummaryPopup.initializePopupManager({ initialDebugState: DEBUG });
 
+    // Set the flag indicating modules are initialized
+    modulesInitialized = true;
+    if (DEBUG) console.log("[LLM Content] Modules initialized flag set to true.");
+
+    // Process any messages that were queued before initialization completed
+    if (messageQueue.length > 0) {
+      if (DEBUG) console.log(`[LLM Content] Processing ${messageQueue.length} queued messages.`);
+      while (messageQueue.length > 0) {
+        const queuedMessage = messageQueue.shift(); // Get the oldest message
+        // Process the message using the core handler
+        // Note: We don't need to check the return value or call sendResponse here
+        // because the original listener already returned true, indicating async response.
+        // The handleMessage function will call sendResponse if needed.
+        handleMessage(queuedMessage.req, queuedMessage.sender, queuedMessage.sendResponse);
+      }
+      if (DEBUG) console.log("[LLM Content] Finished processing queued messages.");
+    }
+
+
     console.log(`[LLM Content] Script Initialized. Modules ready.`);
   } catch (err) {
     console.error(
       "[LLM Content] CRITICAL: Failed to load modules dynamically or initialize.",
       err,
     );
+    // Use the fallback showError if the imported one failed to load
     const errorDisplayFn = importedShowError || console.error;
     errorDisplayFn(
       `Error: OpenRouter Summarizer failed to load components (${err.message}). Please try reloading the page or reinstalling the extension.`,
@@ -620,4 +659,3 @@ async function initialize() {
 
 // Start the initialization process
 initialize();
-
