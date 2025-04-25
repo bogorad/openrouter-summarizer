@@ -130,7 +130,6 @@ const handleFormSubmit = (event) => {
   }
 };
 
-
 /**
  * Initializes the chat by fetching context from the background script and setting up the UI.
  */
@@ -173,7 +172,9 @@ function initializeChat() {
         );
 
       // Store language info and render flags
-      language_info = Array.isArray(response.language_info) ? response.language_info : [];
+      language_info = Array.isArray(response.language_info)
+        ? response.language_info
+        : [];
       renderLanguageFlags(); // Render flags based on received info
 
       // Populate dropdown, try selecting the actual model used for summary first,
@@ -233,7 +234,6 @@ function initializeChat() {
 
         // The initial translation request logic based on chatTargetLanguage is removed
         // as flags now trigger a new chat turn directly.
-
       } else {
         console.warn(
           "[LLM Chat] Context received from background is incomplete.",
@@ -257,38 +257,39 @@ function initializeChat() {
  * Renders language flag buttons in the chat interface.
  */
 function renderLanguageFlags() {
-    if (!languageFlagsContainer) {
-        console.error("[LLM Chat] Language flags container not found.");
-        return;
-    }
-    languageFlagsContainer.innerHTML = ""; // Clear existing flags
+  if (!languageFlagsContainer) {
+    console.error("[LLM Chat] Language flags container not found.");
+    return;
+  }
+  languageFlagsContainer.innerHTML = ""; // Clear existing flags
 
-    if (!Array.isArray(language_info) || language_info.length === 0) {
-        if (DEBUG) console.log("[LLM Chat] No configured languages to render flags.");
-        return;
-    }
+  if (!Array.isArray(language_info) || language_info.length === 0) {
+    if (DEBUG)
+      console.log("[LLM Chat] No configured languages to render flags.");
+    return;
+  }
 
-    if (DEBUG) console.log("[LLM Chat] Rendering language flags:", language_info);
+  if (DEBUG) console.log("[LLM Chat] Rendering language flags:", language_info);
 
-    language_info.forEach(langInfo => {
-        const flagButton = document.createElement("button");
-        flagButton.className = "language-flag-button"; // Use the new class from chat.css
-        flagButton.title = `Translate last assistant message to ${langInfo.language_name}`;
-        flagButton.dataset.languageName = langInfo.language_name; // Store language name
+  language_info.forEach((langInfo) => {
+    const flagButton = document.createElement("button");
+    flagButton.className = "language-flag-button"; // Use the new class from chat.css
+    flagButton.title = `Translate last assistant message to ${langInfo.language_name}`;
+    flagButton.dataset.languageName = langInfo.language_name; // Store language name
 
-        const flagImg = document.createElement("img");
-        flagImg.className = "language-flag"; // Use the class from chat.css
-        flagImg.src = langInfo.svg_path;
-        flagImg.alt = `${langInfo.language_name} flag`;
-        flagImg.style.pointerEvents = "none"; // Prevent image interfering with button click
+    const flagImg = document.createElement("img");
+    flagImg.className = "language-flag"; // Use the class from chat.css
+    flagImg.src = langInfo.svg_path;
+    flagImg.alt = `${langInfo.language_name} flag`;
+    flagImg.style.pointerEvents = "none"; // Prevent image interfering with button click
 
-        flagButton.appendChild(flagImg);
+    flagButton.appendChild(flagImg);
 
-        // Add click listener to initiate translation
-        flagButton.addEventListener("click", handleFlagButtonClick);
+    // Add click listener to initiate translation
+    flagButton.addEventListener("click", handleFlagButtonClick);
 
-        languageFlagsContainer.appendChild(flagButton);
-    });
+    languageFlagsContainer.appendChild(flagButton);
+  });
 }
 
 /**
@@ -296,28 +297,30 @@ function renderLanguageFlags() {
  * @param {Event} event - The click event.
  */
 function handleFlagButtonClick(event) {
-    const targetLanguage = event.currentTarget.dataset.languageName;
-    if (!targetLanguage) {
-        console.error("[LLM Chat] Flag button missing language name data.");
-        showError("Error: Could not determine target language for translation.");
-        return;
-    }
+  const targetLanguage = event.currentTarget.dataset.languageName;
+  if (!targetLanguage) {
+    console.error("[LLM Chat] Flag button missing language name data.");
+    showError("Error: Could not determine target language for translation.");
+    return;
+  }
 
-    if (DEBUG) console.log(`[LLM Chat] Flag clicked for translation to: ${targetLanguage}`);
+  if (DEBUG)
+    console.log(
+      `[LLM Chat] Flag clicked for translation to: ${targetLanguage}`,
+    );
 
-    // Construct the specific user message
-    const userMessage = `Say that in ${targetLanguage} and let's continue our conversation in that language`;
+  // Construct the specific user message
+  const userMessage = `Repeat your last response in ${targetLanguage} and let's continue our conversation in that language`;
 
-    // Add the user message to the chat history
-    messages.push({ role: "user", content: userMessage });
-    renderMessages(); // Render the new user message
+  // Add the user message to the chat history
+  messages.push({ role: "user", content: userMessage });
+  renderMessages(); // Render the new user message
 
-    // Send the message to the background script using the standard chat pipeline
-    sendChatRequestToBackground(userMessage);
+  // Send the message to the background script using the standard chat pipeline
+  sendChatRequestToBackground(userMessage);
 }
 
 // Removed sendTranslationRequest function
-
 
 /**
  * Sends a chat request to the background script with the user's text.
@@ -711,10 +714,11 @@ function renderMessages() {
         }
         wrap.appendChild(msgDiv);
         // console.log(`[LLM Chat Render] Appended user message ${index} to DOM.`); // Less verbose
-      } else if (msg.role === "system") { // Render system messages (like "Translating...")
-           msgDiv.classList.add("system-info");
-           msgDiv.textContent = msg.content;
-           wrap.appendChild(msgDiv);
+      } else if (msg.role === "system") {
+        // Render system messages (like "Translating...")
+        msgDiv.classList.add("system-info");
+        msgDiv.textContent = msg.content;
+        wrap.appendChild(msgDiv);
       }
     });
   }
@@ -990,7 +994,7 @@ function formatChatAsMarkdown() {
           ? `**User:** ${msg.content}`
           : msg.role === "assistant"
             ? `**Assistant (${msg.model || "Unknown"}):** ${msg.content}` // Include model in MD
-            : `**System:** ${msg.content}` // Include system messages
+            : `**System:** ${msg.content}`, // Include system messages
     )
     .join("\n\n");
 }
