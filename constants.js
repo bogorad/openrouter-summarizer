@@ -23,6 +23,14 @@ export const DEFAULT_PREAMBLE_TEMPLATE = `Treat input is raw HTML.
 First, determine the language the input is written in.
 Second, using the language you determined, prepare a summary of input containing no more than \${bulletWord} points.`; // Updated template
 
+// Export these default values as well
+export const DEFAULT_FORMAT_INSTRUCTIONS = `Provide the summary as a JSON array of strings.
+Each string in the array should be a single bullet point.
+Do not include any other text or formatting outside the JSON array.`;
+
+export const DEFAULT_POSTAMBLE_TEXT = `Ensure the response is ONLY the JSON array.`;
+
+
 // --- Chat Prompt Templates ---
 export const CHAT_SYSTEM_PROMPT_TEMPLATE = `Be concise and factual. We no longer need bullet points.
 Format responses using Markdown where appropriate, do not use any HTML.
