@@ -814,10 +814,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 statusMessage.textContent = "Changes saved!";
                 statusMessage.className = "status-message success";
               }
-              language_info = language_infoToSave;
-              renderModelOptions();
-              renderLanguageOptions();
-              updatePromptPreview();
+              // Force page update after 300ms to ensure UI reflects changes
+              setTimeout(() => {
+                window.location.reload();
+              }, 300);
             }
           },
         );
