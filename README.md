@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.0
+# OpenRouter Summarizer v3.0.2
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -92,38 +92,6 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **Security:**
     *   Renders HTML list/Markdown. Does **not** execute scripts or load external resources from LLM responses. Relies on `marked` for chat rendering. Static assets like SVGs and dynamically imported JS modules are loaded securely from within the extension bundle via `chrome.runtime.getURL`.
 
----
-
-## 🧑‍💻 Open Source
-
-This extension is open source, MIT licensed.
-[View code or contribute on GitHub](https://github.com/bogorad/openrouter-summarizer) <!-- Update link if needed -->
-
----
-
-## ❓ FAQ
-
-**Q: Why API key?**
-A: Uses OpenRouter.ai API for summaries/chat. Get your own key.
-
-**Q: Why OpenRouter?**
-A: Access to many LLMs, good pricing/performance.
-
-**Q: Data safe?**
-A: Yes. Key/settings local. Text sent to OpenRouter on request. Chat context uses temporary session storage. See Privacy section.
-
-**Q: How does Chat context work?**
-A: The original selected HTML snippet and the raw/processed JSON string are stored when chat starts. For the *first* chat message, both are sent. For *subsequent* messages, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM to help maintain context.
-
-**Q: Can I mix models?**
-A: Yes! The initial summary uses your default model. In the chat tab, you can select a *different* model from the dropdown for each message you send.
-
-**Q: Can I customize models/languages/prompt?**
-A: Yes! Options allow editing model/language lists. Advanced Options let you edit the variable part of the prompt.
-
-**Q: Is rendering HTML/Markdown safe?**
-A: The initial summary popup renders a basic HTML list based on the JSON array received (LLM is instructed to only use `<b>`/`<i>`). Chat uses the `marked` library for standard Markdown, which can include HTML. While generally safe, be mindful of LLM outputs. No scripts are executed. Flag images are static SVGs loaded securely from within the extension bundle via `chrome.runtime.getURL`.
-
 **Q: Why aren't all my configured flags showing in the popup?**
 A: The flags have been moved to the chat interface for better organization and to avoid cluttering the summary popup.
 
@@ -134,6 +102,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Options Page Reload:** The options page now reloads automatically after saving settings to ensure all changes are fully applied and the UI is consistent.
 *   **Flags Moved to Chat:** Language flags are now displayed in the chat interface instead of the summary popup footer.
 *   **Simplified Summary Popup:** The summary popup footer now contains only "Copy", "Chat", and "Close" buttons. The "Chat" button initiates the chat tab with the summary context.
 *   **Chat Translation Feature:** Added functionality to translate the last assistant message in the chat by clicking a language flag button.
