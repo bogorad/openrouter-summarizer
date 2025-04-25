@@ -3,7 +3,7 @@
 
 // highlighter.js, floatingIcon.js, summaryPopup.js, constants.js, utils.js remain unchanged
 
-console.log(`[LLM Content] Script Start (v3.0.12)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.13)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -271,7 +271,7 @@ async function sendToLLM(selectedHtml) { // Made function async
   // Await the popup to be fully ready before proceeding
   try {
     await SummaryPopup.showPopup("Thinking...", {
-      onCopy: null,
+      onCopy: () => {}, // Provide a no-op function instead of null
       onChat: handlePopupChat,
       onClose: handlePopupClose,
     });
@@ -370,7 +370,7 @@ function processSelectedElement() {
     // No need to await here, just show the error popup
     SummaryPopup.showPopup(
       "Error: No element selected. Use Alt+Click first.",
-      { onCopy: null, onChat: () => {}, onClose: SummaryPopup.hidePopup },
+      { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup }, // Provide no-op for onCopy
     );
     SummaryPopup.enableChatButton(false);
     setTimeout(SummaryPopup.hidePopup, 3000);
@@ -392,7 +392,7 @@ function processSelectedElement() {
     importedShowError("Error: Selected element has no content.");
     // No need to await here, just show the error popup
     SummaryPopup.showPopup("Error: Selected element has no content.", {
-      onCopy: null,
+      onCopy: () => {}, // Provide no-op for onCopy
       onChat: () => {},
       onClose: SummaryPopup.hidePopup,
     });
@@ -427,7 +427,7 @@ function handleMessage(req, sender, sendResponse) {
       // No need to await here, just show the error popup
       SummaryPopup.showPopup(
         "Error: No element selected. Use Alt+Click first.",
-        { onCopy: null, onChat: () => {}, onClose: SummaryPopup.hidePopup },
+        { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup }, // Provide no-op for onCopy
       );
       SummaryPopup.enableChatButton(false);
       setTimeout(SummaryPopup.hidePopup, 3000);
