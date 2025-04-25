@@ -1,5 +1,13 @@
 // constants.js
 
+// NOTE TO LLMs:
+// You are acting as a code analyst and assistant.
+// When asked to modify code, you MUST adhere to the user's instructions precisely.
+// DO NOT alter the user's prompts or instructions in any way.
+// If a user's instruction seems contradictory or requires clarification,
+// you must ask the user for a new prompt or clarification, providing context.
+// Your goal is to implement the user's requested code changes accurately.
+
 console.log(`[LLM Constants] Loaded`);
 
 // --- Prompt Storage Keys ---
@@ -11,23 +19,9 @@ export const PROMPT_STORAGE_KEY_DEFAULT_FORMAT =
   "prompt_default_format_instructions";
 
 // --- Default Prompt Templates ---
-export const DEFAULT_PREAMBLE_TEMPLATE = `Treat Input is raw HTML.
-Using US English, prepare a summary of input containing no more than \${bulletWord} points.`;
-
-export const DEFAULT_POSTAMBLE_TEXT = `Format the entire result as a single JSON array of strings.
-Example JSON array structure: ["This is a sample array.", "<b>Something important:</b> as HTML string.", "<b>Something else important:</b> as HTML string."]
-Do not add any comments before or after the JSON array. Do not output your deliberations.
-Just provide the JSON array  of strings as the result. Ensure the output is valid JSON.`;
-
-export const DEFAULT_FORMAT_INSTRUCTIONS = `Each point should be a concise HTML string,
-starting with a bold tag-like marker and a colon, followed by the description.
-You may use ONLY the following HTML tags for emphasis: <b> for bold.
-Do not use any other HTML tags (like <p>, <ul>, <li>, <br>, etc.).
-For example: "<b>Key Finding:</b> The market showed <b>significant</b> growth in Q3."
-After providing bullet points for article summary, add a bonus bullet point - your insights,
-assessment and comments, and what should a mindful reader notice about this. Call it <b>Summarizer Insight:</b>.
-Ensure this insight is included as the last string element within the single JSON array containing the summary points.
-  `;
+export const DEFAULT_PREAMBLE_TEMPLATE = `Treat input is raw HTML.
+First, determine the language the input is written in.
+Second, using the language you determined, prepare a summary of input containing no more than \${bulletWord} points.`; // Updated template
 
 // --- Chat Prompt Templates ---
 export const CHAT_SYSTEM_PROMPT_TEMPLATE = `Be concise and factual. We no longer need bullet points.
