@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.9
+# OpenRouter Summarizer v3.0.12
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -104,6 +104,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Fixed Popup Update Timing:** Modified `summaryPopup.js` to return a Promise from `showPopup` that resolves when the popup is ready, and updated `pageInteraction.js` to `await` this Promise before calling `updatePopupContent`. This resolves the "updatePopupContent called but popup doesn't exist" error. (v3.0.12)
 *   **Centralized Translation Prompt:** Moved the user message template used for translation requests (triggered by clicking a language flag in the chat) to `constants.js` as `CHAT_TRANSLATION_REQUEST_TEMPLATE`. (v3.0.9)
 *   **Exported Default Constants:** Exported `DEFAULT_FORMAT_INSTRUCTIONS` and `DEFAULT_POSTAMBLE_TEXT` from `constants.js` to resolve import errors in `background.js` and `options.js`. (v3.0.8)
 *   **Prompt Language Determination:** The initial summary prompt now instructs the LLM to determine the language of the input text and summarize in that language. The extension no longer explicitly requests the summary in the first configured language. (v3.0.7)

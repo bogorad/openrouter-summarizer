@@ -3,7 +3,7 @@
 
 // highlighter.js, floatingIcon.js, summaryPopup.js, constants.js, utils.js remain unchanged
 
-console.log(`[LLM Content] Script Start (v3.0.11)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.12)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -227,7 +227,7 @@ function openChatWithContext(targetLang = "") {
               console.error(
                 "[LLM Chat Context] Error requesting tab open:",
                 chrome.runtime.lastError,
-              ); // FIX: Added missing closing brace here
+              );
             } else {
               if (DEBUG)
                 console.log(
@@ -255,7 +255,7 @@ function openChatWithContext(targetLang = "") {
 }
 
 // --- LLM Interaction (Delegated to background.js) ---
-function sendToLLM(selectedHtml) {
+async function sendToLLM(selectedHtml) { // Made function async
   if (!SummaryPopup) {
     console.error(
       "[LLM Content] sendToLLM called before SummaryPopup module loaded!",
@@ -267,11 +267,24 @@ function sendToLLM(selectedHtml) {
 
   const requestId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   lastSummary = "Thinking...";
-  SummaryPopup.showPopup("Thinking...", {
-    onCopy: null, // Replaced handlePopupCopy with null
-    onChat: handlePopupChat,
-    onClose: handlePopupClose,
-  });
+
+  // Await the popup to be fully ready before proceeding
+  try {
+    await SummaryPopup.showPopup("Thinking...", {
+      onCopy: null,
+      onChat: handlePopupChat,
+      onClose: handlePopupClose,
+    });
+    if (DEBUG) console.log("[LLM Content] Summary popup is now ready.");
+  } catch (error) {
+     console.error("[LLM Content] Error showing summary popup:", error);
+     importedShowError("Error displaying summary popup.");
+     FloatingIcon.removeFloatingIcon();
+     Highlighter.removeSelectionHighlight();
+     lastSummary = "";
+     return; // Stop if popup failed to show
+  }
+
   SummaryPopup.enableChatButton(false);
 
   chrome.runtime.sendMessage(
@@ -291,6 +304,7 @@ function sendToLLM(selectedHtml) {
         );
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
         importedShowError(errorMsg);
+        // Now that showPopup is awaited, updatePopupContent should work
         SummaryPopup.updatePopupContent(errorMsg);
         SummaryPopup.enableChatButton(false);
         FloatingIcon.removeFloatingIcon();
@@ -307,6 +321,7 @@ function sendToLLM(selectedHtml) {
         );
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         importedShowError(errorMsg);
+        // Now that showPopup is awaited, updatePopupContent should work
         SummaryPopup.updatePopupContent(errorMsg);
         SummaryPopup.enableChatButton(false);
         FloatingIcon.removeFloatingIcon();
@@ -327,6 +342,7 @@ function sendToLLM(selectedHtml) {
         );
         const errorMsg = "Error: Unexpected response from background.";
         importedShowError(errorMsg);
+        // Now that showPopup is awaited, updatePopupContent should work
         SummaryPopup.updatePopupContent(errorMsg);
         SummaryPopup.enableChatButton(false);
         FloatingIcon.removeFloatingIcon();
@@ -351,9 +367,10 @@ function processSelectedElement() {
       "[LLM Content] processSelectedElement called but no element is selected!",
     );
     importedShowError("Error: No element selected. Use Alt+Click first.");
+    // No need to await here, just show the error popup
     SummaryPopup.showPopup(
       "Error: No element selected. Use Alt+Click first.",
-      { onCopy: null, onChat: () => {}, onClose: SummaryPopup.hidePopup }, // Replaced handlePopupCopy with null
+      { onCopy: null, onChat: () => {}, onClose: SummaryPopup.hidePopup },
     );
     SummaryPopup.enableChatButton(false);
     setTimeout(SummaryPopup.hidePopup, 3000);
@@ -373,8 +390,9 @@ function processSelectedElement() {
     "";
   if (!htmlContent.trim()) {
     importedShowError("Error: Selected element has no content.");
+    // No need to await here, just show the error popup
     SummaryPopup.showPopup("Error: Selected element has no content.", {
-      onCopy: null, // Replaced handlePopupCopy with null
+      onCopy: null,
       onChat: () => {},
       onClose: SummaryPopup.hidePopup,
     });
@@ -386,7 +404,7 @@ function processSelectedElement() {
 
   // Send the HTML content to background.js for summarization directly
   // The background script will handle validation (API key, model) and respond with either the summary or an error.
-  sendToLLM(htmlContent);
+  sendToLLM(htmlContent); // sendToLLM is now async and handles showing/updating the popup
 }
 
 // --- Core Message Handling Logic ---
@@ -406,9 +424,10 @@ function handleMessage(req, sender, sendResponse) {
         "[LLM Content] Received processSelection but no element is selected.",
       );
       importedShowError("Error: No element selected. Use Alt+Click first.");
+      // No need to await here, just show the error popup
       SummaryPopup.showPopup(
         "Error: No element selected. Use Alt+Click first.",
-        { onCopy: null, onChat: () => {}, onClose: SummaryPopup.hidePopup }, // Replaced handlePopupCopy with null
+        { onCopy: null, onChat: () => {}, onClose: SummaryPopup.hidePopup },
       );
       SummaryPopup.enableChatButton(false);
       setTimeout(SummaryPopup.hidePopup, 3000);
@@ -433,6 +452,7 @@ function handleMessage(req, sender, sendResponse) {
       // Handle async error from background (e.g., fetch failed, or background validation)
       lastSummary = `Error: ${req.error}`; // Store error state
       importedShowError(`Error: ${req.error}`);
+      // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
       SummaryPopup.updatePopupContent(`Error: ${req.error}`);
       SummaryPopup.enableChatButton(false);
     } else if (req.summary && typeof req.summary === "string") {
@@ -496,6 +516,7 @@ function handleMessage(req, sender, sendResponse) {
           // --- STORE FIXED JSON STRING ---
           lastSummary = JSON.stringify(combinedSummaryArray);
           // --- END STORE ---
+          // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
           SummaryPopup.updatePopupContent(summaryHtml);
           SummaryPopup.enableChatButton(true);
           parseSuccess = true;
@@ -516,6 +537,7 @@ function handleMessage(req, sender, sendResponse) {
         );
         importedShowError(`Error processing summary: ${e.message}`);
         summaryHtml = rawSummaryString; // Show raw string in popup
+        // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
         SummaryPopup.updatePopupContent(
           summaryHtml +
             "<br><small>(Raw response shown due to parsing error)</small>",
@@ -529,6 +551,7 @@ function handleMessage(req, sender, sendResponse) {
       // Handle missing or invalid summary data in async response
       lastSummary = "Error: No summary data received or invalid format.";
       importedShowError("Error: No summary data received or invalid format.");
+      // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
       SummaryPopup.updatePopupContent(
         "Error: No summary data received or invalid format.",
       );
