@@ -8,7 +8,6 @@ const HIGHLIGHT_SELECTED_CLASS = "llm-highlight";
 let altKeyDown = false;
 let previewHighlighted = null;
 let selectedElement = null;
-// Removed lastHighlighted variable
 let onElementSelectedCallback = null;
 let onElementDeselectedCallback = null;
 let DEBUG = false; // Will be set by initializeHighlighter
@@ -134,7 +133,6 @@ function handleMouseDown(e) {
       // --- Deselect ---
       if (DEBUG) console.log("[LLM Highlighter] Deselecting element.");
       removeSelectionHighlight(); // Removes class and clears selectedElement
-      // Removed assignment to lastHighlighted
       altKeyDown = false; // Reset alt state on deselect
       if (onElementDeselectedCallback) {
         onElementDeselectedCallback();
@@ -146,7 +144,6 @@ function handleMouseDown(e) {
           console.log("[LLM Highlighter] Selecting element:", clickedTarget);
         removeSelectionHighlight(); // Clear previous selection (if any)
         selectedElement = clickedTarget;
-        // Removed assignment to lastHighlighted
         selectedElement.classList.add(HIGHLIGHT_SELECTED_CLASS);
         altKeyDown = false; // Reset alt state after selection is made
         if (onElementSelectedCallback) {
@@ -155,7 +152,6 @@ function handleMouseDown(e) {
       } else {
         if (DEBUG) console.warn("[LLM Highlighter] Alt+Click target invalid.");
         removeSelectionHighlight(); // Ensure clean state
-        // Removed assignment to lastHighlighted
         altKeyDown = false;
       }
     }
@@ -169,7 +165,6 @@ function handleMouseDown(e) {
       if (DEBUG)
         console.log("[LLM Highlighter] Click outside detected. Deselecting.");
       removeSelectionHighlight();
-      // Removed assignment to lastHighlighted
       altKeyDown = false; // Reset alt state
       if (onElementDeselectedCallback) {
         onElementDeselectedCallback();
