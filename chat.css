@@ -142,7 +142,10 @@ font-weight: bold; box-shadow: 0 1px 6px 0 rgba(21, 56, 102, 0.09); transition: 
 .loading-indicator span { display: inline-block; width: 8px; height: 8px; background-color: #2196F3; border-radius: 50%; animation: blinker 1.2s infinite ease-in-out both; }
 .loading-indicator span:nth-child(1) { animation-delay: -0.32s; }
 .loading-indicator span:nth-child(2) { animation-delay: -0.16s; }
-@keyframes blinker { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+@keyframes blinker {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+}
 
 /* --- Responsive --- */
 @media (max-width: 850px) { .chat-messages-inner, .model-selector-area, .input-row, #errorDisplay, .loading-indicator, .actions-row, .info-banner { width: 96vw; } } /* Updated selector */
