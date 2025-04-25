@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.4
+# OpenRouter Summarizer v3.0.5
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -20,6 +20,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
 *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
 *   Languages can now be reordered by dragging them in the Options list.
+*   Removed the explicit health check message from the content script, relying on validation within the summary request handler in the background script.
 
 ---
 
@@ -127,6 +128,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
     *   Improved chat UI rendering for better message display and consistency.
     *   Assistant responses containing JSON arrays are now rendered as structured HTML lists.
     *   Fixed parsing of the initial summary context when opening the chat.
+*   **Removed Health Check:** The explicit health check message from the content script has been removed. Configuration validation is now handled directly within the summary request processing in the background script.
 
 ## Core Improvements & Fixes
 
