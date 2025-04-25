@@ -1,6 +1,6 @@
 // summaryPopup.js
 
-console.log(`[LLM Popup] Script Loaded (v3.0.12)`); // Updated version
+console.log(`[LLM Popup] Script Loaded (v3.0.14)`); // Updated version
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -249,21 +249,6 @@ export function updatePopupContent(newContent) {
 }
 
 /**
- * Updates the language info and renders the flag buttons in the popup footer.
- * This function is now a no-op as flags are moved to chat.
- * @param {Array} languages - List of objects with language_name and svg_path (ALL configured languages).
- */
-export function updatePopupFlags(languages = []) {
-  // This function is now a no-op as flags are moved to chat.
-  // The language_info is still passed from background to pageInteraction,
-  // but pageInteraction will need to store it and pass it to the chat tab context.
-  if (DEBUG)
-    console.log(
-      "[LLM Popup] updatePopupFlags called (no-op, flags moved to chat).",
-    );
-}
-
-/**
  * Enables or disables the Chat button in the popup.
  */
 export function enableChatButton(enable) {
@@ -282,6 +267,6 @@ export function enableChatButton(enable) {
  * Initializes the popup manager module.
  */
 export function initializePopupManager(options) {
-  DEBUG = !!options?.initialDebugState;
+  DEBUG = !!options?.initialDebugState; // Spec: Initializes the popup manager module. Arguments: options (object) - Configuration options including initialDebugState. Called from: pageInteraction.js.
   if (DEBUG) console.log("[LLM Popup] Initialized.");
 }
