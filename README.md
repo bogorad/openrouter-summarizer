@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.14
+# OpenRouter Summarizer v3.0.15
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -21,6 +21,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
 *   Languages can now be reordered by dragging them in the Options list.
 *   Removed the explicit health check message from the content script, relying on validation within the summary request handler in the background script.
+*   **Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request.**
 
 ---
 
@@ -71,7 +72,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   Click **Chat** on the summary popup to chat about the summary.
     *   A new browser tab opens. An info banner confirms context is available.
     *   The original HTML snippet and the raw/processed JSON string are stored. For *every* message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
-    *   **Language flags are now available in the chat interface.** Click a flag to request a translation of the *last assistant message* into that language.
+    *   **Language flags are now available in the chat interface.** Click a flag to request a translation of the *last assistant message* into that language. **While the LLM is processing a request, these flags will be visually dimmed and show a "busy" tooltip.**
     *   Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send.
     *   LLM responses are rendered with via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
     *   Use **Copy MD**, **Download MD**, or **Download JSON** to save the chat.
@@ -136,6 +137,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
     *   Assistant responses containing JSON arrays are now rendered as structured HTML lists.
     *   Fixed parsing of the initial summary context when opening the chat.
 *   **Removed Health Check:** The explicit health check message from the content script has been removed. Configuration validation is now handled directly within the summary request processing in the background script.
+*   **Flag Busy State:** Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request. (v3.0.15)
 
 ## Core Improvements & Fixes
 
