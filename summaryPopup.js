@@ -1,6 +1,6 @@
 // summaryPopup.js
 
-console.log(`[LLM Popup] Script Loaded (v3.0.0)`); // Updated version
+console.log(`[LLM Popup] Script Loaded (v3.0.10)`); // Updated version
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -10,11 +10,8 @@ const POPUP_BODY_CLASS = "summarizer-body";
 const POPUP_ACTIONS_CLASS = "summarizer-actions";
 const POPUP_BTN_CLASS = "summarizer-btn";
 const POPUP_COPY_BTN_CLASS = "copy-btn";
-// Removed flag-related constants
 const POPUP_CHAT_BTN_CLASS = "chat-btn"; // New class for the single chat button
 const POPUP_CLOSE_BTN_CLASS = "close-btn";
-// Removed LANGUAGE_FLAG_CLASS constant
-// Removed MAX_FLAGS_DISPLAY constant
 
 // --- HTML Template String ---
 // Simplified chat button structure
@@ -39,12 +36,9 @@ const POPUP_TEMPLATE_HTML = `
 // --- Module State ---
 let popup = null;
 let currentContent = "";
-// Removed language_info state variable
 let popupCallbacks = { onCopy: null, onChat: null, onClose: null };
 let copyTimeoutId = null;
 let DEBUG = false;
-
-// Removed _renderFlagButtonsInternal function
 
 // Handles copy logic
 function handleCopyClick(contentDiv, copyBtn) {
@@ -105,7 +99,6 @@ export function showPopup(content, callbacks) {
     return;
   }
   popupCallbacks = callbacks;
-  // language_info = []; // Removed language info reset
   currentContent = content;
 
   try {
@@ -187,7 +180,6 @@ export function hidePopup() {
     const popupElement = popup;
     popup = null;
     popupCallbacks = { onCopy: null, onChat: null, onClose: null };
-    // language_info = []; // Removed language info reset
     currentContent = "";
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
