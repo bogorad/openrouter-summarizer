@@ -12,7 +12,7 @@ import {
   CHAT_USER_CONTEXT_TEMPLATE, // Import new constant
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v3.0.5)`); // Updated version
+console.log(`[LLM Background] Service Worker Start (v3.0.6)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
