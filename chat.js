@@ -8,11 +8,15 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.0.3)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.0.9)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
-import { CHAT_SYSTEM_PROMPT_TEMPLATE, CHAT_USER_CONTEXT_TEMPLATE } from "./constants.js"; // Import new constants
+import {
+  CHAT_SYSTEM_PROMPT_TEMPLATE,
+  CHAT_USER_CONTEXT_TEMPLATE,
+  CHAT_TRANSLATION_REQUEST_TEMPLATE, // Import new constant
+} from "./constants.js"; // Import new constants
 
 let models = [];
 let selectedModelId = "";
@@ -311,8 +315,11 @@ function handleFlagButtonClick(event) {
       `[LLM Chat] Flag clicked for translation to: ${targetLanguage}`,
     );
 
-  // Construct the specific user message
-  const userMessage = `Repeat your last response in ${targetLanguage} and let's continue our conversation in that language`;
+  // Construct the specific user message using the constant
+  const userMessage = CHAT_TRANSLATION_REQUEST_TEMPLATE.replace(
+    "${targetLanguage}",
+    targetLanguage,
+  );
 
   // Add the user message to the chat history
   messages.push({ role: "user", content: userMessage });
@@ -662,7 +669,7 @@ function renderMessages() {
                   }
                   // console.log( // Less verbose
                   //   `[LLM Chat Render] Multi-element array for message ${index} rendered as list.`,
-                    // );
+                  // );
                 }
               }
             } else {

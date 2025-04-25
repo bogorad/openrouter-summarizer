@@ -39,6 +39,10 @@ Do not add any comments before or after the JSON array. Do not output your delib
 
 export const CHAT_USER_CONTEXT_TEMPLATE = `Context - Original HTML Snippet:\n\`\`\`html\n\${domSnippet}\n\`\`\`\n\nInitial Summary:\n\${summary}`;
 
+// Template for the user message when requesting translation via a flag click
+export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Repeat your last response in \${targetLanguage} and let's continue our conversation in that language`;
+
+
 // --- Default Models ---
 export const DEFAULT_MODEL_OPTIONS = [
   { id: "google/gemini-2.0-flash-lite-001", label: "Gemini 2.0 Flash Lite" },
