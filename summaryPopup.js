@@ -1,6 +1,6 @@
 // summaryPopup.js
 
-console.log(`[LLM Popup] Script Loaded (v3.0.10)`); // Updated version
+console.log(`[LLM Popup] Script Loaded (v3.0.12)`); // Updated version
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -85,90 +85,104 @@ function handleCopyClick(contentDiv, copyBtn) {
 
 /**
  * Creates and shows the summary popup using an HTML template.
+ * Returns a Promise that resolves when the popup is visible and ready.
+ * @returns {Promise<void>} A Promise that resolves when the popup is ready.
  */
 export function showPopup(content, callbacks) {
-  hidePopup();
+  return new Promise((resolve) => {
+    hidePopup();
 
-  if (
-    !callbacks ||
-    typeof callbacks.onCopy !== "function" ||
-    typeof callbacks.onChat !== "function" ||
-    typeof callbacks.onClose !== "function"
-  ) {
-    console.error("[LLM Popup] showPopup failed: Required callbacks missing.");
-    return;
-  }
-  popupCallbacks = callbacks;
-  currentContent = content;
+    if (
+      !callbacks ||
+      typeof callbacks.onCopy !== "function" ||
+      typeof callbacks.onChat !== "function" ||
+      typeof callbacks.onClose !== "function"
+    ) {
+      console.error("[LLM Popup] showPopup failed: Required callbacks missing.");
+      resolve(); // Resolve even on error to prevent hanging
+      return;
+    }
+    popupCallbacks = callbacks;
+    currentContent = content;
 
-  try {
-    const template = document.createElement("template");
-    template.innerHTML = POPUP_TEMPLATE_HTML.trim();
-    popup = template.content.firstChild.cloneNode(true);
-  } catch (e) {
-    console.error("[LLM Popup] Error parsing or cloning popup template:", e);
-    return;
-  }
+    try {
+      const template = document.createElement("template");
+      template.innerHTML = POPUP_TEMPLATE_HTML.trim();
+      popup = template.content.firstChild.cloneNode(true);
+    } catch (e) {
+      console.error("[LLM Popup] Error parsing or cloning popup template:", e);
+      popup = null; // Ensure popup is null on error
+      resolve(); // Resolve even on error to prevent hanging
+      return;
+    }
 
-  const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
-  const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
-  const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`); // Get the new single chat button
-  const closeBtn = popup.querySelector(`.${POPUP_CLOSE_BTN_CLASS}`);
+    const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
+    const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
+    const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`); // Get the new single chat button
+    const closeBtn = popup.querySelector(`.${POPUP_CLOSE_BTN_CLASS}`);
 
-  if (contentDiv) {
-    if (typeof content === "string") {
-      // Render initial content (e.g., "Thinking...")
-      if (content.startsWith("<ul>")) {
-        contentDiv.innerHTML = content;
+    if (contentDiv) {
+      if (typeof content === "string") {
+        // Render initial content (e.g., "Thinking...")
+        if (content.startsWith("<ul>")) {
+          contentDiv.innerHTML = content;
+        } else {
+          contentDiv.textContent = content;
+        }
       } else {
-        contentDiv.textContent = content;
+        contentDiv.textContent = "Error: Invalid content type.";
+        console.error(
+          "[LLM Popup] Invalid content type passed to showPopup:",
+          content,
+        );
       }
     } else {
-      contentDiv.textContent = "Error: Invalid content type.";
       console.error(
-        "[LLM Popup] Invalid content type passed to showPopup:",
-        content,
+        "[LLM Popup] Cannot set initial content: Popup body div not found in template clone.",
       );
     }
-  } else {
-    console.error(
-      "[LLM Popup] Cannot set initial content: Popup body div not found in template clone.",
-    );
-  }
 
-  if (copyBtn && contentDiv) {
-    copyBtn.onclick = () => handleCopyClick(contentDiv, copyBtn);
-  } else {
-    console.error(
-      "[LLM Popup] Could not attach copy listener: Button or contentDiv missing.",
-    );
-  }
+    if (copyBtn && contentDiv) {
+      copyBtn.onclick = () => handleCopyClick(contentDiv, copyBtn);
+    } else {
+      console.error(
+        "[LLM Popup] Could not attach copy listener: Button or contentDiv missing.",
+      );
+    }
 
-  // Attach listener to the single chat button
-  if (chatBtn) {
-    // Pass null for language to indicate default chat
-    chatBtn.onclick = () => popupCallbacks.onChat(null);
-    chatBtn.disabled = true; // Start disabled until summary loads
-  } else {
-    console.error(
-      "[LLM Popup] Could not attach chat listener: Button missing.",
-    );
-  }
+    // Attach listener to the single chat button
+    if (chatBtn) {
+      // Pass null for language to indicate default chat
+      chatBtn.onclick = () => popupCallbacks.onChat(null);
+      chatBtn.disabled = true; // Start disabled until summary loads
+    } else {
+      console.error(
+        "[LLM Popup] Could not attach chat listener: Button missing.",
+      );
+    }
 
-  if (closeBtn) {
-    closeBtn.onclick = () => popupCallbacks.onClose();
-  } else {
-    console.error(
-      "[LLM Popup] Could not attach close listener: Button missing.",
-    );
-  }
+    if (closeBtn) {
+      closeBtn.onclick = () => popupCallbacks.onClose();
+    } else {
+      console.error(
+        "[LLM Popup] Could not attach close listener: Button missing.",
+      );
+    }
 
-  document.body.appendChild(popup);
-  if (DEBUG) console.log("[LLM Popup] Popup added to page from template.");
+    document.body.appendChild(popup);
+    if (DEBUG) console.log("[LLM Popup] Popup added to page from template.");
 
-  popup.style.display = "flex";
-  requestAnimationFrame(() => {
-    if (popup) popup.classList.add("visible");
+    popup.style.display = "flex";
+    requestAnimationFrame(() => {
+      if (popup) {
+        popup.classList.add("visible");
+        if (DEBUG) console.log("[LLM Popup] Popup visibility transition started.");
+        // Resolve the promise after the transition starts, indicating the element is in the DOM and visible
+        resolve();
+      } else {
+         resolve(); // Resolve if popup is null for some reason
+      }
+    });
   });
 }
 
