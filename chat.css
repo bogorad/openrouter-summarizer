@@ -153,3 +153,4 @@ font-weight: bold; box-shadow: 0 1px 6px 0 rgba(21, 56, 102, 0.09); transition: 
 #chatForm button[type="submit"] { padding: 8px 15px; font-size: 0.95em; } .export-actions { gap: 10px; } .export-button { padding: 5px 10px; font-size: 0.85em; } .info-banner {
 font-size: 0.85em; padding: 6px 8px; } .actions-row { flex-direction: column; align-items: stretch; gap: 10px; } .language-flags-container, .export-actions { margin: 0; justify-content: center; } } /* Added responsive styles for actions-row */
 
+
