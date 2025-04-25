@@ -34,6 +34,7 @@ file:
   - ./utils.js
 read:
   - ./CONVENTIONS.md
+  - ./GLOBAL_RULES.md
   - ./marked.min.js
   - ./country-flags/languages.json
   - ./icons/icon128.png
