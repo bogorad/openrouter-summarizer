@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.0.1)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.0.2)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     console.log("[LLM Chat] Attempting to initialize chat...");
     initializeChat();
-    chatForm.addEventListener("submit", handleFormSubmit); // This is where the error was
+    chatForm.addEventListener("submit", handleFormSubmit);
     setupStreamListeners(); // Currently no-op
     setupTextareaResize();
     downloadMdBtn.addEventListener("click", handleDownloadMd);
@@ -231,28 +231,9 @@ function initializeChat() {
         }
         renderMessages(); // Render initial message with correct model label
 
-        // If chatTargetLanguage was set (from old popup flag click), send the initial translation request
-        if (
-          chatContext.chatTargetLanguage &&
-          chatContext.chatTargetLanguage.trim()
-        ) {
-          if (DEBUG)
-            console.log(
-              `[LLM Chat Init] Initial translation requested for: ${chatContext.chatTargetLanguage}. Sending prompt.`,
-            );
-          // Find the assistant message to translate (the first one)
-          const assistantMessageToTranslate = messages.find(msg => msg.role === 'assistant');
-          if (assistantMessageToTranslate) {
-             sendTranslationRequest(assistantMessageToTranslate.content, chatContext.chatTargetLanguage);
-          } else {
-             console.warn("[LLM Chat Init] No initial assistant message found to translate.");
-          }
-        } else {
-          if (DEBUG)
-            console.log(
-              "[LLM Chat Init] No chatTargetLanguage specified or empty, displaying original summary only.",
-            );
-        }
+        // The initial translation request logic based on chatTargetLanguage is removed
+        // as flags now trigger a new chat turn directly.
+
       } else {
         console.warn(
           "[LLM Chat] Context received from background is incomplete.",
@@ -322,136 +303,20 @@ function handleFlagButtonClick(event) {
         return;
     }
 
-    // Find the last assistant message
-    const lastAssistantMessage = messages.slice().reverse().find(msg => msg.role === 'assistant');
-
-    if (!lastAssistantMessage) {
-        console.warn("[LLM Chat] No assistant message found to translate.");
-        showError("No assistant message available to translate.", false);
-        return;
-    }
-
     if (DEBUG) console.log(`[LLM Chat] Flag clicked for translation to: ${targetLanguage}`);
 
-    // Send translation request to background script
-    sendTranslationRequest(lastAssistantMessage.content, targetLanguage);
+    // Construct the specific user message
+    const userMessage = `Say that in ${targetLanguage} and let's continue our conversation in that language`;
+
+    // Add the user message to the chat history
+    messages.push({ role: "user", content: userMessage });
+    renderMessages(); // Render the new user message
+
+    // Send the message to the background script using the standard chat pipeline
+    sendChatRequestToBackground(userMessage);
 }
 
-/**
- * Sends a translation request to the background script.
- * @param {string} textToTranslate - The text content of the assistant message to translate.
- * @param {string} targetLanguage - The language to translate into.
- */
-function sendTranslationRequest(textToTranslate, targetLanguage) {
-    if (streaming) {
-        console.log("[LLM Chat] Streaming in progress, translation request ignored.");
-        return;
-    }
-     if (!selectedModelId) {
-        showError("Cannot translate: No model selected or configured.", false);
-        console.log("[LLM Chat] No model selected, translation aborted.");
-        return;
-    }
-
-    streaming = true;
-    currentStreamModel = selectedModelId; // Use the currently selected model for translation
-    currentStreamRawContent = "";
-    console.log("[LLM Chat] Streaming started for translation with model:", currentStreamModel);
-
-    if (sendButton) sendButton.style.display = "none";
-    if (stopButton) stopButton.style.display = "block";
-
-    const messagesWrap = chatMessagesInnerDiv;
-    if (!messagesWrap) {
-        console.error("[LLM Chat] messagesWrap not found for translation stream.");
-        streaming = false;
-        return;
-    }
-
-    // Add a temporary message indicating translation is in progress
-    const translatingMessage = {
-        role: "system",
-        content: `Translating to ${targetLanguage}...`,
-        model: currentStreamModel,
-    };
-    messages.push(translatingMessage);
-    renderMessages(); // Render the "Translating..." message
-
-    // Add a new assistant message placeholder for the translated content
-    const modelLabelDiv = document.createElement("div");
-    modelLabelDiv.className = "assistant-model-label";
-    modelLabelDiv.textContent = `Model: ${currentStreamModel}`;
-    messagesWrap.appendChild(modelLabelDiv);
-
-    let streamContainer = document.createElement("div");
-    streamContainer.className = "msg assistant";
-    streamContainer.innerHTML = `<span class="assistant-inner" id="activeStreamSpan"></span>`;
-    messagesWrap.appendChild(streamContainer);
-    currentStreamMsgSpan = streamContainer.querySelector("#activeStreamSpan");
-
-    if (!currentStreamMsgSpan) {
-        console.error("[LLM Chat] currentStreamMsgSpan not found for translation stream.");
-        streaming = false;
-        return;
-    }
-
-    // Send the translation request to the background script
-    chrome.runtime.sendMessage(
-        {
-            action: "requestTranslation",
-            textToTranslate: textToTranslate,
-            targetLanguage: targetLanguage,
-            model: selectedModelId, // Use the selected model
-        },
-        (response) => {
-            // Remove the "Translating..." message
-            messages = messages.filter(msg => !(msg.role === 'system' && msg.content.startsWith('Translating to')));
-            renderMessages(); // Re-render to remove the temporary message
-
-            if (chrome.runtime.lastError) {
-                console.error(
-                    "[LLM Chat] Error from background during translation:",
-                    chrome.runtime.lastError,
-                );
-                showError(`Translation Error: ${chrome.runtime.lastError.message}.`);
-                // Add an error message to the chat history
-                 messages.push({
-                    role: "assistant",
-                    content: `Translation Error: ${chrome.runtime.lastError.message}`,
-                    model: currentStreamModel,
-                 });
-                 renderMessages();
-            } else if (response.status === "success" && response.translatedText) {
-                if (DEBUG) console.log("[LLM Chat] Received successful translation:", response.translatedText);
-                // Add the translated message to the chat history
-                const translatedMessage = {
-                    role: "assistant",
-                    content: response.translatedText,
-                    model: currentStreamModel,
-                };
-                messages.push(translatedMessage);
-                renderMessages(); // Render the new translated message
-            } else {
-                console.error(
-                    "[LLM Chat] Background response error during translation:",
-                    response.message,
-                );
-                showError("Translation Error: Failed to get translation from LLM.");
-                 // Add an error message to the chat history
-                 messages.push({
-                    role: "assistant",
-                    content: `Translation Error: ${response.message || "Failed to get translation from LLM."}`,
-                    model: currentStreamModel,
-                 });
-                 renderMessages();
-            }
-
-            streaming = false;
-            if (sendButton) sendButton.style.display = "block";
-            if (stopButton) stopButton.style.display = "none";
-        }
-    );
-}
+// Removed sendTranslationRequest function
 
 
 /**
