@@ -3,11 +3,12 @@
  * chat.js
  * Short Spec: This file handles the chat interface for the OpenRouter Summarizer extension.
  * It manages chat messages, user input, model selection, and interactions with the background script.
+ * It now also displays language flags for translation requests.
  * Called from: chat.html (DOMContentLoaded event).
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v2.50.13)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.0.0)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
@@ -24,6 +25,7 @@ let chatMessagesInnerDiv = null;
 let messageListenerAttached = false;
 const SNIPPET_TRUNCATION_LIMIT = 65536;
 let modelUsedForSummary = ""; // Add global state variable
+let language_info = []; // Store configured languages
 
 // ==== DOM Element References ====
 let downloadMdBtn,
@@ -35,7 +37,8 @@ let downloadMdBtn,
   chatMessages,
   errorDisplay,
   sendButton,
-  stopButton;
+  stopButton,
+  languageFlagsContainer; // Reference to the new flags container
 
 // ==== INITIALIZATION ====
 
@@ -53,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
   errorDisplay = document.getElementById("errorDisplay");
   sendButton = chatForm ? chatForm.querySelector("#sendButton") : null;
   stopButton = chatForm ? chatForm.querySelector("#stopButton") : null;
+  languageFlagsContainer = document.getElementById("languageFlagsContainer"); // Get the new container
 
   if (
     !chatMessagesInnerDiv ||
@@ -64,7 +68,8 @@ document.addEventListener("DOMContentLoaded", () => {
     !chatForm ||
     !chatMessages ||
     !sendButton ||
-    !stopButton
+    !stopButton ||
+    !languageFlagsContainer // Check for the new container
   ) {
     console.error(
       "CRITICAL: Could not find essential UI elements! Aborting initialization.",
@@ -86,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("[LLM Chat] Attempting to initialize chat...");
     initializeChat();
     chatForm.addEventListener("submit", handleFormSubmit);
-    setupStreamListeners();
+    setupStreamListeners(); // Currently no-op
     setupTextareaResize();
     downloadMdBtn.addEventListener("click", handleDownloadMd);
     copyMdBtn.addEventListener("click", handleCopyMd);
@@ -123,7 +128,6 @@ function initializeChat() {
     DEBUG = !!response?.debug;
     console.log("[LLM Chat] Debug mode set to:", DEBUG);
     if (DEBUG) {
-      // ... debug logs ...
       console.log(
         "[LLM Chat] Received context response from background:",
         response, // Log the full response
@@ -138,14 +142,16 @@ function initializeChat() {
     ) {
       models = response.models;
       console.log("[LLM Chat] Models array populated:", models);
-      // --- MODIFICATION: Store the specific model used for summary ---
       modelUsedForSummary = response.modelUsedForSummary || "";
       if (DEBUG)
         console.log(
           "[LLM Chat] Model used for initial summary:",
           modelUsedForSummary,
         );
-      // --- END MODIFICATION ---
+
+      // Store language info and render flags
+      language_info = Array.isArray(response.language_info) ? response.language_info : [];
+      renderLanguageFlags(); // Render flags based on received info
 
       // Populate dropdown, try selecting the actual model used for summary first,
       // then fall back to the first available model if it's not in the list (shouldn't happen ideally)
@@ -160,13 +166,10 @@ function initializeChat() {
       ) {
         chatContext.domSnippet = response.domSnippet;
         chatContext.summary = response.summary;
-        chatContext.chatTargetLanguage = response.chatTargetLanguage || "";
-
-        // ... (rest of summary processing logic) ...
+        chatContext.chatTargetLanguage = response.chatTargetLanguage || ""; // This might be set if chat was opened via a flag in the old popup
 
         let initialContent;
         let parseError = false;
-        // ... (parsing logic remains the same) ...
         if (
           typeof chatContext.summary === "string" &&
           chatContext.summary.trim()
@@ -185,7 +188,6 @@ function initializeChat() {
           parseError = true;
         }
 
-        // --- MODIFICATION: Use modelUsedForSummary for initial message ---
         messages = [
           {
             role: "assistant",
@@ -193,7 +195,6 @@ function initializeChat() {
             model: modelUsedForSummary || "Unknown", // Use the specific model here
           },
         ];
-        // --- END MODIFICATION ---
 
         console.log(
           "[LLM Chat] Messages array after adding initial message:",
@@ -207,7 +208,7 @@ function initializeChat() {
         }
         renderMessages(); // Render initial message with correct model label
 
-        // ... (rest of language handling logic) ...
+        // If chatTargetLanguage was set (from old popup flag click), send the initial translation request
         if (
           chatContext.chatTargetLanguage &&
           chatContext.chatTargetLanguage.trim()
@@ -216,10 +217,13 @@ function initializeChat() {
             console.log(
               `[LLM Chat Init] Initial translation requested for: ${chatContext.chatTargetLanguage}. Sending prompt.`,
             );
-          const initialPrompt = `Say that in ${chatContext.chatTargetLanguage} and let's continue our conversation in that language.`;
-          messages.push({ role: "user", content: initialPrompt });
-          renderMessages(); // Render user prompt
-          sendChatRequestToBackground(initialPrompt); // Send request
+          // Find the assistant message to translate (the first one)
+          const assistantMessageToTranslate = messages.find(msg => msg.role === 'assistant');
+          if (assistantMessageToTranslate) {
+             sendTranslationRequest(assistantMessageToTranslate.content, chatContext.chatTargetLanguage);
+          } else {
+             console.warn("[LLM Chat Init] No initial assistant message found to translate.");
+          }
         } else {
           if (DEBUG)
             console.log(
@@ -246,284 +250,186 @@ function initializeChat() {
 }
 
 /**
- * Populates the model dropdown with available models.
- * @param {string} preferredModelId - The preferred model ID to select by default.
+ * Renders language flag buttons in the chat interface.
  */
-function populateModelDropdown(preferredModelId) {
-  console.log(
-    "[LLM Chat] Entering populateModelDropdown with preferredModelId:",
-    preferredModelId,
-  );
-  if (!modelSelect) {
-    console.error("[LLM Chat] Model select element not found.");
-    return;
-  }
-  modelSelect.innerHTML = "";
-  modelSelect.disabled = false;
-  if (!models || models.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "No models configured";
-    opt.disabled = true;
-    modelSelect.appendChild(opt);
-    modelSelect.disabled = true;
-    selectedModelId = "";
-    console.log("[LLM Chat] No models available, dropdown disabled.");
-    return;
-  }
-  models.forEach((model) => {
-    const opt = document.createElement("option");
-    opt.value = model.id;
-    opt.textContent = model.label || model.id;
-    modelSelect.appendChild(opt);
-    // console.log("[LLM Chat] Added option to dropdown:", model); // Less verbose
-  });
-  const availableModelIds = models.map((m) => m.id);
-  if (
-    preferredModelId &&
-    typeof preferredModelId === "string" &&
-    availableModelIds.includes(preferredModelId)
-  ) {
-    modelSelect.value = preferredModelId;
-    selectedModelId = preferredModelId;
-    console.log(
-      "[LLM Chat] Set selected model to preferred:",
-      preferredModelId,
-    );
-  } else if (models.length > 0) {
-    modelSelect.value = models[0].id;
-    selectedModelId = models[0].id;
-    console.log(
-      "[LLM Chat] Set selected model to first available:",
-      models[0].id,
-    );
-  } else {
-    selectedModelId = "";
-    console.log("[LLM Chat] No models to select, selectedModelId is empty.");
-  }
-  modelSelect.onchange = function () {
-    selectedModelId = this.value;
-    console.log("[LLM Chat] Model changed to:", selectedModelId);
-  };
-}
+function renderLanguageFlags() {
+    if (!languageFlagsContainer) {
+        console.error("[LLM Chat] Language flags container not found.");
+        return;
+    }
+    languageFlagsContainer.innerHTML = ""; // Clear existing flags
 
-/**
- * Renders the chat messages in the UI.
- */
-function renderMessages() {
-  // console.log( // Less verbose
-  //   "[LLM Chat] Entering renderMessages function with messages array:",
-  //   messages,
-  // );
-  const wrap = chatMessagesInnerDiv;
-  if (!wrap) {
-    console.error("[LLM Chat] chatMessagesInnerDiv not found.");
-    return;
-  }
-  if (DEBUG)
-    console.log(`[LLM Chat Render] Rendering ${messages.length} messages.`);
-  wrap.innerHTML = "";
-  if (messages.length === 0) {
-    wrap.innerHTML =
-      '<div class="msg system-info">Chat started. Ask a follow-up question...</div>';
-    // console.log("[LLM Chat] No messages, added system-info message."); // Less verbose
-  } else {
-    messages.forEach((msg, index) => {
-      // console.log(`[LLM Chat Render] Processing message ${index}:`, msg); // Less verbose
-      const msgDiv = document.createElement("div");
-      msgDiv.classList.add("msg");
-      if (msg.role === "assistant") {
-        msgDiv.classList.add("assistant");
-        if (msg.model) {
-          const modelLabelDiv = document.createElement("div");
-          modelLabelDiv.className = "assistant-model-label";
-          modelLabelDiv.textContent = `Model: ${msg.model}`;
-          msgDiv.appendChild(modelLabelDiv);
-          // console.log( // Less verbose
-          //   `[LLM Chat Render] Added model label for message ${index}:`,
-          //   msg.model,
-          // );
-        }
-        const contentSpan = document.createElement("span");
-        contentSpan.className = "assistant-inner";
-        if (typeof msg.content === "string") {
-          // console.log( // Less verbose
-          //   `[LLM Chat Render] Raw content for message ${index}:`,
-          //   msg.content.substring(0, 200) +
-          //     (msg.content.length > 200 ? "..." : ""),
-          // );
-          let processedContent = stripCodeFences(msg.content);
-          if (typeof processedContent !== "string") {
-            console.warn(
-              `[LLM Chat Render] Processed content is not a string for message ${index}:`,
-              processedContent,
-            );
-            processedContent = "";
-          }
-          // console.log( // Less verbose
-          //   `[LLM Chat Render] Processed content after stripping fences for message ${index}:`,
-          //   processedContent.substring(0, 200) +
-          //     (processedContent.length > 200 ? "..." : ""),
-          // );
-          // Attempt to extract and parse JSON array from the content
-          let finalHtml = "";
-          let jsonParsed = false;
-          try {
-            const jsonResult = extractJsonFromContent(processedContent);
-            if (jsonResult.jsonArray && Array.isArray(jsonResult.jsonArray)) {
-              jsonParsed = true;
-              // Special processing for the initial summary (first assistant message)
-              // Note: This is always rendered as a list for consistency with the summary popup,
-              // even if it has only one element. This decision may be reconsidered in the future based on user feedback.
-              if (
-                index === 0 &&
-                messages.length > 1 &&
-                messages[0].role === "assistant"
-              ) {
-                const listHtml =
-                  "<div><strong>Initial Summary:</strong></div>" +
-                  "<ul>" +
-                  jsonResult.jsonArray
-                    .map((item) => `<li>${item}</li>`)
-                    .join("") +
-                  "</ul>";
-                // Combine with any surrounding text if present
-                if (jsonResult.beforeText || jsonResult.afterText) {
-                  const beforeHtml = jsonResult.beforeText
-                    ? renderTextAsHtml(jsonResult.beforeText)
-                    : "";
-                  const afterHtml = jsonResult.afterText
-                    ? renderTextAsHtml(jsonResult.afterText)
-                    : "";
-                  finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
-                } else {
-                  finalHtml = listHtml;
-                }
-                // console.log( // Less verbose
-                //   `[LLM Chat Render] Initial summary (message ${index}) rendered as list for consistency.`,
-                // );
-              } else {
-                // For subsequent assistant messages, render single-element arrays as plain text
-                if (jsonResult.jsonArray.length === 1) {
-                  finalHtml = renderTextAsHtml(jsonResult.jsonArray[0]);
-                  if (jsonResult.beforeText || jsonResult.afterText) {
-                    const beforeHtml = jsonResult.beforeText
-                      ? renderTextAsHtml(jsonResult.beforeText)
-                      : "";
-                    const afterHtml = jsonResult.afterText
-                      ? renderTextAsHtml(jsonResult.afterText)
-                      : "";
-                    finalHtml = `${beforeHtml}${finalHtml}${afterHtml}`;
-                  }
-                  // console.log( // Less verbose
-                  //   `[LLM Chat Render] Single-element array for message ${index} rendered as plain HTML.`,
-                  // );
-                } else {
-                  // Multi-element arrays are rendered as lists
-                  const listHtml =
-                    "<ul>" +
-                    jsonResult.jsonArray
-                      .map((item) => `<li>${item}</li>`)
-                      .join("") +
-                    "</ul>";
-                  if (jsonResult.beforeText || jsonResult.afterText) {
-                    const beforeHtml = jsonResult.beforeText
-                      ? renderTextAsHtml(jsonResult.beforeText)
-                      : "";
-                    const afterHtml = jsonResult.afterText
-                      ? renderTextAsHtml(jsonResult.afterText)
-                      : "";
-                    finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
-                  } else {
-                    finalHtml = listHtml;
-                  }
-                  // console.log( // Less verbose
-                  //   `[LLM Chat Render] Multi-element array for message ${index} rendered as list.`,
-                  // );
-                }
-              }
-            } else {
-              // console.log( // Less verbose
-              //   `[LLM Chat Render] No valid JSON array found in message ${index}. Falling back to text rendering.`,
-              // );
-            }
-          } catch (jsonError) {
-            console.error(
-              `[LLM Chat Render] Error parsing JSON for message ${index}:`,
-              jsonError,
-            );
-          }
-          // If no JSON was parsed, render the content as text/markdown
-          if (!jsonParsed) {
-            finalHtml = renderTextAsHtml(processedContent);
-          }
-          contentSpan.innerHTML = finalHtml;
-        } else {
-          contentSpan.innerHTML = "[Error: Invalid message content]";
-          // console.log( // Less verbose
-          //   `[LLM Chat Render] Invalid content type for message ${index}.`,
-          // );
-        }
-        msgDiv.appendChild(contentSpan);
-        wrap.appendChild(msgDiv);
-        // console.log( // Less verbose
-        //   `[LLM Chat Render] Appended assistant message ${index} to DOM.`,
-        // );
-      } else if (msg.role === "user") {
-        msgDiv.classList.add("user");
-        if (typeof marked !== "undefined") {
-          try {
-            msgDiv.innerHTML = marked.parse(msg.content);
-            // console.log( // Less verbose
-            //   `[LLM Chat Render] Successfully parsed user message ${index} with marked.`,
-            // );
-          } catch (parseError) {
-            console.error(
-              `[LLM Chat Render] Marked parse error for user message ${index}:`,
-              parseError,
-            );
-            msgDiv.innerHTML = msg.content.replace(/\n/g, "<br>");
-          }
-        } else {
-          msgDiv.innerHTML = msg.content.replace(/\n/g, "<br>");
-          // console.log( // Less verbose
-          //   `[LLM Chat Render] Used fallback for user message ${index}.`,
-          // );
-        }
-        wrap.appendChild(msgDiv);
-        // console.log(`[LLM Chat Render] Appended user message ${index} to DOM.`); // Less verbose
-      }
+    if (!Array.isArray(language_info) || language_info.length === 0) {
+        if (DEBUG) console.log("[LLM Chat] No configured languages to render flags.");
+        return;
+    }
+
+    if (DEBUG) console.log("[LLM Chat] Rendering language flags:", language_info);
+
+    language_info.forEach(langInfo => {
+        const flagButton = document.createElement("button");
+        flagButton.className = "language-flag-button"; // Use the new class from chat.css
+        flagButton.title = `Translate last assistant message to ${langInfo.language_name}`;
+        flagButton.dataset.languageName = langInfo.language_name; // Store language name
+
+        const flagImg = document.createElement("img");
+        flagImg.className = "language-flag"; // Use the class from chat.css
+        flagImg.src = langInfo.svg_path;
+        flagImg.alt = `${langInfo.language_name} flag`;
+        flagImg.style.pointerEvents = "none"; // Prevent image interfering with button click
+
+        flagButton.appendChild(flagImg);
+
+        // Add click listener to initiate translation
+        flagButton.addEventListener("click", handleFlagButtonClick);
+
+        languageFlagsContainer.appendChild(flagButton);
     });
-  }
-  scrollToBottom();
-  // console.log( // Less verbose
-  //   "[LLM Chat Render] Finished rendering messages. Scrolled to bottom.",
-  // );
 }
 
 /**
- * Scrolls the chat messages to the bottom.
+ * Handles click events on language flag buttons.
+ * @param {Event} event - The click event.
  */
-function scrollToBottom() {
-  if (chatMessages) {
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    // console.log("[LLM Chat] Scrolled to bottom of chat messages."); // Less verbose
-  } else {
-    console.warn("[LLM Chat] chatMessages element not found for scrolling.");
-  }
+function handleFlagButtonClick(event) {
+    const targetLanguage = event.currentTarget.dataset.languageName;
+    if (!targetLanguage) {
+        console.error("[LLM Chat] Flag button missing language name data.");
+        showError("Error: Could not determine target language for translation.");
+        return;
+    }
+
+    // Find the last assistant message
+    const lastAssistantMessage = messages.slice().reverse().find(msg => msg.role === 'assistant');
+
+    if (!lastAssistantMessage) {
+        console.warn("[LLM Chat] No assistant message found to translate.");
+        showError("No assistant message available to translate.", false);
+        return;
+    }
+
+    if (DEBUG) console.log(`[LLM Chat] Flag clicked for translation to: ${targetLanguage}`);
+
+    // Send translation request to background script
+    sendTranslationRequest(lastAssistantMessage.content, targetLanguage);
 }
 
 /**
- * Focuses the chat input field.
+ * Sends a translation request to the background script.
+ * @param {string} textToTranslate - The text content of the assistant message to translate.
+ * @param {string} targetLanguage - The language to translate into.
  */
-function focusInput() {
-  if (chatInput) {
-    chatInput.focus();
-    // console.log("[LLM Chat] Input field focused."); // Less verbose
-  } else {
-    console.warn("[LLM Chat] chatInput element not found for focusing.");
-  }
+function sendTranslationRequest(textToTranslate, targetLanguage) {
+    if (streaming) {
+        console.log("[LLM Chat] Streaming in progress, translation request ignored.");
+        return;
+    }
+     if (!selectedModelId) {
+        showError("Cannot translate: No model selected or configured.", false);
+        console.log("[LLM Chat] No model selected, translation aborted.");
+        return;
+    }
+
+    streaming = true;
+    currentStreamModel = selectedModelId; // Use the currently selected model for translation
+    currentStreamRawContent = "";
+    console.log("[LLM Chat] Streaming started for translation with model:", currentStreamModel);
+
+    if (sendButton) sendButton.style.display = "none";
+    if (stopButton) stopButton.style.display = "block";
+
+    const messagesWrap = chatMessagesInnerDiv;
+    if (!messagesWrap) {
+        console.error("[LLM Chat] messagesWrap not found for translation stream.");
+        streaming = false;
+        return;
+    }
+
+    // Add a temporary message indicating translation is in progress
+    const translatingMessage = {
+        role: "system",
+        content: `Translating to ${targetLanguage}...`,
+        model: currentStreamModel,
+    };
+    messages.push(translatingMessage);
+    renderMessages(); // Render the "Translating..." message
+
+    // Add a new assistant message placeholder for the translated content
+    const modelLabelDiv = document.createElement("div");
+    modelLabelDiv.className = "assistant-model-label";
+    modelLabelDiv.textContent = `Model: ${currentStreamModel}`;
+    messagesWrap.appendChild(modelLabelDiv);
+
+    let streamContainer = document.createElement("div");
+    streamContainer.className = "msg assistant";
+    streamContainer.innerHTML = `<span class="assistant-inner" id="activeStreamSpan"></span>`;
+    messagesWrap.appendChild(streamContainer);
+    currentStreamMsgSpan = streamContainer.querySelector("#activeStreamSpan");
+
+    if (!currentStreamMsgSpan) {
+        console.error("[LLM Chat] currentStreamMsgSpan not found for translation stream.");
+        streaming = false;
+        return;
+    }
+
+    // Send the translation request to the background script
+    chrome.runtime.sendMessage(
+        {
+            action: "requestTranslation",
+            textToTranslate: textToTranslate,
+            targetLanguage: targetLanguage,
+            model: selectedModelId, // Use the selected model
+        },
+        (response) => {
+            // Remove the "Translating..." message
+            messages = messages.filter(msg => !(msg.role === 'system' && msg.content.startsWith('Translating to')));
+            renderMessages(); // Re-render to remove the temporary message
+
+            if (chrome.runtime.lastError) {
+                console.error(
+                    "[LLM Chat] Error from background during translation:",
+                    chrome.runtime.lastError,
+                );
+                showError(`Translation Error: ${chrome.runtime.lastError.message}.`);
+                // Add an error message to the chat history
+                 messages.push({
+                    role: "assistant",
+                    content: `Translation Error: ${chrome.runtime.lastError.message}`,
+                    model: currentStreamModel,
+                 });
+                 renderMessages();
+            } else if (response.status === "success" && response.translatedText) {
+                if (DEBUG) console.log("[LLM Chat] Received successful translation:", response.translatedText);
+                // Add the translated message to the chat history
+                const translatedMessage = {
+                    role: "assistant",
+                    content: response.translatedText,
+                    model: currentStreamModel,
+                };
+                messages.push(translatedMessage);
+                renderMessages(); // Render the new translated message
+            } else {
+                console.error(
+                    "[LLM Chat] Background response error during translation:",
+                    response.message,
+                );
+                showError("Translation Error: Failed to get translation from LLM.");
+                 // Add an error message to the chat history
+                 messages.push({
+                    role: "assistant",
+                    content: `Translation Error: ${response.message || "Failed to get translation from LLM."}`,
+                    model: currentStreamModel,
+                 });
+                 renderMessages();
+            }
+
+            streaming = false;
+            if (sendButton) sendButton.style.display = "block";
+            if (stopButton) stopButton.style.display = "none";
+        }
+    );
 }
+
 
 /**
  * Sends a chat request to the background script with the user's text.
@@ -671,39 +577,287 @@ function sendChatRequestToBackground(userText) {
 }
 
 /**
- * Handles form submission when the user sends a message.
- * @param {Event} e - The form submission event.
+ * Populates the model dropdown with available models.
+ * @param {string} preferredModelId - The preferred model ID to select by default.
  */
-function handleFormSubmit(e) {
-  // console.log("[LLM Chat] Form submit attempted."); // Less verbose
-  e.preventDefault();
-  if (errorDisplay) {
-    errorDisplay.style.display = "none";
-    errorDisplay.textContent = "";
-    // console.log("[LLM Chat] Cleared previous error message on form submit."); // Less verbose
-  }
-  if (streaming) {
-    console.log("[LLM Chat] Streaming in progress, submit ignored.");
+function populateModelDropdown(preferredModelId) {
+  console.log(
+    "[LLM Chat] Entering populateModelDropdown with preferredModelId:",
+    preferredModelId,
+  );
+  if (!modelSelect) {
+    console.error("[LLM Chat] Model select element not found.");
     return;
   }
-  if (!chatInput) {
-    console.error("[LLM Chat] Chat input element not found.");
-    showError("Error: Chat input is missing.");
+  modelSelect.innerHTML = "";
+  modelSelect.disabled = false;
+  if (!models || models.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No models configured";
+    opt.disabled = true;
+    modelSelect.appendChild(opt);
+    modelSelect.disabled = true;
+    selectedModelId = "";
+    console.log("[LLM Chat] No models available, dropdown disabled.");
     return;
   }
-  const text = chatInput.value.trim();
-  if (!text) {
-    // console.log("[LLM Chat] Submit ignored: Input is empty."); // Less verbose
+  models.forEach((model) => {
+    const opt = document.createElement("option");
+    opt.value = model.id;
+    opt.textContent = model.label || model.id;
+    modelSelect.appendChild(opt);
+    // console.log("[LLM Chat] Added option to dropdown:", model); // Less verbose
+  });
+  const availableModelIds = models.map((m) => m.id);
+  if (
+    preferredModelId &&
+    typeof preferredModelId === "string" &&
+    availableModelIds.includes(preferredModelId)
+  ) {
+    modelSelect.value = preferredModelId;
+    selectedModelId = preferredModelId;
+    console.log(
+      "[LLM Chat] Set selected model to preferred:",
+      preferredModelId,
+    );
+  } else if (models.length > 0) {
+    modelSelect.value = models[0].id;
+    selectedModelId = models[0].id;
+    console.log(
+      "[LLM Chat] Set selected model to first available:",
+      models[0].id,
+    );
+  } else {
+    selectedModelId = "";
+    console.log("[LLM Chat] No models to select, selectedModelId is empty.");
+  }
+  modelSelect.onchange = function () {
+    selectedModelId = this.value;
+    console.log("[LLM Chat] Model changed to:", selectedModelId);
+  };
+}
+
+/**
+ * Renders the chat messages in the UI.
+ */
+function renderMessages() {
+  // console.log( // Less verbose
+  //   "[LLM Chat] Entering renderMessages function with messages array:",
+  //   messages,
+  // );
+  const wrap = chatMessagesInnerDiv;
+  if (!wrap) {
+    console.error("[LLM Chat] chatMessagesInnerDiv not found.");
     return;
   }
-  messages.push({ role: "user", content: text });
-  // console.log("[LLM Chat] Added user message to messages array:", messages); // Less verbose
-  renderMessages();
-  chatInput.value = "";
-  chatInput.style.height = "40px";
-  chatInput.focus();
-  sendChatRequestToBackground(text);
-  // console.log("[LLM Chat] Message sent to background."); // Less verbose
+  if (DEBUG)
+    console.log(`[LLM Chat Render] Rendering ${messages.length} messages.`);
+  wrap.innerHTML = "";
+  if (messages.length === 0) {
+    wrap.innerHTML =
+      '<div class="msg system-info">Chat started. Ask a follow-up question...</div>';
+    // console.log("[LLM Chat] No messages, added system-info message."); // Less verbose
+  } else {
+    messages.forEach((msg, index) => {
+      // console.log(`[LLM Chat Render] Processing message ${index}:`, msg); // Less verbose
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("msg");
+      if (msg.role === "assistant") {
+        msgDiv.classList.add("assistant");
+        if (msg.model) {
+          const modelLabelDiv = document.createElement("div");
+          modelLabelDiv.className = "assistant-model-label";
+          modelLabelDiv.textContent = `Model: ${msg.model}`;
+          msgDiv.appendChild(modelLabelDiv);
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Added model label for message ${index}:`,
+          //   msg.model,
+          // );
+        }
+        const contentSpan = document.createElement("span");
+        contentSpan.className = "assistant-inner";
+        if (typeof msg.content === "string") {
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Raw content for message ${index}:`,
+          //   msg.content.substring(0, 200) +
+          //     (msg.content.length > 200 ? "..." : ""),
+          // );
+          let processedContent = stripCodeFences(msg.content);
+          if (typeof processedContent !== "string") {
+            console.warn(
+              `[LLM Chat Render] Processed content is not a string for message ${index}:`,
+              processedContent,
+            );
+            processedContent = "";
+          }
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Processed content after stripping fences for message ${index}:`,
+          //   processedContent.substring(0, 200) +
+          //     (processedContent.length > 200 ? "..." : ""),
+          // );
+          // Attempt to extract and parse JSON array from the content
+          let finalHtml = "";
+          let jsonParsed = false;
+          try {
+            const jsonResult = extractJsonFromContent(processedContent);
+            if (jsonResult.jsonArray && Array.isArray(jsonResult.jsonArray)) {
+              jsonParsed = true;
+              // Special processing for the initial summary (first assistant message)
+              // Note: This is always rendered as a list for consistency with the summary popup,
+              // even if it has only one element. This decision may be reconsidered in the future based on user feedback.
+              if (
+                index === 0 &&
+                messages.length > 0 && // Check if messages array is not empty
+                messages[0].role === "assistant"
+              ) {
+                const listHtml =
+                  "<div><strong>Initial Summary:</strong></div>" +
+                  "<ul>" +
+                  jsonResult.jsonArray
+                    .map((item) => `<li>${item}</li>`)
+                    .join("") +
+                  "</ul>";
+                // Combine with any surrounding text if present
+                if (jsonResult.beforeText || jsonResult.afterText) {
+                  const beforeHtml = jsonResult.beforeText
+                    ? renderTextAsHtml(jsonResult.beforeText)
+                    : "";
+                  const afterHtml = jsonResult.afterText
+                    ? renderTextAsHtml(jsonResult.afterText)
+                    : "";
+                  finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
+                } else {
+                  finalHtml = listHtml;
+                }
+                // console.log( // Less verbose
+                //   `[LLM Chat Render] Initial summary (message ${index}) rendered as list for consistency.`,
+                // );
+              } else {
+                // For subsequent assistant messages, render single-element arrays as plain text
+                if (jsonResult.jsonArray.length === 1) {
+                  finalHtml = renderTextAsHtml(jsonResult.jsonArray[0]);
+                  if (jsonResult.beforeText || jsonResult.afterText) {
+                    const beforeHtml = jsonResult.beforeText
+                      ? renderTextAsHtml(jsonResult.beforeText)
+                      : "";
+                    const afterHtml = jsonResult.afterText
+                      ? renderTextAsHtml(jsonResult.afterText)
+                      : "";
+                    finalHtml = `${beforeHtml}${finalHtml}${afterHtml}`;
+                  }
+                  // console.log( // Less verbose
+                  //   `[LLM Chat Render] Single-element array for message ${index} rendered as plain HTML.`,
+                  // );
+                } else {
+                  // Multi-element arrays are rendered as lists
+                  const listHtml =
+                    "<ul>" +
+                    jsonResult.jsonArray
+                      .map((item) => `<li>${item}</li>`)
+                      .join("") +
+                    "</ul>";
+                  if (jsonResult.beforeText || jsonResult.afterText) {
+                    const beforeHtml = jsonResult.beforeText
+                      ? renderTextAsHtml(jsonResult.beforeText)
+                      : "";
+                    const afterHtml = jsonResult.afterText
+                      ? renderTextAsHtml(jsonResult.afterText)
+                      : "";
+                    finalHtml = `${beforeHtml}${listHtml}${afterHtml}`;
+                  } else {
+                    finalHtml = listHtml;
+                  }
+                  // console.log( // Less verbose
+                  //   `[LLM Chat Render] Multi-element array for message ${index} rendered as list.`,
+                  // );
+                }
+              }
+            } else {
+              // console.log( // Less verbose
+              //   `[LLM Chat Render] No valid JSON array found in message ${index}. Falling back to text rendering.`,
+              // );
+            }
+          } catch (jsonError) {
+            console.error(
+              `[LLM Chat Render] Error parsing JSON for message ${index}:`,
+              jsonError,
+            );
+          }
+          // If no JSON was parsed, render the content as text/markdown
+          if (!jsonParsed) {
+            finalHtml = renderTextAsHtml(processedContent);
+          }
+          contentSpan.innerHTML = finalHtml;
+        } else {
+          contentSpan.innerHTML = "[Error: Invalid message content]";
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Invalid content type for message ${index}.`,
+          // );
+        }
+        msgDiv.appendChild(contentSpan);
+        wrap.appendChild(msgDiv);
+        // console.log( // Less verbose
+        //   `[LLM Chat Render] Appended assistant message ${index} to DOM.`,
+        // );
+      } else if (msg.role === "user") {
+        msgDiv.classList.add("user");
+        if (typeof marked !== "undefined") {
+          try {
+            msgDiv.innerHTML = marked.parse(msg.content);
+            // console.log( // Less verbose
+            //   `[LLM Chat Render] Successfully parsed user message ${index} with marked.`,
+            // );
+          } catch (parseError) {
+            console.error(
+              `[LLM Chat Render] Marked parse error for user message ${index}:`,
+              parseError,
+            );
+            msgDiv.innerHTML = msg.content.replace(/\n/g, "<br>");
+          }
+        } else {
+          msgDiv.innerHTML = msg.content.replace(/\n/g, "<br>");
+          // console.log( // Less verbose
+          //   `[LLM Chat Render] Used fallback for user message ${index}.`,
+          // );
+        }
+        wrap.appendChild(msgDiv);
+        // console.log(`[LLM Chat Render] Appended user message ${index} to DOM.`); // Less verbose
+      } else if (msg.role === "system") { // Render system messages (like "Translating...")
+           msgDiv.classList.add("system-info");
+           msgDiv.textContent = msg.content;
+           wrap.appendChild(msgDiv);
+      }
+    });
+  }
+  scrollToBottom();
+  // console.log( // Less verbose
+  //   "[LLM Chat Render] Finished rendering messages. Scrolled to bottom.",
+  // );
+}
+
+/**
+ * Scrolls the chat messages to the bottom.
+ */
+function scrollToBottom() {
+  if (chatMessages) {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    // console.log("[LLM Chat] Scrolled to bottom of chat messages."); // Less verbose
+  } else {
+    console.warn("[LLM Chat] chatMessages element not found for scrolling.");
+  }
+}
+
+/**
+ * Focuses the chat input field.
+ */
+function focusInput() {
+  if (chatInput) {
+    chatInput.focus();
+    // console.log("[LLM Chat] Input field focused."); // Less verbose
+  } else {
+    console.warn("[LLM Chat] chatInput element not found for focusing.");
+  }
 }
 
 /**
@@ -946,7 +1100,9 @@ function formatChatAsMarkdown() {
       (msg) =>
         msg.role === "user"
           ? `**User:** ${msg.content}`
-          : `**Assistant (${msg.model || "Unknown"}):** ${msg.content}`, // Include model in MD
+          : msg.role === "assistant"
+            ? `**Assistant (${msg.model || "Unknown"}):** ${msg.content}` // Include model in MD
+            : `**System:** ${msg.content}` // Include system messages
     )
     .join("\n\n");
 }

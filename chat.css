@@ -49,8 +49,70 @@ Arial, sans-serif; font-size: 16px; display: flex; flex-direction: column; overf
 
 /* --- Input Area --- */
 .chat-form { background: #f5f6fa; border-top: 2px solid #c2daed; padding: 0; width: 100%; flex-shrink: 0; display: flex; flex-direction: column; }
-.export-actions { padding: 8px 0; background: #e0e8f0; border-bottom: 1px solid #c2daed; display: flex; justify-content: center; align-items: center; gap: 15px; width: 80vw;
-max-width: 800px; margin: 0 auto; }
+
+/* New styles for the actions row containing flags and export buttons */
+.actions-row {
+    display: flex; /* Use flexbox */
+    justify-content: space-between; /* Space out flags and export buttons */
+    align-items: center; /* Vertically align items */
+    padding: 8px 0;
+    background: #e0e8f0;
+    border-bottom: 1px solid #c2daed;
+    width: 80vw;
+    max-width: 800px;
+    margin: 0 auto;
+    padding-left: 10px; /* Add padding */
+    padding-right: 10px; /* Add padding */
+}
+
+/* Container for language flags */
+.language-flags-container {
+    display: flex; /* Arrange flags in a row */
+    align-items: center;
+    gap: 8px; /* Space between flags */
+    flex-wrap: wrap; /* Allow flags to wrap on smaller screens */
+    margin-right: auto; /* Push export actions to the right */
+}
+
+/* Style for flag buttons in chat */
+.language-flags-container .language-flag-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px; /* Smaller padding for flags */
+    border: 1px solid #ccc;
+    border-radius: 4px; /* Slightly rounded corners */
+    background-color: #f0f0f0; /* Light gray background */
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    height: 30px; /* Fixed height for flag buttons */
+    width: auto; /* Auto width to maintain aspect ratio */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
+}
+
+.language-flags-container .language-flag-button:hover {
+    background-color: #e0e0e0; /* Slightly darker gray on hover */
+    border-color: #aaa;
+}
+
+.language-flags-container .language-flag-button img {
+    display: block;
+    height: 100%; /* Make image fill button height */
+    width: auto;
+    object-fit: contain;
+    border-radius: 2px; /* Match button border-radius */
+}
+
+
+/* Container for export buttons */
+.export-actions {
+    display: flex; /* Arrange export buttons in a row */
+    align-items: center;
+    gap: 15px; /* Space between export buttons */
+    flex-shrink: 0; /* Prevent shrinking */
+    margin-left: auto; /* Push flags to the left */
+}
+
 .export-button { padding: 6px 14px; font-size: 0.9em; border-radius: 5px; background-color: #607d8b; color: white; border: none; cursor: pointer; transition: background-color
 0.2s ease; }
 .export-button:hover { background-color: #546e7a; }
@@ -83,8 +145,8 @@ font-weight: bold; box-shadow: 0 1px 6px 0 rgba(21, 56, 102, 0.09); transition: 
 @keyframes blinker { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
 
 /* --- Responsive --- */
-@media (max-width: 850px) { .chat-messages-inner, .model-selector-area, .input-row, #errorDisplay, .loading-indicator, .export-actions, .info-banner { width: 96vw; } }
+@media (max-width: 850px) { .chat-messages-inner, .model-selector-area, .input-row, #errorDisplay, .loading-indicator, .actions-row, .info-banner { width: 96vw; } } /* Updated selector */
 @media (max-width: 600px) { body { border-width: 2px; } .msg { max-width: 95%; padding: 10px 14px; } #modelSelect { font-size: 0.9em; } #chatInput { padding: 6px 10px; }
 #chatForm button[type="submit"] { padding: 8px 15px; font-size: 0.95em; } .export-actions { gap: 10px; } .export-button { padding: 5px 10px; font-size: 0.85em; } .info-banner {
-font-size: 0.85em; padding: 6px 8px; } }
+font-size: 0.85em; padding: 6px 8px; } .actions-row { flex-direction: column; align-items: stretch; gap: 10px; } .language-flags-container, .export-actions { margin: 0; justify-content: center; } } /* Added responsive styles for actions-row */
 

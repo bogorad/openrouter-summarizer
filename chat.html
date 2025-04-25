@@ -32,13 +32,18 @@
       <!-- Input Area Form (Contains export, model select and input row) -->
       <form id="chatForm" class="chat-form">
 
-        <!-- *** NEW: Export Actions *** -->
-        <div class="export-actions">
-          <button type="button" id="copyMdBtn" class="button export-button" title="Copy chat as Markdown">Copy MD</button>
-          <button type="button" id="downloadMdBtn" class="button export-button" title="Download chat as Markdown file">Download MD</button>
-          <button type="button" id="downloadJsonBtn" class="button export-button" title="Download chat as JSON file">Download JSON</button>
+        <!-- *** NEW: Export Actions and Flags *** -->
+        <div class="actions-row"> <!-- New container for flags and export buttons -->
+            <div id="languageFlagsContainer" class="language-flags-container">
+                <!-- Language flag buttons will be rendered here by chat.js -->
+            </div>
+            <div class="export-actions">
+              <button type="button" id="copyMdBtn" class="button export-button" title="Copy chat as Markdown">Copy MD</button>
+              <button type="button" id="downloadMdBtn" class="button export-button" title="Download chat as Markdown file">Download MD</button>
+              <button type="button" id="downloadJsonBtn" class="button export-button" title="Download chat as JSON file">Download JSON</button>
+            </div>
         </div>
-        <!-- *** END Export Actions *** -->
+        <!-- *** END Export Actions and Flags *** -->
 
         <!-- Model Selector (Constrained width applied via CSS .model-selector-area) -->
         <div class="model-selector-area">
