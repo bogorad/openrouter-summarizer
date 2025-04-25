@@ -10,7 +10,7 @@ import {
   PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v3.0.1)`); // Updated version
+console.log(`[LLM Background] Service Worker Start (v3.0.2)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
@@ -67,7 +67,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
            loadedModels = data.models.map(m => ({ id: m.id, label: typeof m.label === "string" && m.label.trim() !== "" ? m.label : m.id }));
          }
          let finalSelectedModel = "";
-         const availableModelIds = loadedModels.map(m => m.id);
+         const availableModelIds = loadedModels.map((m) => m.id);
          if (data.model && availableModelIds.includes(data.model)) { finalSelectedModel = data.model; }
          else if (loadedModels.length > 0) { finalSelectedModel = loadedModels[0].id; }
          const settings = {
@@ -140,8 +140,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
          fetch("https://openrouter.ai/api/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer", "X-Title": "OR-Summ" }, body: JSON.stringify(payload), signal: signal })
            .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP error! status: ${response.status}`)))
            .then(data => {
-             try { sendResponse({ status: "success", data }); } catch (e) { if (DEBUG) console.warn("Failed to send chat success response:", e.message); }
-             chrome.storage.session.remove("abortController");
+             if (DEBUG) console.log("[LLM Background] Received raw chat response data:", data); // Added debug log
+             const modelOutput = data.choices?.[0]?.message?.content?.trim();
+             if (!modelOutput) { throw new Error("No response content received from LLM."); }
+             const completeResponse = { action: "summaryResult", requestId: request.requestId, summary: modelOutput, model: data.model || data.model_id || request.model || "Unknown", language_info: language_info, fullResponse: DEBUG ? data : "[Debug data omitted for brevity]" };
+             if (DEBUG) console.log("[LLM Background] Complete response being sent to content script:", completeResponse);
+
+             if (sender.tab?.id) {
+               chrome.tabs.sendMessage(sender.tab.id, completeResponse, () => {
+                 if (chrome.runtime.lastError) {
+                   if (isTabClosedError(chrome.runtime.lastError)) { if (DEBUG) { console.log(`[LLM Background] Tab ${sender.tab.id} closed before chat response could be sent.`, chrome.runtime.lastError.message); } }
+                   else { console.error(`[LLM Background] Error sending chat response to tab ${sender.tab.id}:`, chrome.runtime.lastError.message); }
+                 }
+               });
+             } else { if (DEBUG) console.warn("[LLM Background] No tab ID available to send chat response."); }
            })
            .catch(error => {
              if (error.name !== 'AbortError') { if (DEBUG) console.error("[LLM Background] Error in fetch for chat:", error); }
@@ -184,6 +196,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
        chrome.tabs.create({ url: chrome.runtime.getURL("chat.html") }, (newTab) => {
          if (DEBUG) console.log("[LLM Background] Chat tab opened:", newTab.id);
          try { sendResponse({ status: "opened", tabId: newTab.id }); } catch (e) { if (DEBUG) console.warn("Failed to send openChatTab response:", e.message); }
+         });
        });
        return true;
     }
@@ -253,7 +266,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           fetch("https://openrouter.ai/api/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer", "X-Title": "OR-Summ" }, body: JSON.stringify(payload) })
             .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP error! status: ${response.status}`)))
             .then((data) => {
-              if (DEBUG) console.log("[LLM Background] Fetch response data for summary:", data);
+              if (DEBUG) console.log("[LLM Background] Received raw summary response data:", data); // Added debug log
               const modelOutput = data.choices?.[0]?.message?.content?.trim();
               if (!modelOutput) { throw new Error("No response content received from LLM."); }
               const completeResponse = { action: "summaryResult", requestId: request.requestId, summary: modelOutput, model: data.model || data.model_id || request.model || "Unknown", language_info: language_info, fullResponse: DEBUG ? data : "[Debug data omitted for brevity]" };
