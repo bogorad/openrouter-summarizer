@@ -8,10 +8,12 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.0.2)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.0.3)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
+import { CHAT_SYSTEM_PROMPT_TEMPLATE, CHAT_USER_CONTEXT_TEMPLATE } from "./constants.js"; // Import new constants
+
 let models = [];
 let selectedModelId = "";
 let chatContext = { domSnippet: null, summary: null, chatTargetLanguage: "" };
@@ -23,7 +25,7 @@ let currentStreamModel = "";
 let DEBUG = false; // Updated by getChatContext response
 let chatMessagesInnerDiv = null;
 let messageListenerAttached = false;
-const SNIPPET_TRUNCATION_LIMIT = 65536;
+const SNIPPET_TRUNCATION_LIMIT = 65568; // Increased slightly
 let modelUsedForSummary = ""; // Add global state variable
 let language_info = []; // Store configured languages
 
@@ -370,12 +372,7 @@ function sendChatRequestToBackground(userText) {
   const apiMessages = [
     {
       role: "system",
-      content: `
-      Be concise and factual. We no longer need bullet points.
-      Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <p>.
-      Return a single JSON array containing a single string element.
-      Do not add any comments before or after the JSON array.
-    `,
+      content: CHAT_SYSTEM_PROMPT_TEMPLATE, // Use constant
     },
   ];
   const userMessageCount = messages.filter((m) => m.role === "user").length;
@@ -392,9 +389,11 @@ function sendChatRequestToBackground(userText) {
     chatContext.summary !== undefined &&
     chatContext.summary !== null
   ) {
+    // Use constant template for context
+    const contextContent = CHAT_USER_CONTEXT_TEMPLATE.replace('${domSnippet}', chatContext.domSnippet).replace('${summary}', chatContext.summary);
     apiMessages.push({
       role: "user",
-      content: `Context - Original HTML Snippet:\n\`\`\`html\n${chatContext.domSnippet}\n\`\`\`\n\nInitial Summary:\n${chatContext.summary}`,
+      content: contextContent,
     });
     apiMessages.push({ role: "user", content: userText });
     // console.log("[LLM Chat] Added context and user text for first turn."); // Less verbose
@@ -413,9 +412,11 @@ function sendChatRequestToBackground(userText) {
           "[...truncated]";
         // console.log("[LLM Chat] Snippet truncated for context."); // Less verbose
       }
+      // Use constant template for context, but only include snippet
+      const contextContent = CHAT_USER_CONTEXT_TEMPLATE.replace('${domSnippet}', snippetForContext).replace('\n\nInitial Summary:\n${summary}', ''); // Remove summary part
       apiMessages.push({
         role: "user",
-        content: `Context - Original HTML Snippet:\n\`\`\`html\n${snippetForContext}\n\`\`\``,
+        content: contextContent,
       });
     }
     apiMessages.push(...recentHistory);
@@ -661,7 +662,7 @@ function renderMessages() {
                   }
                   // console.log( // Less verbose
                   //   `[LLM Chat Render] Multi-element array for message ${index} rendered as list.`,
-                  // );
+                    // );
                 }
               }
             } else {

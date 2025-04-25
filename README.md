@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.2
+# OpenRouter Summarizer v3.0.4
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,6 +7,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
+*   Centralized all prompt strings in `constants.js` for easier management and modification.
 *   Slightly changed the prompt in chat to stop LLMs responding using bullet points.
 *   Allowing for incorrect output of LLAMA4-scout model.
 *   Almost fixed obsessive tranlation to English bug.
@@ -102,6 +103,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Centralized Prompt Strings:** All prompt templates and fixed prompt parts have been moved to `constants.js` for better organization and maintainability.
 *   **Options Page Reload:** The options page now reloads automatically after saving settings to ensure all changes are fully applied and the UI is consistent.
 *   **Flags Moved to Chat:** Language flags are now displayed in the chat interface instead of the summary popup footer.
 *   **Simplified Summary Popup:** The summary popup footer now contains only "Copy", "Chat", and "Close" buttons. The "Chat" button initiates the chat tab with the summary context.

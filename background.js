@@ -8,9 +8,11 @@ import {
   PROMPT_STORAGE_KEY_PREAMBLE,
   PROMPT_STORAGE_KEY_POSTAMBLE,
   PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
+  CHAT_SYSTEM_PROMPT_TEMPLATE, // Import new constant
+  CHAT_USER_CONTEXT_TEMPLATE, // Import new constant
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v3.0.3)`); // Updated version
+console.log(`[LLM Background] Service Worker Start (v3.0.4)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
@@ -257,20 +259,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const payload = {
           model: request.model,
           messages: request.messages,
-          structured_outputs: "true",
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "list_of_strings",
-              strict: true,
-              schema: {
-                type: "array",
-                items: { type: "string" },
-                minItems: 1,
-                maxItems: 9,
-              },
-            },
-          },
+          // structured_outputs: "true", // Removed as per chat prompt
+          // response_format: { // Removed as per chat prompt
+          //   type: "json_schema",
+          //   json_schema: {
+          //     name: "list_of_strings",
+          //     strict: true,
+          //     schema: {
+          //       type: "array",
+          //       items: { type: "string" },
+          //       minItems: 1,
+          //       maxItems: 9,
+          //     },
+          //   },
+          // },
         };
         if (DEBUG)
           console.log(
@@ -542,7 +544,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const targetLanguageForPromptGeneration =
             language_info.length > 0 && language_info[0].language_name
               ? language_info[0].language_name
-              : "English";
+              : "the language of the original article_text"; // Changed default to match original text
+
           const systemPrompt = getSystemPrompt(
             bulletCount,
             data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] ||
@@ -707,33 +710,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       );
       return true; // Indicate async response WILL be sent later
     }
-    // --- healthCheck Handler ---
-    else if (request.action === "healthCheck") {
-      if (DEBUG) console.log("[LLM Background] Handling healthCheck request.");
-      chrome.storage.sync.get(["apiKey", "model", "models"], (data) => {
-        const apiKey = data.apiKey;
-        const model = data.model;
-        const models = data.models || DEFAULT_MODEL_OPTIONS;
-        const modelIds = models.map((m) => m.id);
-        if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
-          sendResponse({ status: "error", message: "API key not configured." });
-          return;
-        }
-        if (
-          !model ||
-          typeof model !== "string" ||
-          model.trim() === "" ||
-          !modelIds.includes(model)
-        ) {
-          sendResponse({ status: "error", message: "Default model invalid." });
-          return;
-        }
-        if (DEBUG)
-          console.log("[LLM Background] Sending healthCheck response - OK.");
-        sendResponse({ status: "ok" });
-      });
-      return true;
-    }
     // Removed requestTranslation handler
 
     if (DEBUG)
@@ -754,17 +730,7 @@ function getSystemPrompt(
   defaultFormatInstructions,
   targetLanguage,
 ) {
-  const {
-    DEFAULT_PREAMBLE_TEMPLATE,
-    DEFAULT_POSTAMBLE_TEXT,
-    DEFAULT_FORMAT_INSTRUCTIONS,
-  } =
-    typeof constants !== "undefined"
-      ? constants
-      : {
-          /* Fallbacks */
-        };
-
+  // Use imported constants directly
   const bcNum = Number(bulletCount) || 5;
   const word = numToWord[bcNum] || "five";
 
@@ -772,7 +738,7 @@ function getSystemPrompt(
     preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE
   )
     .replace("${bulletWord}", word)
-    .replace("US English", "the language of the original article_text"); // Keep this for summary prompt
+    .replace("US English", targetLanguage); // Use targetLanguage here
 
   const finalFormatInstructions = customFormatInstructions?.trim()
     ? customFormatInstructions

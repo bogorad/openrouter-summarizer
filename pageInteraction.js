@@ -1,5 +1,5 @@
 // pageInteraction.js
-console.log(`[LLM Content] Script Start (v2.50.14)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.4)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -61,7 +61,7 @@ function getSystemPrompt(
     preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE
   )
     .replace("${bulletWord}", word)
-    .replace("US English", targetLanguage);
+    .replace("US English", targetLanguage); // Use targetLanguage here
   // Use custom instructions from config, fallback to default instructions from config, fallback to hardcoded default
   const finalFormatInstructions = customFormatInstructions?.trim()
     ? customFormatInstructions

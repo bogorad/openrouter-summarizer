@@ -29,6 +29,14 @@ assessment and comments, and what should a mindful reader notice about this. Cal
 Ensure this insight is included as the last string element within the single JSON array containing the summary points.
   `;
 
+// --- Chat Prompt Templates ---
+export const CHAT_SYSTEM_PROMPT_TEMPLATE = `Be concise and factual. We no longer need bullet points.
+Format responses using Markdown where appropriate, but you can include simple HTML like <b> and <p>.
+Return a single JSON array containing a single string element.
+Do not add any comments before or after the JSON array. Do not output your deliberations.`;
+
+export const CHAT_USER_CONTEXT_TEMPLATE = `Context - Original HTML Snippet:\n\`\`\`html\n\${domSnippet}\n\`\`\`\n\nInitial Summary:\n\${summary}`;
+
 // --- Default Models ---
 export const DEFAULT_MODEL_OPTIONS = [
   { id: "google/gemini-2.0-flash-lite-001", label: "Gemini 2.0 Flash Lite" },
