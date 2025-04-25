@@ -1,5 +1,5 @@
 // pageInteraction.js
-console.log(`[LLM Content] Script Start (v3.0.4)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.5)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -225,11 +225,7 @@ function openChatWithContext(targetLang = "") {
               console.error(
                 "[LLM Chat Context] Error requesting tab open:",
                 chrome.runtime.lastError,
-              );
-              importedShowError(
-                `Error opening chat tab: ${chrome.runtime.lastError.message}.`,
-              );
-            } else {
+              } else {
               if (DEBUG)
                 console.log(
                   "[LLM Chat Context] Background ack openChatTab:",
@@ -282,7 +278,8 @@ function sendToLLM(selectedHtml) {
       selectedHtml: selectedHtml,
     },
     (response) => {
-      // Handles the *immediate* response from background listener
+      // This callback handles the *immediate* response from the background listener.
+      // It's primarily used for initial validation errors from the background script.
       if (chrome.runtime.lastError) {
         // Error sending the initial request message
         console.error(
@@ -318,6 +315,7 @@ function sendToLLM(selectedHtml) {
           console.log(
             "[LLM Content] Background acknowledged summary request processing.",
           );
+        // No need for a timeout here, the summaryResult listener will handle the async response or lack thereof.
       } else {
         // Incorrect path: Background listener returned something unexpected immediately
         console.error(
@@ -349,6 +347,13 @@ function processSelectedElement() {
     console.error(
       "[LLM Content] processSelectedElement called but no element is selected!",
     );
+    importedShowError("Error: No element selected. Use Alt+Click first.");
+    SummaryPopup.showPopup(
+      "Error: No element selected. Use Alt+Click first.",
+      { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup },
+    );
+    SummaryPopup.enableChatButton(false);
+    setTimeout(SummaryPopup.hidePopup, 3000);
     return;
   }
   if (DEBUG)
@@ -357,98 +362,28 @@ function processSelectedElement() {
       currentSelectedElement,
     );
 
-  lastSummary = "Thinking...";
-  SummaryPopup.showPopup("Thinking...", {
-    onCopy: handlePopupCopy,
-    onChat: handlePopupChat,
-    onClose: handlePopupClose,
-  });
-  SummaryPopup.enableChatButton(false);
-
-  // Step 1: Perform health-check before proceeding with summarization
-  // This ensures configuration is valid before making an LLM request
-  const healthCheckTimeout = 5000; // 5 seconds timeout
-  let healthCheckTimedOut = false;
-  const healthCheckTimer = setTimeout(() => {
-    healthCheckTimedOut = true;
-    const timeoutMsg =
-      "Health check timed out. Please check your connection or extension settings.";
-    if (DEBUG)
-      console.log(
-        "[LLM Content] Health check timed out after " +
-          healthCheckTimeout +
-          "ms.",
-      );
-    importedShowError(timeoutMsg);
-    SummaryPopup.updatePopupContent(timeoutMsg);
+  // Get HTML content
+  const htmlContent =
+    currentSelectedElement.outerHTML ||
+    currentSelectedElement.innerHTML ||
+    currentSelectedElement.textContent ||
+    "";
+  if (!htmlContent.trim()) {
+    importedShowError("Error: Selected element has no content.");
+    SummaryPopup.showPopup("Error: Selected element has no content.", {
+      onCopy: () => {},
+      onChat: () => {},
+      onClose: SummaryPopup.hidePopup,
+    });
+    SummaryPopup.enableChatButton(false);
     FloatingIcon.removeFloatingIcon();
     Highlighter.removeSelectionHighlight();
-  }, healthCheckTimeout);
+    return;
+  }
 
-  chrome.runtime.sendMessage({ action: "healthCheck" }, (healthResponse) => {
-    clearTimeout(healthCheckTimer); // Clear the timeout as soon as we get a response
-    if (healthCheckTimedOut) {
-      if (DEBUG)
-        console.log(
-          "[LLM Content] Health check response received after timeout, ignoring.",
-        );
-      return;
-    }
-    if (DEBUG)
-      console.log("[LLM Content] Health check response:", healthResponse);
-    if (chrome.runtime.lastError || healthResponse?.status === "error") {
-      const errorMsg =
-        healthResponse?.message ||
-        chrome.runtime.lastError?.message ||
-        "Unknown error during health check.";
-      importedShowError(`Configuration Error: ${errorMsg}`);
-      SummaryPopup.updatePopupContent(`Configuration Error: ${errorMsg}`);
-      FloatingIcon.removeFloatingIcon();
-      Highlighter.removeSelectionHighlight();
-      return;
-    }
-
-    if (healthResponse?.status === "ok") {
-      if (DEBUG)
-        console.log(
-          "[LLM Content] Health check passed, proceeding with summarization.",
-        );
-      // Step 2: Health check passed, proceed with sending HTML content to LLM
-      try {
-        const htmlContent =
-          currentSelectedElement.outerHTML ||
-          currentSelectedElement.innerHTML ||
-          currentSelectedElement.textContent ||
-          "";
-        if (!htmlContent.trim()) {
-          importedShowError("Error: Selected element has no content.");
-          SummaryPopup.updatePopupContent(
-            "Error: Selected element has no content.",
-          );
-          FloatingIcon.removeFloatingIcon();
-          Highlighter.removeSelectionHighlight();
-          return;
-        }
-
-        // Send the HTML content to background.js for summarization
-        // Language data will be returned with the response, no need to fetch separately
-        sendToLLM(htmlContent);
-      } catch (error) {
-        console.error("[LLM Content] Error processing selection:", error);
-        importedShowError(
-          `Error processing selection: ${error.message || "Unknown error"}`,
-        );
-        FloatingIcon.removeFloatingIcon();
-        Highlighter.removeSelectionHighlight();
-      }
-    } else {
-      const unexpectedMsg = "Unexpected response from health check.";
-      importedShowError(unexpectedMsg);
-      SummaryPopup.updatePopupContent(unexpectedMsg);
-      FloatingIcon.removeFloatingIcon();
-      Highlighter.removeSelectionHighlight();
-    }
-  });
+  // Send the HTML content to background.js for summarization directly
+  // The background script will handle validation (API key, model) and respond with either the summary or an error.
+  sendToLLM(htmlContent);
 }
 
 // --- Message Listener from Background ---
@@ -504,7 +439,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     lastModelUsed = req.model || "Unknown"; // Store model regardless of success/error
 
     if (req.error) {
-      // Handle async error from background (e.g., fetch failed)
+      // Handle async error from background (e.g., fetch failed, or background validation)
       lastSummary = `Error: ${req.error}`; // Store error state
       importedShowError(`Error: ${req.error}`);
       SummaryPopup.updatePopupContent(`Error: ${req.error}`);
@@ -565,7 +500,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
           // --- SUCCESSFUL PARSE ---
           summaryHtml =
             "<ul>" +
-            combinedSummaryArray.map((item) => `<li>${item}</li>`).join("") +
+            combinedSummaryArray.map((item) => `<li>${item}</li></li>`).join("") +
             "</ul>";
           // --- STORE FIXED JSON STRING ---
           lastSummary = JSON.stringify(combinedSummaryArray);
@@ -616,7 +551,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         "[LLM Content] Updating popup flags with language_info from response:",
         language_info,
       );
-    SummaryPopup.updatePopupFlags(language_info);
+    SummaryPopup.updatePopupFlags(language_info); // This is a no-op now, but keep the call for clarity
 
     return true; // Indicate message handled
   }

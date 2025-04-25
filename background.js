@@ -12,7 +12,7 @@ import {
   CHAT_USER_CONTEXT_TEMPLATE, // Import new constant
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v3.0.4)`); // Updated version
+console.log(`[LLM Background] Service Worker Start (v3.0.5)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
@@ -470,6 +470,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               "[LLM Background] API key is missing or invalid for summary request. Retrieved value:",
               apiKey,
             ); // Log the problematic value
+            // Send error back immediately
+            sendResponse({ status: "error", message: "API key required." });
+            // Also send error back to the tab via tabs.sendMessage for the summaryResult listener
             if (sender.tab?.id) {
               chrome.tabs.sendMessage(
                 sender.tab.id,
@@ -491,8 +494,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 },
               );
             }
-            // Send error back immediately
-            sendResponse({ status: "error", message: "API key required." });
             return; // Stop processing
           }
           // Validate model
@@ -506,6 +507,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               "[LLM Background] Default model is missing, invalid, or not in configured list for summary request. Retrieved value:",
               model,
             );
+            // Send error back immediately
+            sendResponse({
+              status: "error",
+              message: "Default Model is not selected or is invalid.",
+            });
+            // Also send error back to the tab via tabs.sendMessage for the summaryResult listener
             if (sender.tab?.id) {
               chrome.tabs.sendMessage(
                 sender.tab.id,
@@ -527,11 +534,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 },
               );
             }
-            // Send error back immediately
-            sendResponse({
-              status: "error",
-              message: "Model not selected or invalid.",
-            });
             return; // Stop processing
           }
 
@@ -712,11 +714,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     // Removed requestTranslation handler
 
+    // If the message action is not recognized by any specific handler,
+    // send a default response to prevent the content script from hanging.
+    // This is important for robustness, especially if new actions are added later.
     if (DEBUG)
       console.log(
         "[LLM Background] Message handler completed for action:",
         request.action,
+        "- No specific handler found, sending default response.",
       );
+    // Send a default response for unhandled actions
+    try {
+      sendResponse({ status: "unhandled", action: request.action });
+    } catch (e) {
+      if (DEBUG)
+        console.warn(
+          `[LLM Background] Failed to send default response for unhandled action "${request.action}":`,
+          e.message,
+        );
+    }
+    return false; // Indicate no async response will be sent by this path
   });
   return true; // Keep async for listener
 });
