@@ -3,7 +3,7 @@
 
 // highlighter.js, floatingIcon.js, summaryPopup.js, constants.js, utils.js remain unchanged
 
-console.log(`[LLM Content] Script Start (v3.0.14)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.15)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -49,31 +49,50 @@ function handleElementSelected(element, clickX, clickY) {
 }
 
 function handleElementDeselected() {
-  if (!FloatingIcon || !SummaryPopup) return; // Check if modules are loaded
+  if (!SummaryPopup) return; // Check if module is loaded
   if (DEBUG) console.log("[LLM Content] handleElementDeselected called.");
-  // When deselection occurs (via highlighter), remove the icon and hide the popup.
-  FloatingIcon.removeFloatingIcon();
+  // When deselection occurs (via highlighter), hide the popup.
   SummaryPopup.hidePopup();
   // Clear summary state as well
   lastSummary = "";
   lastModelUsed = "";
+  // FloatingIcon.removeFloatingIcon(); // Removed - handled in handleIconClick/handleIconDismiss
 }
 
 function handleIconClick() {
+  // Check if modules are loaded
+  if (!Highlighter || !FloatingIcon || !SummaryPopup || !constants) return;
+
   if (DEBUG) console.log("[LLM Content] handleIconClick called.");
-  // When the floating icon is clicked, start the summarization process.
-  processSelectedElement(); // Assume modules are loaded if icon exists
+
+  // --- ADDED: Reset highlighter state (including altKeyDown) ---
+  Highlighter.resetHighlightState();
+  // --- END ADDED ---
+
+  // --- ADDED: Remove the selection highlight ---
+  Highlighter.removeSelectionHighlight();
+  // --- END ADDED ---
+
+  // Remove the icon immediately as the action is initiated
+  FloatingIcon.removeFloatingIcon(); // Moved this here from handleElementDeselected
+
+  // Proceed with processing the selected element
+  processSelectedElement();
 }
 
 function handleIconDismiss() {
-  if (!Highlighter || !SummaryPopup) return; // Check if modules are loaded
+  if (!Highlighter || !FloatingIcon || !SummaryPopup) return; // Check if modules are loaded
   if (DEBUG)
     console.log(
       "[LLM Content] handleIconDismiss called (Escape pressed on icon).",
     );
   // When the icon is dismissed (e.g., Escape key), deselect the element.
-  Highlighter.removeSelectionHighlight(); // This will trigger handleElementDeselected via its internal logic if needed
-  SummaryPopup.hidePopup();
+  // This will trigger handleElementDeselected which hides the popup and removes the icon.
+  // We also need to reset the alt state here in case the user pressed Alt+Escape.
+  Highlighter.resetHighlightState(); // Reset alt state
+  Highlighter.removeSelectionHighlight(); // This triggers handleElementDeselected
+  // FloatingIcon.removeFloatingIcon(); // This is now handled by handleElementDeselected
+  // SummaryPopup.hidePopup(); // This is now handled by handleElementDeselected
   // Clear summary state as well
   lastSummary = "";
   lastModelUsed = "";
@@ -184,8 +203,8 @@ function openChatWithContext(targetLang = "") {
                 );
               // Successfully opened chat, now clean up the page interaction state
               if (SummaryPopup) SummaryPopup.hidePopup();
-              if (FloatingIcon) FloatingIcon.removeFloatingIcon();
-              if (Highlighter) Highlighter.removeSelectionHighlight();
+              // if (FloatingIcon) FloatingIcon.removeFloatingIcon(); // Removed - handled in handleIconClick
+              // if (Highlighter) Highlighter.removeSelectionHighlight(); // Removed - handled in handleIconClick
               lastSummary = "";
               lastModelUsed = ""; // Clear state after successful chat open
             }

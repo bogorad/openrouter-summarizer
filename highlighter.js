@@ -1,6 +1,6 @@
 // highlighter.js
 
-console.log(`[LLM Highlighter] Script Loaded (v3.0.2)`); // Updated version
+console.log(`[LLM Highlighter] Script Loaded (v3.0.3)`); // Updated version
 
 const HIGHLIGHT_PREVIEW_CLASS = "llm-highlight-preview";
 const HIGHLIGHT_SELECTED_CLASS = "llm-highlight";
@@ -43,7 +43,7 @@ function handleKeyUp(e) {
     // If alt is released AND no element is currently selected, reset the state fully.
     // This handles cases where Alt is released without clicking.
     if (!selectedElement) {
-      resetAltState();
+      resetHighlightState(); // Use the new reset function
     }
   }
 }
@@ -133,7 +133,7 @@ function handleMouseDown(e) {
       // --- Deselect ---
       if (DEBUG) console.log("[LLM Highlighter] Deselecting element.");
       removeSelectionHighlight(); // Removes class and clears selectedElement
-      altKeyDown = false; // Reset alt state on deselect
+      resetHighlightState(); // Reset alt state on deselect
       if (onElementDeselectedCallback) {
         onElementDeselectedCallback();
       }
@@ -145,14 +145,14 @@ function handleMouseDown(e) {
         removeSelectionHighlight(); // Clear previous selection (if any)
         selectedElement = clickedTarget;
         selectedElement.classList.add(HIGHLIGHT_SELECTED_CLASS);
-        altKeyDown = false; // Reset alt state after selection is made
+        resetHighlightState(); // Reset alt state after selection is made
         if (onElementSelectedCallback) {
           onElementSelectedCallback(selectedElement, e.pageX, e.pageY); // Pass coordinates
         }
       } else {
         if (DEBUG) console.warn("[LLM Highlighter] Alt+Click target invalid.");
         removeSelectionHighlight(); // Ensure clean state
-        altKeyDown = false;
+        resetHighlightState(); // Reset alt state
       }
     }
     return; // Stop processing after Alt+Click
@@ -165,7 +165,7 @@ function handleMouseDown(e) {
       if (DEBUG)
         console.log("[LLM Highlighter] Click outside detected. Deselecting.");
       removeSelectionHighlight();
-      altKeyDown = false; // Reset alt state
+      resetHighlightState(); // Reset alt state
       if (onElementDeselectedCallback) {
         onElementDeselectedCallback();
       }
@@ -184,26 +184,16 @@ function removePreviewHighlight() {
   }
 }
 
-function resetAltState() {
-  // Only reset fully if no element is currently selected
-  if (!selectedElement && (altKeyDown || previewHighlighted)) {
-    if (DEBUG)
-      console.log("[LLM Highlighter] Resetting Alt state (no selection).");
-    altKeyDown = false;
-    removePreviewHighlight();
-  } else if (altKeyDown || previewHighlighted) {
-    // If an element *is* selected, just remove preview highlight but keep alt state potentially active
-    // until a click confirms selection/deselection. This feels more complex than needed.
-    // Let's simplify: resetAltState always resets the preview. Alt key state is managed by keydown/up/click.
-    removePreviewHighlight();
-    // Let's also reset altKeyDown here for simplicity on blur/visibility change
-    altKeyDown = false;
-    if (DEBUG)
-      console.log(
-        "[LLM Highlighter] Resetting Alt state (on blur/visibility change).",
-      );
-  }
+/**
+ * Resets the internal state related to Alt key and preview highlighting.
+ * Does NOT remove the selection highlight or clear the selected element.
+ */
+export function resetHighlightState() {
+  if (DEBUG) console.log("[LLM Highlighter] Resetting highlight state.");
+  altKeyDown = false;
+  removePreviewHighlight(); // Ensure any active preview is also removed
 }
+
 
 // --- Public Functions ---
 
@@ -253,10 +243,10 @@ export function initializeHighlighter(options) {
   // Add event listeners managed by this module
   window.addEventListener("keydown", handleKeyDown, true); // Use capture for keydown
   window.addEventListener("keyup", handleKeyUp, true); // Use capture for keyup
-  window.addEventListener("blur", resetAltState);
+  window.addEventListener("blur", resetHighlightState); // Use new reset function
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      resetAltState();
+      resetHighlightState(); // Use new reset function
     }
   });
   document.addEventListener("mousemove", handleMouseOver, true); // Use capture for mousemove
