@@ -1,6 +1,6 @@
 /* ========================================= */
 /* OpenRouter Summarizer pageInteraction.css */
-/* v3.0.0                                   */
+/* v3.0.1                                   */
 /* Styles for Popup and Page Interactions    */
 /* ========================================= */
 
@@ -163,9 +163,6 @@
 .summarizer-btn.close-btn { background-color: #e53935; color: #ffffff; padding: 8px 20px; }
 .summarizer-btn.close-btn:hover:not(:disabled) { background-color: #d32f2f; }
 
-/* Removed chat group wrapper, label, and button container styles */
-/* Removed default chat button and flag button styles */
-
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 780px) {
@@ -186,8 +183,6 @@
   .summarizer-actions { gap: 8px; padding-top: 12px; padding-bottom: 12px; } /* Adjust padding */
   .summarizer-btn { padding: 6px 12px; height: 34px; }
   .summarizer-btn.copy-btn, .summarizer-btn.chat-btn, .summarizer-btn.close-btn { padding: 6px 16px; } /* Apply adjusted padding to new chat button */
-
-  /* Removed responsive styles for chat group, default chat button, and flag buttons */
 }
 
 /* ======================================== */
