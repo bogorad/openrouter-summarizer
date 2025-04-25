@@ -205,27 +205,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true;
     }
-    // --- getLanguageData Handler ---
-    // This handler is likely no longer needed as language_info is sent with getChatContext
-    // Keeping it for now but might remove later if confirmed unused.
-    else if (request.action === "getLanguageData") {
-      if (DEBUG)
-        console.log(
-          "[LLM Background] Handling getLanguageData request (might be deprecated).",
-        );
-      chrome.storage.sync.get(["language_info"], (data) => {
-        if (DEBUG)
-          console.log(
-            "[LLM Background] Sending getLanguageData response - OK.",
-          );
-        sendResponse({
-          language_info: Array.isArray(data.language_info)
-            ? data.language_info
-            : [],
-        });
-      });
-      return true;
-    }
     // --- llmChatStream Handler ---
     else if (request.action === "llmChatStream") {
       if (DEBUG)
@@ -554,7 +533,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             data[PROMPT_STORAGE_KEY_PREAMBLE] || DEFAULT_PREAMBLE_TEMPLATE,
             data[PROMPT_STORAGE_KEY_POSTAMBLE] || DEFAULT_POSTAMBLE_TEXT,
             data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] ||
-              DEFAULT_FORMAT_INSTRUCTIONS
+              DEFAULT_FORMAT_INSTRUCTIONS,
             // targetLanguageForPromptGeneration is no longer needed here
           );
           const payload = {
@@ -710,7 +689,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       );
       return true; // Indicate async response WILL be sent later
     }
-    // Removed requestTranslation handler
 
     // If the message action is not recognized by any specific handler,
     // send a default response to prevent the content script from hanging.
@@ -742,7 +720,7 @@ function getSystemPrompt(
   customFormatInstructions,
   preambleTemplate,
   postambleText,
-  defaultFormatInstructions
+  defaultFormatInstructions,
   // targetLanguage is no longer used for prompt generation
 ) {
   // Use imported constants directly
@@ -752,8 +730,7 @@ function getSystemPrompt(
   // The preamble template is now used directly, without replacing "US English"
   const finalPreamble = (
     preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE
-  )
-    .replace("${bulletWord}", word);
+  ).replace("${bulletWord}", word);
 
   const finalFormatInstructions = customFormatInstructions?.trim()
     ? customFormatInstructions

@@ -97,7 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("[LLM Chat] Attempting to initialize chat...");
     initializeChat();
     chatForm.addEventListener("submit", handleFormSubmit);
-    setupStreamListeners(); // Currently no-op
     setupTextareaResize();
     downloadMdBtn.addEventListener("click", handleDownloadMd);
     copyMdBtn.addEventListener("click", handleCopyMd);
@@ -203,10 +202,12 @@ function initializeChat() {
         if (
           typeof chatContext.summary === "string" &&
           chatContext.summary.trim()
-        ) { // Spec: Attempt to parse the initial summary as a JSON array.
+        ) {
+          // Spec: Attempt to parse the initial summary as a JSON array.
           const parsedInitialSummary = tryParseJson(chatContext.summary, false); // Don't log warning here, handle below
-          if (Array.isArray(parsedInitialSummary)) { // Spec: If successfully parsed as an array, use the array as content.
-            initialContent = parsedInitialSummary.map(item => String(item)); // Store as array of strings
+          if (Array.isArray(parsedInitialSummary)) {
+            // Spec: If successfully parsed as an array, use the array as content.
+            initialContent = parsedInitialSummary.map((item) => String(item)); // Store as array of strings
           } else {
             initialContent = chatContext.summary;
             parseError = true;
@@ -307,7 +308,11 @@ function handleFlagButtonClick(event) {
         "[LLM Chat] Flag click ignored: Chat is currently streaming.",
       );
     // Optionally show a temporary message to the user
-    showError("Chat is busy. Please wait for the current response to finish.", false, 2000); // Show for 2 seconds
+    showError(
+      "Chat is busy. Please wait for the current response to finish.",
+      false,
+      2000,
+    ); // Show for 2 seconds
     return; // Ignore click if streaming
   }
 
@@ -371,8 +376,6 @@ function handleFlagButtonClick(event) {
   sendChatRequestToBackground(userMessage);
 }
 
-// Removed sendTranslationRequest function
-
 /**
  * Sends a chat request to the background script with the user's text.
  * @param {string} userText - The text input by the user.
@@ -399,12 +402,13 @@ function sendChatRequestToBackground(userText) {
   if (stopButton) stopButton.style.display = "block";
 
   // Add busy state to flags
-  const flagButtons = languageFlagsContainer.querySelectorAll('.language-flag-button');
-  flagButtons.forEach(button => {
-      button.classList.add('language-flag-button-busy');
-      button.title = 'Chat is busy, cannot translate now';
+  const flagButtons = languageFlagsContainer.querySelectorAll(
+    ".language-flag-button",
+  );
+  flagButtons.forEach((button) => {
+    button.classList.add("language-flag-button-busy");
+    button.title = "Chat is busy, cannot translate now";
   });
-
 
   const messagesWrap = chatMessagesInnerDiv;
   if (!messagesWrap) {
@@ -448,7 +452,10 @@ function sendChatRequestToBackground(userText) {
     chatContext.summary !== null
   ) {
     // Use constant template for context
-    const contextContent = CHAT_USER_CONTEXT_TEMPLATE.replace('${domSnippet}', chatContext.domSnippet).replace('${summary}', chatContext.summary);
+    const contextContent = CHAT_USER_CONTEXT_TEMPLATE.replace(
+      "${domSnippet}",
+      chatContext.domSnippet,
+    ).replace("${summary}", chatContext.summary);
     apiMessages.push({
       role: "user",
       content: contextContent,
@@ -471,7 +478,10 @@ function sendChatRequestToBackground(userText) {
         // console.log("[LLM Chat] Snippet truncated for context."); // Less verbose
       }
       // Use constant template for context, but only include snippet
-      const contextContent = CHAT_USER_CONTEXT_TEMPLATE.replace('${domSnippet}', snippetForContext).replace('\n\nInitial Summary:\n${summary}', ''); // Remove summary part
+      const contextContent = CHAT_USER_CONTEXT_TEMPLATE.replace(
+        "${domSnippet}",
+        snippetForContext,
+      ).replace("\n\nInitial Summary:\n${summary}", ""); // Remove summary part
       apiMessages.push({
         role: "user",
         content: contextContent,
@@ -498,10 +508,12 @@ function sendChatRequestToBackground(userText) {
         if (sendButton) sendButton.style.display = "block";
         if (stopButton) stopButton.style.display = "none";
         // Remove busy state from flags
-        const flagButtons = languageFlagsContainer.querySelectorAll('.language-flag-button');
-        flagButtons.forEach(button => {
-            button.classList.remove('language-flag-button-busy');
-            button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+        const flagButtons = languageFlagsContainer.querySelectorAll(
+          ".language-flag-button",
+        );
+        flagButtons.forEach((button) => {
+          button.classList.remove("language-flag-button-busy");
+          button.title = `Translate last assistant message to ${button.dataset.languageName}`;
         });
         return;
       }
@@ -529,10 +541,12 @@ function sendChatRequestToBackground(userText) {
       if (sendButton) sendButton.style.display = "block";
       if (stopButton) stopButton.style.display = "none";
       // Remove busy state from flags
-      const flagButtons = languageFlagsContainer.querySelectorAll('.language-flag-button');
-      flagButtons.forEach(button => {
-          button.classList.remove('language-flag-button-busy');
-          button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+      const flagButtons = languageFlagsContainer.querySelectorAll(
+        ".language-flag-button",
+      );
+      flagButtons.forEach((button) => {
+        button.classList.remove("language-flag-button-busy");
+        button.title = `Translate last assistant message to ${button.dataset.languageName}`;
       });
     },
   );
@@ -642,7 +656,6 @@ function renderMessages() {
           // Accessibility: Implicitly handled by the text content.
           // Performance: Minimal impact per message.
 
-
           const modelLabelDiv = document.createElement("div");
           modelLabelDiv.className = "assistant-model-label";
           modelLabelDiv.textContent = `Model: ${msg.model}`;
@@ -654,10 +667,14 @@ function renderMessages() {
         }
         const contentSpan = document.createElement("span");
         contentSpan.className = "assistant-inner";
-        if (Array.isArray(msg.content)) { // Spec: If content is already an array (initial summary), render as list.
-             // console.log(`[LLM Chat Render] Rendering message ${index} as list (content is array).`); // Less verbose
-             const listHtml = "<ul>" + msg.content.map(item => `<li>${item}</li>`).join("") + "</ul>";
-             contentSpan.innerHTML = listHtml;
+        if (Array.isArray(msg.content)) {
+          // Spec: If content is already an array (initial summary), render as list.
+          // console.log(`[LLM Chat Render] Rendering message ${index} as list (content is array).`); // Less verbose
+          const listHtml =
+            "<ul>" +
+            msg.content.map((item) => `<li>${item}</li>`).join("") +
+            "</ul>";
+          contentSpan.innerHTML = listHtml;
         } else if (typeof msg.content === "string") {
           // console.log( // Less verbose
           //   `[LLM Chat Render] Raw content for message ${index}:`,
@@ -676,7 +693,6 @@ function renderMessages() {
           // Side effects: None.
           // Accessibility: N/A.
           // Performance: Simple string replacement.
-
 
           if (typeof processedContent !== "string") {
             console.warn(
@@ -702,7 +718,6 @@ function renderMessages() {
           // Error handling: N/A.
           // Side effects: N/A.
           // Performance: N/A.
-
 
           let jsonParsed = false;
           try {
@@ -771,7 +786,6 @@ function renderMessages() {
           // Accessibility: N/A.
           // Performance: Minimal impact per message.
 
-
           if (!jsonParsed) {
             finalHtml = renderTextAsHtml(processedContent);
           }
@@ -795,7 +809,6 @@ function renderMessages() {
         // Accessibility: N/A.
         // Performance: Minimal impact per message.
 
-
         wrap.appendChild(msgDiv);
         // console.log( // Less verbose
         //   `[LLM Chat Render] Appended assistant message ${index} to DOM.`,
@@ -814,7 +827,6 @@ function renderMessages() {
           // Side effects: None.
           // Accessibility: N/A.
           // Performance: Minimal impact per message.
-
 
           try {
             msgDiv.innerHTML = marked.parse(msg.content);
@@ -846,7 +858,6 @@ function renderMessages() {
         // Accessibility: N/A.
         // Performance: Minimal impact per message.
 
-
         wrap.appendChild(msgDiv);
         // console.log(`[LLM Chat Render] Appended user message ${index} to DOM.`); // Less verbose
       } else if (msg.role === "system") {
@@ -865,8 +876,6 @@ function renderMessages() {
         // Side effects: Modifies the DOM.
         // Accessibility: N/A.
         // Performance: Minimal impact per message.
-
-
       }
     });
   }
@@ -979,10 +988,12 @@ function handleStopRequest() {
     console.log("[LLM Chat] Chat request stopped.");
 
     // Remove busy state from flags
-    const flagButtons = languageFlagsContainer.querySelectorAll('.language-flag-button');
-    flagButtons.forEach(button => {
-        button.classList.remove('language-flag-button-busy');
-        button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+    const flagButtons = languageFlagsContainer.querySelectorAll(
+      ".language-flag-button",
+    );
+    flagButtons.forEach((button) => {
+      button.classList.remove("language-flag-button-busy");
+      button.title = `Translate last assistant message to ${button.dataset.languageName}`;
     });
 
     // Attempt to abort the ongoing request if possible
@@ -1045,7 +1056,6 @@ function stripCodeFences(text) {
   // Accessibility: N/A.
   // Performance: Simple string replacement.
 
-
   if (typeof text !== "string") {
     console.warn("[LLM Chat] stripCodeFences received non-string input:", text);
     return "";
@@ -1085,7 +1095,6 @@ function extractJsonFromContent(content) {
   // Accessibility: N/A.
   // Performance: String searching and parsing.
 
-
   if (typeof content !== "string") {
     return { beforeText: "", jsonArray: null, afterText: "" };
   }
@@ -1105,24 +1114,23 @@ function extractJsonFromContent(content) {
     // Append text before this match to beforeText if it's the first JSON found
     // or if there was text between JSON blocks.
     if (!foundJson) {
-        beforeText += textBeforeMatch;
+      beforeText += textBeforeMatch;
     } else {
-        // If we found JSON before, any text between matches goes to afterText for now,
-        // we'll consolidate later.
-        afterText += textBeforeMatch;
+      // If we found JSON before, any text between matches goes to afterText for now,
+      // we'll consolidate later.
+      afterText += textBeforeMatch;
     }
-
 
     try {
       const parsedArray = JSON.parse(jsonString);
       if (Array.isArray(parsedArray)) {
         // Flatten nested arrays of strings if necessary, or just take strings
-        const stringArray = parsedArray.flatMap(item => {
-            if (Array.isArray(item)) {
-                // If it's a nested array, try to flatten it
-                return item.map(subItem => String(subItem));
-            }
-            return String(item); // Ensure it's a string
+        const stringArray = parsedArray.flatMap((item) => {
+          if (Array.isArray(item)) {
+            // If it's a nested array, try to flatten it
+            return item.map((subItem) => String(subItem));
+          }
+          return String(item); // Ensure it's a string
         });
         combinedJsonArray = combinedJsonArray.concat(stringArray);
         foundJson = true; // Mark that we found at least one valid JSON array
@@ -1130,19 +1138,24 @@ function extractJsonFromContent(content) {
       } else {
         // If it's not a valid array, treat the match and preceding text as just text
         if (!foundJson) {
-             beforeText += jsonString;
+          beforeText += jsonString;
         } else {
-             afterText += jsonString;
+          afterText += jsonString;
         }
       }
     } catch (e) {
       // If parsing fails, treat the match and preceding text as just text
-       if (!foundJson) {
-            beforeText += jsonString;
-       } else {
-            afterText += jsonString;
-       }
-      if (DEBUG) console.warn("[LLM Chat Render] Failed to parse potential JSON array:", jsonString, e);
+      if (!foundJson) {
+        beforeText += jsonString;
+      } else {
+        afterText += jsonString;
+      }
+      if (DEBUG)
+        console.warn(
+          "[LLM Chat Render] Failed to parse potential JSON array:",
+          jsonString,
+          e,
+        );
     }
 
     lastIndex = jsonArrayRegex.lastIndex;
@@ -1153,15 +1166,14 @@ function extractJsonFromContent(content) {
 
   // Consolidate beforeText and afterText if no JSON was found
   if (!foundJson) {
-      beforeText = content.trim();
-      afterText = "";
+    beforeText = content.trim();
+    afterText = "";
   } else {
-      // If JSON was found, consolidate any text collected in afterText
-      // This handles cases like JSON followed by plain text.
-      // We'll just append it to the end for simplicity.
-      // The rendering logic will handle rendering beforeText, the list, and afterText.
+    // If JSON was found, consolidate any text collected in afterText
+    // This handles cases like JSON followed by plain text.
+    // We'll just append it to the end for simplicity.
+    // The rendering logic will handle rendering beforeText, the list, and afterText.
   }
-
 
   return {
     beforeText: beforeText,
@@ -1188,7 +1200,6 @@ function renderTextAsHtml(text) {
   // Accessibility: N/A.
   // Performance: Markdown parsing or simple string replacement.
 
-
   if (typeof text !== "string" || !text.trim()) {
     return "";
   }
@@ -1208,50 +1219,6 @@ function renderTextAsHtml(text) {
 }
 
 /**
- * Extracts text from JSON data.
- * @param {object} jsonData - The JSON data to extract text from.
- * @returns {string} - The extracted text.
- */
-function extractTextFromJson(jsonData) {
-  // Spec: Converts JSON data to a string representation.
-  // Arguments: jsonData (object) - The input JSON data.
-  // Called from: formatChatAsMarkdown (although currently unused there).
-  // Returns: string - The stringified JSON.
-  // Call site: Currently unused in the provided code.
-  // Dependencies: JSON.stringify.
-  // State changes: None.
-  // Error handling: Returns empty string for invalid input.
-  // Side effects: None.
-  // Accessibility: N/A.
-  // Performance: JSON stringification.
-
-
-  if (!jsonData || typeof jsonData !== "object") return "";
-  return JSON.stringify(jsonData);
-}
-
-/**
- * Shows or hides a loading indicator (currently a placeholder).
- * @param {boolean} show - Whether to show the loading indicator.
- */
-function showLoadingIndicator(show) {
-  // Spec: Placeholder function for showing/hiding a loading indicator.
-  // Arguments: show (boolean) - True to show, false to hide.
-  // Called from: sendChatRequestToBackground (implicitly, although not fully implemented).
-  // Returns: N/A.
-  // Call site: Intended to be called before/after LLM requests.
-  // Dependencies: DOM manipulation (not fully implemented).
-  // State changes: Intended to modify the display of a loading element.
-  // Error handling: N/A.
-  // Side effects: Intended to modify the DOM.
-  // Accessibility: N/A.
-  // Performance: Minimal.
-
-
-  // console.log(`[LLM Chat] Loading indicator ${show ? "shown" : "hidden"}.`); // Less verbose
-}
-
-/**
  * Formats the chat messages as Markdown content.
  * @returns {string} - The formatted Markdown content.
  */
@@ -1268,7 +1235,6 @@ function formatChatAsMarkdown() {
   // Accessibility: N/A.
   // Performance: Array mapping and joining.
 
-
   return messages
     .map(
       (msg) =>
@@ -1279,33 +1245,4 @@ function formatChatAsMarkdown() {
             : `**System:** ${msg.content}`, // Include system messages
     )
     .join("\n\n");
-}
-
-/**
- * Triggers a download of content with the specified filename and content type.
- * @param {string} content - The content to download.
- * @param {string} filename - The name of the file to download.
- * @param {string} contentType - The MIME type of the content.
- */
-function triggerDownload(content, filename, contentType) {
-  // Spec: Triggers a file download in the browser.
-  // Arguments: content (string), filename (string), contentType (string).
-  // Called from: handleDownloadMd, handleDownloadJson.
-  // Returns: N/A.
-  // Call site: Event listeners for download buttons.
-  // Dependencies: Blob, URL, document.createElement.
-  // State changes: None.
-  // Error handling: N/A.
-  // Side effects: Initiates a browser download.
-  // Accessibility: N/A.
-  // Performance: Minimal.
-
-
-  const blob = new Blob([content], { type: contentType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }

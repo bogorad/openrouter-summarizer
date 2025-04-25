@@ -8,7 +8,7 @@
   <body>
 
     <div class="container">
-      <h1>OpenRouter Summarizer Options</h1>
+      <h1>OpenRouter Summarizer<br>Options</h1>
 
       <!-- API Key Section -->
       <div class="section">
@@ -26,7 +26,7 @@
           <p>Loading models...</p>
         </div>
         <button id="addModelBtn" class="button add-button">Add Another Model</button>
-        <p class="note">Use valid model strings from OpenRouter (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>). You can use <code>:nitro</code> for the fastest model or <code>:auto</code>.</p>
+        <p class="note">Use valid model strings <a href="https://openrouter.ai/models?fmt=cards&supported_parameters=structured_outputs" target="_blank">from OpenRouter</a> (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>). You can use <code>:nitro</code> for the fastest model or <code>:auto</code>.</p>
       </div>
 
       <!-- Summary Options Section -->
@@ -81,7 +81,7 @@
           <h3>Prompt Customization</h3>
           <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle formatting instructions section.</p>
           <div class="prompt-display-area">
-            <div class="prompt-label">Intro (sample):</div>
+            <div class="prompt-label">Intro:</div>
             <div class="prompt-part prompt-preamble" id="promptPreamble">
               <!-- Preamble text will be loaded by JS -->
             </div>

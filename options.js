@@ -64,7 +64,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let draggedItemIndex = null;
 
-
   // Define setupAutocomplete here to ensure it's available early
   function setupAutocomplete(textInput) {
     if (!textInput) return;
@@ -681,7 +680,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderModelOptions();
     renderLanguageOptions();
     updatePromptPreview();
-    // setupAutoSave(); // Auto-save is disabled
   }
 
   function saveSettings() {
@@ -919,16 +917,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("[LLM Options] Error in DOMContentLoaded handler:", error);
   }
 
-  // --- Auto Save Setup (Disabled) ---
-  // let saveTimeout = null;
-  // function setupAutoSave() {
-  //   // Spec: Previously set up event listeners for automatic saving of settings on input changes with debounce.
-  //   // Now disabled to require manual saving via the Save button.
-  //   console.log(
-  //     "[LLM Options] Auto-save is disabled. Use the Save button to save changes.",
-  //   );
-  // }
-
   // --- Drag and Drop Handlers ---
   function handleDragStart(event) {
     // Spec: Handles the start of a drag operation for language options.
@@ -951,7 +939,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Called from: renderLanguageOptions (on language-option elements).
     event.target.parentElement.classList.remove("dragging");
     draggedItemIndex = null;
-    // dragOverElement = null; // Removed dead code
     if (DEBUG) console.log("[LLM Options] Drag ended.");
     renderLanguageOptions(); // Re-render to reflect any changes
   }

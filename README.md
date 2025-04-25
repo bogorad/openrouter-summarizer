@@ -8,19 +8,14 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 ## ✨ What's New Since Version 2.0
 
 *   Centralized all prompt strings in `constants.js` for easier management and modification.
-*   Slightly changed the prompt in chat to stop LLMs responding using bullet points.
 *   Allowing for incorrect output of LLAMA4-scout model.
-*   Almost fixed obsessive tranlation to English bug.
+*   Fixed obsessive tranlation to English bug.
 *   The initial summary prompt now instructs the LLM to determine the language of the input text and summarize in that language, rather than explicitly requesting a specific language. (v3.0.7)
-*   Updated summary popup UI: Moved language flags to the footer as buttons, grouped with a default chat icon button under a centered "CHAT" label. (v2.50.6)
 *   Major update, may require options reset.
-*   Updated `options.js` to populate the language list with default languages (English, Spanish, Hebrew, Mandarin Chinese) if it is empty on startup or the last language is deleted by the user.
-*   Centralized LLM API calls in `background.js` for both summary and chat functionalities, simplifying content script logic.
 *   Now you can stop a chat request by clicking the "Stop" button.
 *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
-*   The first language is the default for summaries. Others show up in the popup header, can be clicked.
 *   Languages can now be reordered by dragging them in the Options list.
-*   Removed the explicit health check message from the content script, relying on validation within the summary request handler in the background script.
+*   Language flags moved to the chat interface since a tranlation in needed probably 3% of the time; less clutter in popup.
 *   Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request. (v3.0.15)
 *   Temporary error messages (like "Chat is busy") now automatically disappear after a short duration. (v3.0.16)
 
@@ -29,12 +24,10 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 ## 🚀 Features
 
 *   **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
-*   **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content and the original HTML snippet (context is now persistent!).
+*   **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
 *   **Rich Formatting:**
-    *   Initial summaries are rendered in the popup as a clean HTML list (`<ul><li>...</ul>`).
-    *   Chat responses support both full Markdown formatting via `marked` and basic HTML (`<b>`).
 *   **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
-*   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the summary popup. Clicking a flag initiates a chat session requesting translation of the summary into that language.
+*   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the last message.
 *   **Languages can now be reordered** by dragging them in the Options list.
 *   **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section.
 *   **Configurable Summary:** Choose the approximate number of summary points (3-8) for the initial summary prompt.
