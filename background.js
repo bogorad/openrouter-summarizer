@@ -12,7 +12,7 @@ import {
   CHAT_USER_CONTEXT_TEMPLATE, // Import new constant
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v3.0.6)`); // Updated version
+console.log(`[LLM Background] Service Worker Start (v3.0.7)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
@@ -542,11 +542,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             data.bulletCount || DEFAULT_BULLET_COUNT,
             10,
           );
-          // Use the first configured language for the summary prompt, default to English if none configured
-          const targetLanguageForPromptGeneration =
-            language_info.length > 0 && language_info[0].language_name
-              ? language_info[0].language_name
-              : "the language of the original article_text"; // Changed default to match original text
+          // The target language is no longer explicitly passed to the prompt for summary generation.
+          // The prompt now instructs the LLM to determine the language.
+          // We still pass language_info back to the content script for chat flags.
 
           const systemPrompt = getSystemPrompt(
             bulletCount,
@@ -556,8 +554,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             data[PROMPT_STORAGE_KEY_PREAMBLE] || DEFAULT_PREAMBLE_TEMPLATE,
             data[PROMPT_STORAGE_KEY_POSTAMBLE] || DEFAULT_POSTAMBLE_TEXT,
             data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] ||
-              DEFAULT_FORMAT_INSTRUCTIONS,
-            targetLanguageForPromptGeneration,
+              DEFAULT_FORMAT_INSTRUCTIONS
+            // targetLanguageForPromptGeneration is no longer needed here
           );
           const payload = {
             model: data.model,
@@ -744,18 +742,18 @@ function getSystemPrompt(
   customFormatInstructions,
   preambleTemplate,
   postambleText,
-  defaultFormatInstructions,
-  targetLanguage,
+  defaultFormatInstructions
+  // targetLanguage is no longer used for prompt generation
 ) {
   // Use imported constants directly
   const bcNum = Number(bulletCount) || 5;
   const word = numToWord[bcNum] || "five";
 
+  // The preamble template is now used directly, without replacing "US English"
   const finalPreamble = (
     preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE
   )
-    .replace("${bulletWord}", word)
-    .replace("US English", targetLanguage); // Use targetLanguage here
+    .replace("${bulletWord}", word);
 
   const finalFormatInstructions = customFormatInstructions?.trim()
     ? customFormatInstructions

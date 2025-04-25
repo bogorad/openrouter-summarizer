@@ -10,7 +10,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-const LASTUPD = "Simplified language handling with language_info array";
+const LASTUPD = "Clarified language usage in options UI"; // Updated description
 
 console.log(`[LLM Options] Script Start`);
 
@@ -549,6 +549,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (radio.checked) bulletCount = radio.value;
     });
     const bulletWord = NUM_TO_WORD[bulletCount] || "five";
+    // Use the DEFAULT_PREAMBLE_TEMPLATE directly as it no longer needs language replacement
     if (promptPreambleDiv)
       promptPreambleDiv.textContent = DEFAULT_PREAMBLE_TEMPLATE.replace(
         "${bulletWord}",

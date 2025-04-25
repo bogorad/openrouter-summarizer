@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.6
+# OpenRouter Summarizer v3.0.7
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -11,7 +11,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   Slightly changed the prompt in chat to stop LLMs responding using bullet points.
 *   Allowing for incorrect output of LLAMA4-scout model.
 *   Almost fixed obsessive tranlation to English bug.
-*   Modified initial summary request prompt to ask for summary in the original text's language instead of the first configured language. (v2.50.7)
+*   The initial summary prompt now instructs the LLM to determine the language of the input text and summarize in that language, rather than explicitly requesting a specific language. (v3.0.7)
 *   Updated summary popup UI: Moved language flags to the footer as buttons, grouped with a default chat icon button under a centered "CHAT" label. (v2.50.6)
 *   Major update, may require options reset.
 *   Updated `options.js` to populate the language list with default languages (English, Spanish, Hebrew, Mandarin Chinese) if it is empty on startup or the last language is deleted by the user.
@@ -62,7 +62,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   <kbd>ALT</kbd>+Click an element to select it (red solid outline). A floating icon (💡) appears.
 3.  **Summarize:**
     *   Click the floating icon (💡), *or* right-click and choose "Send to LLM", *or* click the extension toolbar icon.
-    *   The extension sends the element's HTML and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model. The initial summary is now generated in the **first configured language**.
+    *   The extension sends the element's HTML and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model. The prompt now instructs the LLM to determine the language of the input text and summarize in that language.
 4.  **Review Summary:**
     *   The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (``````json ... ``````) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
     *   **Click the "Chat" button to open the chat tab.**
@@ -104,6 +104,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Prompt Language Determination:** The initial summary prompt now instructs the LLM to determine the language of the input text and summarize in that language. The extension no longer explicitly requests the summary in the first configured language. (v3.0.7)
 *   **Fixed Syntax Error:** Corrected a missing closing curly brace in the `openChatWithContext` function in `pageInteraction.js`.
 *   **Centralized Prompt Strings:** All prompt templates and fixed prompt parts have been moved to `constants.js` for better organization and maintainability.
 *   **Options Page Reload:** The options page now reloads automatically after saving settings to ensure all changes are fully applied and the UI is consistent.
