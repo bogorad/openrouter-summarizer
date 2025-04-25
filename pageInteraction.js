@@ -3,14 +3,14 @@
 
 // highlighter.js, floatingIcon.js, summaryPopup.js, constants.js, utils.js remain unchanged
 
-console.log(`[LLM Content] Script Start (v3.0.7)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.11)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
 let FloatingIcon = null;
 let SummaryPopup = null;
 let constants = null;
-let importedTryParseJson = null; // We might use this again in chat.js
+// Removed importedTryParseJson variable
 let importedShowError = null;
 // ...
 
@@ -19,7 +19,7 @@ let DEBUG = false; // Debug logging state
 let lastSummary = ""; // Raw or Cleaned/Combined summary string for chat context
 let lastModelUsed = ""; // Model used for the last summary
 
-let language_info = [];
+// Removed language_info state variable
 
 // Queue for messages received before modules are fully initialized
 let messageQueue = [];
@@ -129,13 +129,7 @@ function handleIconDismiss() {
   lastModelUsed = "";
 }
 
-function handlePopupCopy() {
-  // The copy logic is now internal to summaryPopup.js's handleCopyClick.
-  if (DEBUG)
-    console.log(
-      "[LLM Content] handlePopupCopy triggered (logic inside summaryPopup).",
-    );
-}
+// Removed handlePopupCopy function
 
 function handlePopupChat(targetLang = null) {
   if (DEBUG)
@@ -274,7 +268,7 @@ function sendToLLM(selectedHtml) {
   const requestId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   lastSummary = "Thinking...";
   SummaryPopup.showPopup("Thinking...", {
-    onCopy: handlePopupCopy,
+    onCopy: null, // Replaced handlePopupCopy with null
     onChat: handlePopupChat,
     onClose: handlePopupClose,
   });
@@ -359,7 +353,7 @@ function processSelectedElement() {
     importedShowError("Error: No element selected. Use Alt+Click first.");
     SummaryPopup.showPopup(
       "Error: No element selected. Use Alt+Click first.",
-      { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup },
+      { onCopy: null, onChat: () => {}, onClose: SummaryPopup.hidePopup }, // Replaced handlePopupCopy with null
     );
     SummaryPopup.enableChatButton(false);
     setTimeout(SummaryPopup.hidePopup, 3000);
@@ -380,7 +374,7 @@ function processSelectedElement() {
   if (!htmlContent.trim()) {
     importedShowError("Error: Selected element has no content.");
     SummaryPopup.showPopup("Error: Selected element has no content.", {
-      onCopy: () => {},
+      onCopy: null, // Replaced handlePopupCopy with null
       onChat: () => {},
       onClose: SummaryPopup.hidePopup,
     });
@@ -414,7 +408,7 @@ function handleMessage(req, sender, sendResponse) {
       importedShowError("Error: No element selected. Use Alt+Click first.");
       SummaryPopup.showPopup(
         "Error: No element selected. Use Alt+Click first.",
-        { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup },
+        { onCopy: null, onChat: () => {}, onClose: SummaryPopup.hidePopup }, // Replaced handlePopupCopy with null
       );
       SummaryPopup.enableChatButton(false);
       setTimeout(SummaryPopup.hidePopup, 3000);
@@ -541,14 +535,7 @@ function handleMessage(req, sender, sendResponse) {
       SummaryPopup.enableChatButton(false);
     }
 
-    // Update flags regardless of parsing success/failure
-    language_info = Array.isArray(req.language_info) ? req.language_info : [];
-    if (DEBUG)
-      console.log(
-        "[LLM Content] Updating popup flags with language_info from response:",
-        language_info,
-      );
-    SummaryPopup.updatePopupFlags(language_info); // This is a no-op now, but keep the call for clarity
+    // Removed call to SummaryPopup.updatePopupFlags(language_info);
 
     return true; // Indicate message handled
   }
@@ -606,10 +593,10 @@ async function initialize() {
       }
     }
     const {
-      tryParseJson: importedTryParseJsonFn, // Assign here
+      // Removed importedTryParseJsonFn assignment
       showError: importedShowErrorFn,
     } = utilsModule || {};
-    importedTryParseJson = importedTryParseJsonFn; // Make available globally
+    // Removed importedTryParseJson assignment
     importedShowError = importedShowErrorFn || console.error; // Fallback to console.error
 
     [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
