@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.0.0)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.0.1)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     console.log("[LLM Chat] Attempting to initialize chat...");
     initializeChat();
-    chatForm.addEventListener("submit", handleFormSubmit);
+    chatForm.addEventListener("submit", handleFormSubmit); // This is where the error was
     setupStreamListeners(); // Currently no-op
     setupTextareaResize();
     downloadMdBtn.addEventListener("click", handleDownloadMd);
@@ -107,6 +107,29 @@ document.addEventListener("DOMContentLoaded", () => {
     showError("Error initializing chat features. Some functions may not work.");
   }
 });
+
+/**
+ * Handles the form submission event.
+ * @param {Event} event - The form submit event.
+ */
+const handleFormSubmit = (event) => {
+  event.preventDefault(); // Prevent default form submission
+
+  const userText = chatInput.value.trim();
+  if (userText) {
+    // Add user message to chat history and render
+    messages.push({ role: "user", content: userText });
+    renderMessages();
+
+    // Send message to background script for LLM processing
+    sendChatRequestToBackground(userText);
+
+    // Clear input and resize
+    chatInput.value = "";
+    chatInput.style.height = "auto"; // Reset height
+  }
+};
+
 
 /**
  * Initializes the chat by fetching context from the background script and setting up the UI.
