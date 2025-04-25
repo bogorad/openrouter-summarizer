@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.0.15
+# OpenRouter Summarizer v3.0.16
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -21,7 +21,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
 *   Languages can now be reordered by dragging them in the Options list.
 *   Removed the explicit health check message from the content script, relying on validation within the summary request handler in the background script.
-*   **Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request.**
+*   Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request. (v3.0.15)
+*   **Temporary error messages (like "Chat is busy") now automatically disappear after a short duration.** (v3.0.16)
 
 ---
 
@@ -138,6 +139,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
     *   Fixed parsing of the initial summary context when opening the chat.
 *   **Removed Health Check:** The explicit health check message from the content script has been removed. Configuration validation is now handled directly within the summary request processing in the background script.
 *   **Flag Busy State:** Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request. (v3.0.15)
+*   **Temporary Error Messages:** Temporary error messages (like "Chat is busy") now automatically disappear after a short duration. (v3.0.16)
 
 ## Core Improvements & Fixes
 

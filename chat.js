@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.0.15)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.0.16)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError } from "./utils.js";
@@ -666,7 +666,7 @@ function renderMessages() {
           // );
           let processedContent = stripCodeFences(msg.content);
           // Spec: Strips code fences from the message content.
-          // Arguments: msg.content (string) - The raw message content.
+          // Arguments: msg.content (string) - The input string.
           // Called from: renderMessages.
           // Returns: string - The content with code fences removed.
           // Call site: Inside the messages.forEach loop for assistant messages.
