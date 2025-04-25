@@ -811,7 +811,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               }
             } else {
               if (statusMessage) {
-                statusMessage.textContent = "Changes saved automatically!";
+                statusMessage.textContent = "Changes saved!";
                 statusMessage.className = "status-message success";
               }
               language_info = language_infoToSave;
@@ -926,7 +926,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   function setupAutoSave() {
     // Spec: Previously set up event listeners for automatic saving of settings on input changes with debounce.
     // Now disabled to require manual saving via the Save button.
-    console.log("[LLM Options] Auto-save is disabled. Use the Save button to save changes.");
+    console.log(
+      "[LLM Options] Auto-save is disabled. Use the Save button to save changes.",
+    );
   }
 
   // --- Drag and Drop Handlers ---
