@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v2.52
+# OpenRouter Summarizer v3.0.0
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -19,7 +19,6 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
 *   The first language is the default for summaries. Others show up in the popup header, can be clicked.
 *   Languages can now be reordered by dragging them in the Options list.
-
 
 ---
 
@@ -64,12 +63,13 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   The extension sends the element's HTML and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model. The initial summary is now generated in the **first configured language**.
 4.  **Review Summary:**
     *   The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (``````json ... ``````) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
-    *   **If you have configured preferred languages in Options, corresponding flag icons will appear in the popup header.** Clicking a flag icon will immediately open the Chat tab, requesting a translation of the summary into that language and initiating chat in that language.
+    *   **Click the "Chat" button to open the chat tab.**
     *   Use **Copy** or **Close**.
 5.  **Chat (Optional):**
-    *   Click **Chat** on the summary popup to chat about the summary in English. **(Or click a flag icon in the popup header to start chat requesting a translation)**.
+    *   Click **Chat** on the summary popup to chat about the summary.
     *   A new browser tab opens. An info banner confirms context is available.
     *   The original HTML snippet and the raw/processed JSON string are stored. For *every* message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
+    *   **Language flags are now available in the chat interface.** Click a flag to request a translation of the *last assistant message* into that language.
     *   Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send.
     *   LLM responses are rendered with via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
     *   Use **Copy MD**, **Download MD**, or **Download JSON** to save the chat.
@@ -125,7 +125,7 @@ A: Yes! Options allow editing model/language lists. Advanced Options let you edi
 A: The initial summary popup renders a basic HTML list based on the JSON array received (LLM is instructed to only use `<b>`/`<i>`). Chat uses the `marked` library for standard Markdown, which can include HTML. While generally safe, be mindful of LLM outputs. No scripts are executed. Flag images are static SVGs loaded securely from within the extension bundle via `chrome.runtime.getURL`.
 
 **Q: Why aren't all my configured flags showing in the popup?**
-A: To keep the popup header clean and prevent it from becoming too wide on smaller screens, the popup only displays a limited number (currently up to 4, excluding the first/default language) of your configured languages as flags.
+A: The flags have been moved to the chat interface for better organization and to avoid cluttering the summary popup.
 
 **Q: How are flags chosen for languages?**
 A: The extension attempts to use an SVG flag file (`[language_code].svg`) from the `country-flags/svg/` directory based on the <a href="https://en.wikipedia.org/wiki/ISO_639-1" target="_blank">ISO 639-1</a> code associated with that language in the `languages.json` file. If a flag file for a specific language code is not available in the extension bundle, a generic placeholder flag will be displayed.
@@ -134,6 +134,9 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Flags Moved to Chat:** Language flags are now displayed in the chat interface instead of the summary popup footer.
+*   **Simplified Summary Popup:** The summary popup footer now contains only "Copy", "Chat", and "Close" buttons. The "Chat" button initiates the chat tab with the summary context.
+*   **Chat Translation Feature:** Added functionality to translate the last assistant message in the chat by clicking a language flag button.
 *   **Improved Summary Popup UI:**
     *   Redesigned the footer with language flags as buttons and a central "CHAT" button.
     *   Enhanced flag visibility with a light gray background.

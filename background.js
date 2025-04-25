@@ -10,7 +10,7 @@ import {
   PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
 } from "./constants.js";
 
-console.log(`[LLM Background] Service Worker Start (v2.50.13)`); // Updated version
+console.log(`[LLM Background] Service Worker Start (v3.0.0)`); // Updated version
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
@@ -87,8 +87,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // --- getChatContext Handler ---
     else if (request.action === "getChatContext") {
        if (DEBUG) console.log("[LLM Background] Handling getChatContext request.");
-       chrome.storage.sync.get(["models"], (syncData) => {
-         if (DEBUG) console.log("[LLM Background] Sync data for models:", syncData);
+       chrome.storage.sync.get(["models", "language_info"], (syncData) => { // Fetch language_info here
+         if (DEBUG) console.log("[LLM Background] Sync data for models and language_info:", syncData);
          chrome.storage.session.get(["chatContext"], (sessionData) => {
            if (DEBUG) console.log("[LLM Background] Session data for chatContext:", sessionData);
            const storedContext = sessionData.chatContext || {};
@@ -100,7 +100,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
              domSnippet: storedContext.domSnippet, summary: storedContext.summary,
              chatTargetLanguage: storedContext.chatTargetLanguage || "",
              modelUsedForSummary: storedContext.modelUsedForSummary || "",
-             models: modelsToSend, debug: DEBUG,
+             models: modelsToSend,
+             language_info: Array.isArray(syncData.language_info) ? syncData.language_info : [], // Include language_info
+             debug: DEBUG,
            };
            if (DEBUG) console.log("[LLM Background] Sending getChatContext response - OK.", responsePayload);
            sendResponse(responsePayload);
@@ -109,8 +111,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
        return true;
     }
     // --- getLanguageData Handler ---
+    // This handler is likely no longer needed as language_info is sent with getChatContext
+    // Keeping it for now but might remove later if confirmed unused.
     else if (request.action === "getLanguageData") {
-       if (DEBUG) console.log("[LLM Background] Handling getLanguageData request.");
+       if (DEBUG) console.log("[LLM Background] Handling getLanguageData request (might be deprecated).");
        chrome.storage.sync.get(["language_info"], (data) => {
          if (DEBUG) console.log("[LLM Background] Sending getLanguageData response - OK.");
          sendResponse({ language_info: Array.isArray(data.language_info) ? data.language_info : [] });
@@ -130,6 +134,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
          const controller = new AbortController();
          const signal = controller.signal;
          chrome.storage.session.set({ abortController: controller });
+         // Note: structured_outputs and response_format might need adjustment based on chat prompt
          const payload = { model: request.model, messages: request.messages, structured_outputs: "true", response_format: { type: "json_schema", json_schema: { name: "list_of_strings", strict: true, schema: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 9 } } } };
          if (DEBUG) console.log("[LLM Background] Sending payload to OpenRouter for chat:", payload);
          fetch("https://openrouter.ai/api/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer", "X-Title": "OR-Summ" }, body: JSON.stringify(payload), signal: signal })
@@ -225,7 +230,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
           // Validate model
           if (!model || typeof model !== "string" || model.trim() === "" || !modelIds.includes(model)) {
-            console.error("[LLM Background] Model is missing, invalid, or not in configured list for summary request. Retrieved value:", model);
+            console.error("[LLM Background] Default model is missing, invalid, or not in configured list for summary request. Retrieved value:", model);
             if (sender.tab?.id) {
                 chrome.tabs.sendMessage(sender.tab.id, { action: "summaryResult", requestId: request.requestId, error: "Default Model is not selected or is invalid." }, () => {
                      if (chrome.runtime.lastError && DEBUG && !isTabClosedError(chrome.runtime.lastError)) { console.error(`[LLM Background] Error sending model error to tab ${sender.tab.id}: ${chrome.runtime.lastError.message}`); }
@@ -238,6 +243,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           // If validation passes, proceed with async fetch...
           const bulletCount = parseInt(data.bulletCount || DEFAULT_BULLET_COUNT, 10);
+          // Use the first configured language for the summary prompt, default to English if none configured
           const targetLanguageForPromptGeneration = language_info.length > 0 && language_info[0].language_name ? language_info[0].language_name : "English";
           const systemPrompt = getSystemPrompt(bulletCount, data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] || data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] || DEFAULT_FORMAT_INSTRUCTIONS, data[PROMPT_STORAGE_KEY_PREAMBLE] || DEFAULT_PREAMBLE_TEMPLATE, data[PROMPT_STORAGE_KEY_POSTAMBLE] || DEFAULT_POSTAMBLE_TEXT, data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] || DEFAULT_FORMAT_INSTRUCTIONS, targetLanguageForPromptGeneration);
           const payload = { model: data.model, messages: [ { role: "system", content: systemPrompt }, { role: "user", content: request.selectedHtml } ], structured_outputs: "true", response_format: { type: "json_schema", json_schema: { name: "list_of_strings", strict: true, schema: { type: "array", items: { type: "string" }, minItems: 3, maxItems: bulletCount + 1 } } } };
@@ -299,6 +305,56 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
        });
        return true;
     }
+    // --- requestTranslation Handler ---
+    else if (request.action === "requestTranslation") {
+        if (DEBUG) console.log("[LLM Background] Handling requestTranslation request.");
+        chrome.storage.sync.get(["apiKey", "models"], (storageResult) => {
+            const apiKey = storageResult.apiKey;
+            const models = storageResult.models || DEFAULT_MODEL_OPTIONS;
+            const modelIds = models.map((m) => m.id);
+            const model = request.model; // Use the model passed from chat.js
+
+            if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") { sendResponse({ status: "error", message: "API key required for translation." }); return; }
+            if (!model || typeof model !== "string" || model.trim() === "" || !modelIds.includes(model)) { sendResponse({ status: "error", message: "Valid model required for translation." }); return; }
+            if (!request.textToTranslate || typeof request.textToTranslate !== "string" || request.textToTranslate.trim() === "") { sendResponse({ status: "error", message: "Text to translate is empty." }); return; }
+            if (!request.targetLanguage || typeof request.targetLanguage !== "string" || request.targetLanguage.trim() === "") { sendResponse({ status: "error", message: "Target language is empty." }); return; }
+
+            const translationPrompt = `Translate the following text into ${request.targetLanguage}. Provide only the translated text as a single string. Do not include any other commentary or formatting. The text to translate is: "${request.textToTranslate}"`;
+
+            const payload = {
+                model: model,
+                messages: [{ role: "user", content: translationPrompt }],
+                // structured_outputs: "true", // Translation might not need structured output
+                // response_format: { type: "json_schema", json_schema: { name: "translated_text", strict: true, schema: { type: "string" } } } // Or request a string directly
+            };
+
+            if (DEBUG) console.log("[LLM Background] Sending payload to OpenRouter for translation:", payload);
+
+            fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
+                    "X-Title": "OR-Summ-Translate"
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP error! status: ${response.status}`)))
+            .then(data => {
+                if (DEBUG) console.log("[LLM Background] Fetch response data for translation:", data);
+                const translatedText = data.choices?.[0]?.message?.content?.trim();
+                 if (!translatedText) { throw new Error("No translated content received from LLM."); }
+                sendResponse({ status: "success", translatedText: translatedText });
+            })
+            .catch(error => {
+                if (DEBUG) console.error("[LLM Background] Error in fetch for translation:", error);
+                sendResponse({ status: "error", message: error.message });
+            });
+        });
+        return true; // Indicate async response WILL be sent later
+    }
+
 
     if (DEBUG) console.log("[LLM Background] Message handler completed for action:", request.action);
   });
@@ -325,7 +381,7 @@ function getSystemPrompt(
 
   const finalPreamble = (preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE)
     .replace("${bulletWord}", word)
-    .replace("US English", "the language of the original article_text");
+    .replace("US English", "the language of the original article_text"); // Keep this for summary prompt
 
   const finalFormatInstructions = customFormatInstructions?.trim()
     ? customFormatInstructions

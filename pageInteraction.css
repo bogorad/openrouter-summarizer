@@ -1,6 +1,6 @@
 /* ========================================= */
 /* OpenRouter Summarizer pageInteraction.css */
-/* v2.50.8                                   */
+/* v3.0.0                                   */
 /* Styles for Popup and Page Interactions    */
 /* ========================================= */
 
@@ -101,9 +101,9 @@
 .summarizer-actions {
   display: flex;
   justify-content: space-between;
-  align-items: center; /* Vertically center Copy, Chat Group Wrapper, Close */
+  align-items: center; /* Vertically center Copy, Chat, Close */
   gap: 12px;
-  padding: 15px 20px; /* Increased padding slightly for label space */
+  padding: 15px 20px;
   background-color: #f7faff;
   border-top: 1px solid #e0e8f0;
   flex-shrink: 0;
@@ -157,81 +157,14 @@
 /* Specific Button Colors */
 .summarizer-btn.copy-btn { background-color: #1976D2; color: #ffffff; padding: 8px 20px; }
 .summarizer-btn.copy-btn:hover:not(:disabled) { background-color: #1565C0; }
+/* New style for the single Chat button */
+.summarizer-btn.chat-btn { background-color: #28a745; color: #ffffff; padding: 8px 20px; }
+.summarizer-btn.chat-btn:hover:not(:disabled) { background-color: #218838; }
 .summarizer-btn.close-btn { background-color: #e53935; color: #ffffff; padding: 8px 20px; }
 .summarizer-btn.close-btn:hover:not(:disabled) { background-color: #d32f2f; }
 
-/* --- Chat Group Wrapper (for positioning label) --- */
-.chat-group-wrapper {
-    position: relative; /* Context for the absolute label */
-    padding-top: 1.2em; /* Add padding to top to make space for absolute label */
-    margin-top: -1.2em; /* Counteract padding-top to keep alignment */
-}
-
-.chat-group-label {
-    position: absolute;
-    top: 0; /* Position at the top of the wrapper (adjusted by wrapper padding) */
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.8em;
-    color: #1e90ff; /* Blue */
-    font-weight: 700; /* Bold */
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    white-space: nowrap; /* Prevent wrapping */
-    line-height: 1; /* Ensure consistent height */
-    padding: 0 5px; /* Add slight horizontal padding */
-    background-color: #f7faff; /* Match footer background to mask border */
-}
-
-.chat-button-container {
-    display: flex;
-    align-items: center; /* Align icon button and flag buttons vertically */
-    gap: 6px;
-    background-color: #f8f8f8;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 5px 8px;
-}
-
-/* Default Chat Button (Icon) */
-.summarizer-btn.chat-btn-default {
-    background-color: #2196F3;
-    padding: 6px;
-    min-width: 36px;
-    width: 36px;
-    height: 36px;
-}
-.summarizer-btn.chat-btn-default:hover:not(:disabled) {
-    background-color: #1785db;
-}
-.summarizer-btn.chat-btn-default img.default-chat-icon {
-    height: 20px;
-    width: 20px;
-}
-
-/* Flag Chat Buttons */
-.summarizer-btn.chat-btn-flag {
-    background-color: #f0f0f0; /* Light gray background */
-    border: 1px solid #ccc;
-    padding: 4px;
-    min-width: 40px;
-    width: auto;
-    height: 36px;
-    box-shadow: none;
-}
-.summarizer-btn.chat-btn-flag:hover:not(:disabled) {
-    border-color: #aaa;
-    background-color: #e0e0e0; /* Slightly darker gray on hover */
-}
-.summarizer-btn.chat-btn-flag img.language-flag {
-    height: 100%;
-    width: auto;
-    max-height: 24px;
-    border: none;
-    box-shadow: none;
-    border-radius: 2px;
-    object-fit: contain;
-}
+/* Removed chat group wrapper, label, and button container styles */
+/* Removed default chat button and flag button styles */
 
 
 /* --- Responsive Adjustments --- */
@@ -252,15 +185,9 @@
 
   .summarizer-actions { gap: 8px; padding-top: 12px; padding-bottom: 12px; } /* Adjust padding */
   .summarizer-btn { padding: 6px 12px; height: 34px; }
-  .summarizer-btn.copy-btn, .summarizer-btn.close-btn { padding: 6px 16px; }
+  .summarizer-btn.copy-btn, .summarizer-btn.chat-btn, .summarizer-btn.close-btn { padding: 6px 16px; } /* Apply adjusted padding to new chat button */
 
-  .chat-group-wrapper { padding-top: 1em; margin-top: -1em; } /* Adjust space for label */
-  .chat-group-label { font-size: 0.75em; }
-  .chat-button-container { padding: 4px 6px; gap: 4px; }
-  .summarizer-btn.chat-btn-default { width: 34px; height: 34px; padding: 5px; }
-  .summarizer-btn.chat-btn-default img.default-chat-icon { height: 18px; width: 18px; }
-  .summarizer-btn.chat-btn-flag { height: 34px; padding: 3px; }
-  .summarizer-btn.chat-btn-flag img.language-flag { max-height: 22px; }
+  /* Removed responsive styles for chat group, default chat button, and flag buttons */
 }
 
 /* ======================================== */
