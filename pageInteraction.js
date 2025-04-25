@@ -18,8 +18,6 @@ let DEBUG = false; // Debug logging state
 let lastSummary = ""; // Raw or Cleaned/Combined summary string for chat context
 let lastModelUsed = ""; // Model used for the last summary
 
-// Removed language_info state variable
-
 // Queue for messages received before modules are fully initialized
 let messageQueue = [];
 let modulesInitialized = false; // Flag to indicate when modules are ready
@@ -34,53 +32,6 @@ const numToWord = {
   7: "seven",
   8: "eight",
 };
-
-function getSystemPrompt(
-  bulletCount,
-  customFormatInstructions,
-  preambleTemplate,
-  postambleText,
-  defaultFormatInstructions,
-  targetLanguage,
-) {
-  // Ensure constants are loaded before calling this
-  if (!constants) {
-    console.error(
-      "[LLM Content] getSystemPrompt called before constants loaded!",
-    );
-    return "Error: Constants not loaded.";
-  }
-  const {
-    DEFAULT_PREAMBLE_TEMPLATE,
-    DEFAULT_POSTAMBLE_TEXT,
-    DEFAULT_FORMAT_INSTRUCTIONS,
-    PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-    PROMPT_STORAGE_KEY_PREAMBLE,
-    PROMPT_STORAGE_KEY_POSTAMBLE,
-    PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
-  } = constants;
-
-  const bcNum = Number(bulletCount) || 5;
-  const word = numToWord[bcNum] || "five";
-
-  // Use provided values or fall back to defaults from constants
-  const finalPreamble = (
-    preambleTemplate?.trim() ? preambleTemplate : DEFAULT_PREAMBLE_TEMPLATE
-  )
-    .replace("${bulletWord}", word)
-    .replace("US English", targetLanguage); // Use targetLanguage here
-  // Use custom instructions from config, fallback to default instructions from config, fallback to hardcoded default
-  const finalFormatInstructions = customFormatInstructions?.trim()
-    ? customFormatInstructions
-    : defaultFormatInstructions?.trim()
-      ? defaultFormatInstructions
-      : DEFAULT_FORMAT_INSTRUCTIONS;
-  const finalPostamble = postambleText?.trim()
-    ? postambleText
-    : DEFAULT_POSTAMBLE_TEXT;
-
-  return `${finalPreamble}\n${finalFormatInstructions}\n${finalPostamble}`;
-}
 
 // --- Callback Functions for Modules ---
 
@@ -127,8 +78,6 @@ function handleIconDismiss() {
   lastSummary = "";
   lastModelUsed = "";
 }
-
-// Removed handlePopupCopy function
 
 function handlePopupChat(targetLang = null) {
   if (DEBUG)
