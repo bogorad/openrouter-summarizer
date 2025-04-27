@@ -19,16 +19,33 @@ export const PROMPT_STORAGE_KEY_DEFAULT_FORMAT =
   "prompt_default_format_instructions";
 
 // --- Default Prompt Templates ---
-export const DEFAULT_PREAMBLE_TEMPLATE = `Treat input is raw HTML.
-First, determine the language the input is written in.
-Second, using the language you determined, prepare a summary of input containing no more than \${bulletWord} points.`; // Updated template
+export const DEFAULT_PREAMBLE_TEMPLATE = `
+Treat input is raw HTML.
+First, using only the web page content in input, and ignoring any information inside html tags,
+determine the language the input is written in.
+Second, prepare a summary of input containing no more than \${bulletWord} points 
+in the language you determined.
+Third, use a JSON array of strings to return the summary.
+Each JSON array element, which is a string, should represent a single bullet point.
+ `;
 
-// Export these default values as well
-export const DEFAULT_FORMAT_INSTRUCTIONS = `Provide the summary as a JSON array of strings.
-Each string in the array should be a single bullet point.
-Do not include any other text or formatting outside the JSON array.`;
+export const DEFAULT_FORMAT_INSTRUCTIONS = `Each bullet point should be a concise HTML string,
+starting with a bold tag-like marker and a colon,
+and followed by description.
 
-export const DEFAULT_POSTAMBLE_TEXT = `Ensure the response is ONLY the JSON array.`;
+After providing bullet points for article summary,
+add a bonus bullet point - your insights, assessment and comments,
+and what should a mindful reader notice about this.
+Call it <b>Summarizer Insight</b>.
+`;
+
+export const DEFAULT_POSTAMBLE_TEXT = `
+Ensure the response is ONLY the JSON array.
+Do not include any other text or formatting outside the JSON array.
+You may use ONLY the following HTML tag for emphasis: <b> for bold. 
+Do not use any other HTML tags (like <i>, <p>, <ul>, <li>, <br>, etc.).
+For example: "<b>Key Finding:</b> The market showed <b>significant</b> growth in Q3."
+`;
 
 // --- Chat Prompt Templates ---
 export const CHAT_SYSTEM_PROMPT_TEMPLATE = `
