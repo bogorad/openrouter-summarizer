@@ -99,7 +99,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
-*   **Fixed prompt separation wtat was scewred by LLM:** Now parts are clearly demarked and separate.
+*   **Fixed prompt separation that was screwed by LLM:** Now parts are clearly demarked and separate.
 *   **Fixed Chat Context Error:** Stored the selected element's HTML snippet in a global variable (`lastSelectedDomSnippet`) in `pageInteraction.js` when the floating icon is clicked, and used this stored snippet when opening the chat tab. This resolves the "no element selected" error when clicking the chat button after the summary appears. (v3.0.18)
 *   **Fixed Popup Callback Requirement:** Changed the `onCopy` callback passed to `SummaryPopup.showPopup` in `pageInteraction.js` from `null` to a no-op function (`() => {}`) to satisfy the function type requirement in `summaryPopup.js`. (v3.0.13)
 *   **Fixed Popup Update Timing:** Modified `summaryPopup.js` to return a Promise from `showPopup` that resolves when the popup is visible and ready, and updated `pageInteraction.js` to `await` this Promise before calling `updatePopupContent`. This resolves the "updatePopupContent called but popup doesn't exist" error. (v3.0.12)
