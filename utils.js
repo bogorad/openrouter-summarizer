@@ -56,8 +56,7 @@ export function showError(message, isFatal = true, duration = 0) {
   }
 
   errorDisplay.textContent = message;
-  errorDisplay.style.cssText = 'display: block; color: red; background-color: #ffebee; padding: 10px; border: 1px solid red; border-radius: 4px; margin: 10px auto; width: 80vw;
-max-width: 800px;';
+  errorDisplay.style.cssText = 'display: block; color: red; background-color: #ffebee; padding: 10px; border: 1px solid red; border-radius: 4px; margin: 10px auto; width: 80vw; max-width: 800px;';
 
   // Only disable chat input/send button if isFatal is true
   if (isFatal) {
