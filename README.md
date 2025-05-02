@@ -19,6 +19,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request. (v3.0.15)
 *   Temporary error messages (like "Chat is busy") now automatically disappear after a short duration. (v3.0.16)
 
+*   **Fixed Duplicate Function:** Removed a duplicate `focusInput` function declaration in `chat.js` to resolve a `SyntaxError`. (v3.1.3)
+
 ---
 
 ## 🚀 Features
