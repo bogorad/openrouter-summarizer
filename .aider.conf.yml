@@ -5,17 +5,11 @@ analytics: false
 gitignore: false
 auto-lint: true
 multiline: true
+editor-edit-format: diff-fenced
+model-metadata-file: .aider.model.metadata.json
+model-settings-file: .aider.model.settings.yml
 # model: openrouter/google/gemini-2.5-pro-preview-03-25
 model: openrouter/google/gemini-2.5-flash-preview
-# model: openrouter/meta-llama/llama-4-maverick:free
-# model: xai/grok-3-mini-fast-beta # fast but stupid
-################## this for grok-3-fast-beta - it needs thinking and screws up edit-format
-# model: xai/grok-3-fast-beta
-# reasoning-effort: high
-# edit-format: full
-################## this for grok-3-fast-beta - it needs thinking and screws up edit-format
-# architect: true
-# read:
 file:
   - ./README.md
   - ./background.js
