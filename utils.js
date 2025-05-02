@@ -1,7 +1,6 @@
 console.log(`[LLM Utils] Loaded`);
 
-// utils.js: Provides shared utility functions for the extension. Reduces duplication by centralizing common logic. Called from: pageInteraction.js, chat.js, options.js,
-background.js.
+// utils.js: Provides shared utility functions for the extension. Reduces duplication by centralizing common logic. Called from: pageInteraction.js, chat.js, options.js, background.js.
 
 let errorTimeoutId = null; // Keep track of the timeout for temporary errors - FIX: Declared with 'let'
 
@@ -12,9 +11,9 @@ let errorTimeoutId = null; // Keep track of the timeout for temporary errors - F
  * @returns {object | array | null} - The parsed JSON object/array, or null if parsing fails.
  */
 export function tryParseJson(text, logWarningOnFail = true) {
-  if (typeof text !== 'string' || text.trim() === '') {
+  if (typeof text !== "string" || text.trim() === "") {
     if (logWarningOnFail) {
-      console.warn('[LLM Utils] Input is not a string or is empty.');
+      console.warn("[LLM Utils] Input is not a string or is empty.");
     }
     return null;
   }
@@ -23,7 +22,12 @@ export function tryParseJson(text, logWarningOnFail = true) {
     return parsed;
   } catch (error) {
     if (logWarningOnFail) {
-      console.warn('[LLM Utils] Parsing failed:', error.message, 'Input was:', text.substring(0, 300) + (text.length > 300 ? '...' : ''));
+      console.warn(
+        "[LLM Utils] Parsing failed:",
+        error.message,
+        "Input was:",
+        text.substring(0, 300) + (text.length > 300 ? "..." : ""),
+      );
     }
     return null;
   }
@@ -36,12 +40,12 @@ export function tryParseJson(text, logWarningOnFail = true) {
  * @param {number} [duration=0] - Duration in milliseconds to show the message. 0 means persistent.
  */
 export function showError(message, isFatal = true, duration = 0) {
-  let errorDisplay = document.getElementById('errorDisplay');
+  let errorDisplay = document.getElementById("errorDisplay");
   if (!errorDisplay) {
-    errorDisplay = document.createElement('div');
-    errorDisplay.id = 'errorDisplay';
-    errorDisplay.style.display = 'none';
-    const chatContainer = document.querySelector('.chat-container');
+    errorDisplay = document.createElement("div");
+    errorDisplay.id = "errorDisplay";
+    errorDisplay.style.display = "none";
+    const chatContainer = document.querySelector(".chat-container");
     if (chatContainer) {
       chatContainer.insertBefore(errorDisplay, chatContainer.firstChild);
     } else {
@@ -56,33 +60,35 @@ export function showError(message, isFatal = true, duration = 0) {
   }
 
   errorDisplay.textContent = message;
-  errorDisplay.style.cssText = 'display: block; color: red; background-color: #ffebee; padding: 10px; border: 1px solid red; border-radius: 4px; margin: 10px auto; width: 80vw; max-width: 800px;';
+  errorDisplay.style.cssText =
+    "display: block; color: red; background-color: #ffebee; padding: 10px; border: 1px solid red; border-radius: 4px; margin: 10px auto; width: 80vw; max-width: 800px;";
 
   // Only disable chat input/send button if isFatal is true
   if (isFatal) {
-    const chatInput = document.getElementById('chatInput');
-    const sendButton = document.querySelector('#chatForm button[type="submit"]');
+    const chatInput = document.getElementById("chatInput");
+    const sendButton = document.querySelector(
+      '#chatForm button[type="submit"]',
+    );
     if (chatInput) chatInput.disabled = true;
     if (sendButton) sendButton.disabled = true;
   } else {
-     // If not fatal, ensure they are enabled (unless another fatal error is active)
-     // This is a simplification; a more robust system would track fatal state separately.
-     // For now, we assume non-fatal calls don't override fatal state.
-     // The main chat logic should handle enabling/disabling based on streaming state.
+    // If not fatal, ensure they are enabled (unless another fatal error is active)
+    // This is a simplification; a more robust system would track fatal state separately.
+    // For now, we assume non-fatal calls don't override fatal state.
+    // The main chat logic should handle enabling/disabling based on streaming state.
   }
-
 
   if (duration > 0) {
     errorTimeoutId = setTimeout(() => {
-      errorDisplay.style.display = 'none';
-      errorDisplay.textContent = ''; // Clear text
+      errorDisplay.style.display = "none";
+      errorDisplay.textContent = ""; // Clear text
       errorTimeoutId = null;
       // Note: We don't re-enable input/send button here, as the main chat logic
       // manages their state based on the 'streaming' flag.
     }, duration);
   } else {
-      // For persistent errors, ensure no timeout is active
-      errorTimeoutId = null;
+    // For persistent errors, ensure no timeout is active
+    errorTimeoutId = null;
   }
 }
 
@@ -90,17 +96,17 @@ export function showError(message, isFatal = true, duration = 0) {
  * Clears the currently displayed error message.
  */
 export function clearError() {
-    let errorDisplay = document.getElementById('errorDisplay');
-    if (errorDisplay) {
-        errorDisplay.style.display = 'none';
-        errorDisplay.textContent = '';
-    }
-    if (errorTimeoutId) {
-        clearTimeout(errorTimeoutId);
-        errorTimeoutId = null;
-    }
-    // Note: This function does NOT re-enable the chat input/send button.
-    // Their state is managed by the main chat logic based on the 'streaming' flag.
+  let errorDisplay = document.getElementById("errorDisplay");
+  if (errorDisplay) {
+    errorDisplay.style.display = "none";
+    errorDisplay.textContent = "";
+  }
+  if (errorTimeoutId) {
+    clearTimeout(errorTimeoutId);
+    errorTimeoutId = null;
+  }
+  // Note: This function does NOT re-enable the chat input/send button.
+  // Their state is managed by the main chat logic based on the 'streaming' flag.
 }
 
 /**

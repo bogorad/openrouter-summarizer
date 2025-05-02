@@ -240,7 +240,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           messages: request.messages,
           structured_outputs: "true", // Removed as per chat prompt
           response_format: {
-            // Removed as per chat prompt
             type: "json_schema",
             json_schema: {
               name: "list_of_strings",

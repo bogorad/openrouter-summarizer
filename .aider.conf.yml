@@ -5,7 +5,8 @@ analytics: false
 gitignore: false
 auto-lint: true
 multiline: true
-editor-edit-format: diff-fenced
+# editor-edit-format: diff-fenced
+vim: true
 model-metadata-file: .aider.model.metadata.json
 model-settings-file: .aider.model.settings.yml
 # model: openrouter/google/gemini-2.5-pro-preview-03-25

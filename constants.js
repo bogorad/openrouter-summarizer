@@ -29,29 +29,28 @@ Third, use a JSON array of strings to return the summary.
 Each JSON array element, which is a string, should represent a single bullet point.
  `;
 
-export const DEFAULT_FORMAT_INSTRUCTIONS = `Each bullet point should be a concise HTML string,
+export const DEFAULT_FORMAT_INSTRUCTIONS = `Each bullet point should be a concise markdown string,
 starting with a bold tag-like marker and a colon,
 and followed by description.
 
 After providing bullet points for article summary,
 add a bonus bullet point - your insights, assessment and comments,
 and what should a mindful reader notice about this.
-Call it <b>Summarizer Insight</b>.
+Call it **Summarizer Insight:**
 `;
 
 export const DEFAULT_POSTAMBLE_TEXT = `
 Ensure the response is ONLY the JSON array.
 Do not include any other text or formatting outside the JSON array.
-You may use ONLY the following HTML tag for emphasis: <b> for bold. 
-Do not use any other HTML tags (like <i>, <p>, <ul>, <li>, <br>, etc.).
-For example: "<b>Key Finding:</b> The market showed <b>significant</b> growth in Q3."
+You may use ONLY markdown for emphasis.
+For example: "**Some bold text:** The market showed **significant** growth in Q3."
 `;
 
 // --- Chat Prompt Templates ---
 export const CHAT_SYSTEM_PROMPT_TEMPLATE = `
 Be concise and factual. We no longer need bullet points.
-Format responses using Markdown where appropriate *within the strings inside the JSON array*. Do not use any HTML.
-Return ONLY a single JSON array containing one or more string elements.
+Format responses using Markdown where appropriate. Do not use any HTML.
+Return ONLY a single JSON array containing one string element, encoded as Markdown.
 Do NOT include any text, comments, or other content before or after the JSON array. Do not output your deliberations.
 The strings within the JSON array should be the content of your response.
 Do NOT nest JSON arrays within the strings inside the array.
