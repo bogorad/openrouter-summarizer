@@ -669,10 +669,13 @@ function renderMessages() {
         contentSpan.className = "assistant-inner";
         if (Array.isArray(msg.content)) {
           // Spec: If content is already an array (initial summary), render as list.
-          // console.log(`[LLM Chat Render] Rendering message ${index} as list (content is array).`); // Less verbose
+          // FIX: Use renderTextAsHtml on each item when rendering arrays
           const listHtml =
             "<ul>" +
-            msg.content.map((item) => `<li>${item}</li>`).join("") +
+            msg.content.map((item) => {
+              const itemHtml = renderTextAsHtml(item); // Use renderTextAsHtml here
+              return `<li>${itemHtml}</li>`;
+            }).join("") +
             "</ul>";
           contentSpan.innerHTML = listHtml;
         } else if (typeof msg.content === "string") {
@@ -741,10 +744,14 @@ function renderMessages() {
                 // );
               } else {
                 // Multi-element arrays are rendered as lists
+                // FIX: Use renderTextAsHtml on each item when rendering multi-element arrays
                 const listHtml =
                   "<ul>" +
                   jsonResult.jsonArray
-                    .map((item) => `<li>${item}</li>`)
+                    .map((item) => {
+                      const itemHtml = renderTextAsHtml(item); // Use renderTextAsHtml here
+                      return `<li>${itemHtml}</li>`;
+                    })
                     .join("") +
                   "</ul>";
                 if (jsonResult.beforeText || jsonResult.afterText) {
@@ -815,37 +822,9 @@ function renderMessages() {
         // );
       } else if (msg.role === "user") {
         msgDiv.classList.add("user");
-        if (typeof marked !== "undefined") {
-          // Spec: Parses user message content as Markdown using marked.
-          // Arguments: msg.content (string) - The user message content.
-          // Called from: renderMessages.
-          // Returns: string - The rendered HTML.
-          // Call site: Inside the messages.forEach loop for user messages, if marked is available.
-          // Dependencies: marked library.
-          // State changes: None.
-          // Error handling: Logs error if marked parsing fails.
-          // Side effects: None.
-          // Accessibility: N/A.
-          // Performance: Minimal impact per message.
-
-          try {
-            msgDiv.innerHTML = marked.parse(msg.content);
-            // console.log( // Less verbose
-            //   `[LLM Chat Render] Successfully parsed user message ${index} with marked.`,
-            // );
-          } catch (parseError) {
-            console.error(
-              `[LLM Chat Render] Marked parse error for user message ${index}:`,
-              parseError,
-            );
-            msgDiv.innerHTML = msg.content.replace(/\n/g, "<br>");
-          }
-        } else {
-          msgDiv.innerHTML = msg.content.replace(/\n/g, "<br>");
-          // console.log( // Less verbose
-          //   `[LLM Chat Render] Used fallback for user message ${index}.`,
-          // );
-        }
+        // User messages already use renderTextAsHtml via marked.parse or fallback
+        const userHtml = renderTextAsHtml(msg.content);
+        msgDiv.innerHTML = userHtml;
         // Spec: Appends the user message div to the chat messages wrapper.
         // Arguments: msgDiv (HTMLElement) - The div containing the user message.
         // Called from: renderMessages.
