@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.1.1
+# OpenRouter Summarizer v3.2.0
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -20,6 +20,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   Temporary error messages (like "Chat is busy") now automatically disappear after a short duration. (v3.0.16)
 
 *   **Fixed Duplicate Function:** Removed a duplicate `focusInput` function declaration in `chat.js` to resolve a `SyntaxError`. (v3.1.3)
+*   **Simplified Chat Response Storage:** Modified `chat.js` to parse the single-string JSON array received from the LLM for chat responses and store only the extracted string in the chat history, simplifying rendering logic. (v3.2.0)
 
 ---
 
