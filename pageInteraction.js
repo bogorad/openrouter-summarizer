@@ -186,7 +186,7 @@ function openChatWithContext(targetLang = "") {
   const domSnippet = lastSelectedDomSnippet;
 
   // Check if we actually have a snippet to send
-  if (!domSnippet || !domSnippet.trim()) {
+  if (!domSnippet || domSnippet.trim() === "") {
     importedShowError("Cannot open chat: No element content available."); // Use importedShowError
     if (DEBUG)
       console.warn(
@@ -371,7 +371,7 @@ async function sendToLLM(selectedHtml) {
         );
         const errorMsg = "Error: Unexpected response from background.";
         importedShowError(errorMsg); // Use importedShowError
-        // Now that showPopup is awaited, updatePopupContent should work
+        // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
         SummaryPopup.updatePopupContent(errorMsg);
         SummaryPopup.enableChatButton(false);
         FloatingIcon.removeFloatingIcon();
@@ -601,6 +601,22 @@ async function initialize() {
     const { showError: importedShowErrorFn, renderTextAsHtml: importedRenderTextAsHtmlFn } = utilsModule || {};
     importedShowError = importedShowErrorFn || console.error; // Fallback to console.error
     renderTextAsHtml = importedRenderTextAsHtmlFn; // Assign the imported function
+
+    // FIX: Dynamically import marked.min.js
+    try {
+        await import(chrome.runtime.getURL("./marked.min.js"));
+        if (DEBUG) console.log("[LLM Content] marked.min.js loaded dynamically.");
+        if (typeof marked === "undefined") {
+            console.warn("[LLM Content] marked.min.js loaded, but 'marked' is not defined globally.");
+        }
+    } catch (error) {
+        console.error("[LLM Content] Failed to load marked.min.js:", error);
+        if (importedShowError) { // Check if showError is available
+             importedShowError("Error loading Markdown library. Markdown formatting may not work.");
+        } else {
+             console.error("Error loading Markdown library. Markdown formatting may not work.");
+        }
+    }
 
 
     [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
