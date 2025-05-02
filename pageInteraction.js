@@ -130,9 +130,12 @@ function openChatWithContext(targetLang = "") {
 
   // Check if we actually have a snippet to send
   if (!domSnippet || !domSnippet.trim()) {
-      importedShowError("Cannot open chat: No element content available.");
-      if (DEBUG) console.warn("[LLM Chat Context] Chat attempt failed: lastSelectedDomSnippet is null or empty.");
-      return;
+    importedShowError("Cannot open chat: No element content available.");
+    if (DEBUG)
+      console.warn(
+        "[LLM Chat Context] Chat attempt failed: lastSelectedDomSnippet is null or empty.",
+      );
+    return;
   }
 
   // Use the raw lastSummary stored in this main script's state
@@ -323,67 +326,6 @@ async function sendToLLM(selectedHtml) {
   );
 }
 
-// --- Core Process Trigger ---
-function processSelectedElement() {
-  if (!Highlighter || !SummaryPopup || !FloatingIcon || !constants) {
-    console.error(
-      "[LLM Content] processSelectedElement called before modules loaded!",
-    );
-    return;
-  }
-  const currentSelectedElement = Highlighter.getSelectedElement();
-  if (!currentSelectedElement) {
-    console.error(
-      "[LLM Content] processSelectedElement called but no element is selected!",
-    );
-    importedShowError("Error: No element selected. Use Alt+Click first.");
-    // No need to await here, just show the error popup
-    SummaryPopup.showPopup(
-      "Error: No element selected. Use Alt+Click first.",
-      { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup }, // Provide no-op for onCopy
-    );
-    SummaryPopup.enableChatButton(false);
-    setTimeout(SummaryPopup.hidePopup, 3000);
-    return;
-  }
-  if (DEBUG)
-    console.log(
-      "[LLM Content] processSelectedElement called for element:",
-      currentSelectedElement,
-    );
-
-  // Get HTML content
-  const htmlContent =
-    currentSelectedElement.outerHTML ||
-    currentSelectedElement.innerHTML ||
-    currentSelectedElement.textContent ||
-    "";
-  if (!htmlContent.trim()) {
-    importedShowError("Error: Selected element has no content.");
-    // No need to await here, just show the error popup
-    SummaryPopup.showPopup("Error: Selected element has no content.", {
-      onCopy: () => {}, // Provide no-op for onCopy
-      onChat: () => {},
-      onClose: SummaryPopup.hidePopup,
-    });
-    SummaryPopup.enableChatButton(false);
-    FloatingIcon.removeFloatingIcon();
-    Highlighter.removeSelectionHighlight();
-    lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on empty content
-    return;
-  }
-
-  // ADDED: Store the retrieved HTML content before removing the highlight
-  lastSelectedDomSnippet = htmlContent;
-
-  // Remove the selection highlight *after* getting content
-  Highlighter.removeSelectionHighlight();
-
-  // Send the HTML content to background.js for summarization directly
-  // The background script will handle validation (API key, model) and respond with either the summary or an error.
-  sendToLLM(htmlContent); // sendToLLM is now async and handles showing/updating the popup
-}
-
 // --- Core Message Handling Logic ---
 // Extracted from the listener to be reusable for queued messages
 function handleMessage(req, sender, sendResponse) {
@@ -486,10 +428,31 @@ function handleMessage(req, sender, sendResponse) {
 
         if (combinedSummaryArray.length > 0) {
           // --- SUCCESSFUL PARSE ---
+          // Minimal Change: Process each item (Markdown string) with Markdown rendering
           summaryHtml =
             "<ul>" +
             combinedSummaryArray
-              .map((item) => `<li>${item}</li></li>`)
+              .map((item) => {
+                // Replicate renderTextAsHtml logic here for minimal change
+                let itemHtml = item;
+                if (typeof marked !== "undefined") {
+                  try {
+                    // Use marked.parse for markdown rendering
+                    itemHtml = marked.parse(item, { sanitize: true });
+                  } catch (parseError) {
+                    console.error(
+                      "[LLM Content] Marked parse error for list item:",
+                      parseError,
+                    );
+                    // Fallback to simple line breaks if marked fails
+                    itemHtml = item.replace(/\n/g, "<br>");
+                  }
+                } else {
+                  // Fallback to simple line breaks if marked is not available
+                  itemHtml = item.replace(/\n/g, "<br>");
+                }
+                return `<li>${itemHtml}</li>`; // Wrap the resulting HTML in <li>
+              })
               .join("") +
             "</ul>";
           // --- STORE FIXED JSON STRING ---
