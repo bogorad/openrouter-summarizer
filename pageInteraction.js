@@ -11,7 +11,9 @@ let FloatingIcon = null;
 let SummaryPopup = null;
 let constants = null;
 let importedShowError = null;
-let renderTextAsHtml = null; // Import renderTextAsHtml
+// FIX: Ensure renderTextAsHtml is imported from utils.js
+// let renderTextAsHtml = null; // Removed this line as it's now imported
+import { showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml and showError
 // ...
 
 // --- Global State ---
@@ -40,11 +42,11 @@ const numToWord = {
  * Processes the currently selected element: gets its HTML and sends it to the LLM.
  */
 function processSelectedElement() {
-  if (!Highlighter || !SummaryPopup || !importedShowError) {
+  if (!Highlighter || !SummaryPopup || !showError) { // Use imported showError
     console.error(
       "[LLM Content] processSelectedElement called before modules loaded!",
     );
-    importedShowError("Error: Core components not loaded.");
+    showError("Error: Core components not loaded."); // Use imported showError
     return;
   }
 
@@ -54,7 +56,7 @@ function processSelectedElement() {
       console.warn(
         "[LLM Content] processSelectedElement called but no element is selected.",
       );
-    importedShowError("Error: No element selected to process.");
+    showError("Error: No element selected to process."); // Use imported showError
     return;
   }
 
@@ -79,7 +81,7 @@ function processSelectedElement() {
       console.warn(
         "[LLM Content] Selected element has no HTML content to summarize.",
       );
-    importedShowError("Error: Selected element has no content.");
+    showError("Error: Selected element has no content."); // Use imported showError
     return;
   }
 
@@ -184,7 +186,7 @@ function openChatWithContext(targetLang = "") {
 
   // Check if we actually have a snippet to send
   if (!domSnippet || !domSnippet.trim()) {
-    importedShowError("Cannot open chat: No element content available.");
+    showError("Cannot open chat: No element content available."); // Use imported showError
     if (DEBUG)
       console.warn(
         "[LLM Chat Context] Chat attempt failed: lastSelectedDomSnippet is null or empty.",
@@ -200,7 +202,7 @@ function openChatWithContext(targetLang = "") {
     lastSummary.startsWith("Error:") ||
     lastSummary === "Error: Could not parse summary response." // Add check for parsing error
   ) {
-    importedShowError("Cannot open chat: No valid summary available.");
+    showError("Cannot open chat: No valid summary available."); // Use imported showError
     if (DEBUG)
       console.warn(
         "[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.",
@@ -232,7 +234,7 @@ function openChatWithContext(targetLang = "") {
           "[LLM Chat Context] Error sending context:",
           chrome.runtime.lastError,
         );
-        importedShowError(
+        showError( // Use imported showError
           `Error preparing chat: ${chrome.runtime.lastError.message}`,
         );
         return;
@@ -270,7 +272,7 @@ function openChatWithContext(targetLang = "") {
           "[LLM Chat Context] Background did not confirm context storage:",
           response,
         );
-        importedShowError("Failed to prepare chat context.");
+        showError("Failed to prepare chat context."); // Use imported showError
       }
     },
   );
@@ -301,7 +303,7 @@ async function sendToLLM(selectedHtml) {
     if (DEBUG) console.log("[LLM Content] Summary popup is now ready.");
   } catch (error) {
     console.error("[LLM Content] Error showing summary popup:", error);
-    importedShowError("Error displaying summary popup.");
+    showError("Error displaying summary popup."); // Use imported showError
     FloatingIcon.removeFloatingIcon();
     Highlighter.removeSelectionHighlight();
     lastSummary = "";
@@ -327,7 +329,7 @@ async function sendToLLM(selectedHtml) {
           chrome.runtime.lastError,
         );
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
-        importedShowError(errorMsg);
+        showError(errorMsg); // Use imported showError
         // Now that showPopup is awaited, updatePopupContent should work
         SummaryPopup.updatePopupContent(errorMsg);
         SummaryPopup.enableChatButton(false);
@@ -345,7 +347,7 @@ async function sendToLLM(selectedHtml) {
           response.message,
         );
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
-        importedShowError(errorMsg);
+        showError(errorMsg); // Use imported showError
         // Now that showPopup is awaited, updatePopupContent should work
         SummaryPopup.updatePopupContent(errorMsg);
         SummaryPopup.enableChatButton(false);
@@ -367,7 +369,7 @@ async function sendToLLM(selectedHtml) {
           response,
         );
         const errorMsg = "Error: Unexpected response from background.";
-        importedShowError(errorMsg);
+        showError(errorMsg); // Use imported showError
         // Now that showPopup is awaited, updatePopupContent should work
         SummaryPopup.updatePopupContent(errorMsg);
         SummaryPopup.enableChatButton(false);
@@ -396,7 +398,7 @@ function handleMessage(req, sender, sendResponse) {
       console.warn(
         "[LLM Content] Received processSelection but no element is selected.",
       );
-      importedShowError("Error: No element selected. Use Alt+Click first.");
+      showError("Error: No element selected. Use Alt+Click first."); // Use imported showError
       // No need to await here, just show the error popup
       SummaryPopup.showPopup(
         "Error: No element selected. Use Alt+Click first.",
@@ -424,7 +426,7 @@ function handleMessage(req, sender, sendResponse) {
     if (req.error) {
       // Handle async error from background (e.g., fetch failed, or background validation)
       lastSummary = `Error: ${req.error}`; // Store error state
-      importedShowError(`Error: ${req.error}`);
+      showError(`Error: ${req.error}`); // Use imported showError
       // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
       SummaryPopup.updatePopupContent(`Error: ${req.error}`);
       SummaryPopup.enableChatButton(false);
@@ -514,7 +516,7 @@ function handleMessage(req, sender, sendResponse) {
         console.error(
           `[LLM Content] Error processing summary string: ${e.message}`,
         );
-        importedShowError(`Error processing summary: ${e.message}`);
+        showError(`Error processing summary: ${e.message}`); // Use imported showError
         summaryHtml = rawSummaryString; // Show raw string in popup
         // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
         SummaryPopup.updatePopupContent(
@@ -529,7 +531,7 @@ function handleMessage(req, sender, sendResponse) {
     } else {
       // Handle missing or invalid summary data in async response
       lastSummary = "Error: No summary data received or invalid format.";
-      importedShowError("Error: No summary data received or invalid format.");
+      showError("Error: No summary data received or invalid format."); // Use imported showError
       // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
       SummaryPopup.updatePopupContent(
         "Error: No summary data received or invalid format.",
@@ -549,7 +551,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (
     !modulesInitialized ||
     !SummaryPopup ||
-    !importedShowError ||
+    !showError || // Check if showError is loaded
     !Highlighter ||
     !renderTextAsHtml // Check if renderTextAsHtml is loaded
   ) {
@@ -582,23 +584,22 @@ async function initialize() {
     // Dynamically import utils.js
     let utilsModule;
     try {
-      utilsModule = await import(chrome.runtime.getURL("./utils.js"));
-      if (DEBUG) console.log("[LLM Content] utils.js loaded dynamically.");
+      // Removed dynamic import of utils.js as showError and renderTextAsHtml are now imported directly
+      // utilsModule = await import(chrome.runtime.getURL("./utils.js"));
+      // if (DEBUG) console.log("[LLM Content] utils.js loaded dynamically.");
     } catch (error) {
       console.error("[LLM Content] Failed to load utils.js:", error);
       const errorMsg =
         "Error loading utility functions. Some features may not work.";
       console.error(errorMsg, error);
-      try {
-        // Use console.error as a fallback if importedShowError is not available yet
-        (importedShowError || console.error)(errorMsg);
-      } catch {
-        /* ignore */
-      }
+      // Use console.error as a fallback if importedShowError is not available yet
+      // (importedShowError || console.error)(errorMsg); // Use console.error directly as showError is imported
+      console.error(errorMsg);
     }
-    const { showError: importedShowErrorFn, renderTextAsHtml: importedRenderTextAsHtmlFn } = utilsModule || {};
-    importedShowError = importedShowErrorFn || console.error; // Fallback to console.error
-    renderTextAsHtml = importedRenderTextAsHtmlFn; // Assign the imported function
+    // Removed assignment from utilsModule as showError and renderTextAsHtml are now imported directly
+    // const { showError: importedShowErrorFn, renderTextAsHtml: importedRenderTextAsHtmlFn } = utilsModule || {};
+    // importedShowError = importedShowErrorFn || console.error; // Fallback to console.error
+    // renderTextAsHtml = importedRenderTextAsHtmlFn; // Assign the imported function
 
     [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
       import(chrome.runtime.getURL("./highlighter.js")),
@@ -651,8 +652,8 @@ async function initialize() {
       err,
     );
     // Use the fallback showError if the imported one failed to load
-    const errorDisplayFn = importedShowError || console.error;
-    errorDisplayFn(
+    // const errorDisplayFn = showError || console.error; // Use showError directly
+    showError( // Use imported showError
       `Error: OpenRouter Summarizer failed to load components (${err.message}). Please try reloading the page or reinstalling the extension.`,
     );
   }
