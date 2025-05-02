@@ -1180,12 +1180,23 @@ function formatChatAsMarkdown() {
 
   return messages
     .map(
-      (msg) =>
-        msg.role === "user"
-          ? `**User:** ${msg.content}`
+      (msg) => {
+        let contentString = "";
+        if (Array.isArray(msg.content)) {
+          // FIX: Join array elements with newlines for Markdown formatting
+          contentString = msg.content.join("\n");
+        } else if (typeof msg.content === "string") {
+          contentString = msg.content;
+        } else {
+          contentString = "[Invalid message content]";
+        }
+
+        return msg.role === "user"
+          ? `**User:** ${contentString}`
           : msg.role === "assistant"
-            ? `**Assistant (${msg.model || "Unknown"}):** ${msg.content}` // Include model in MD
-            : `**System:** ${msg.content}`, // Include system messages
+            ? `**Assistant (${msg.model || "Unknown"}):** ${contentString}` // Include model in MD
+            : `**System:** ${contentString}`; // Include system messages
+      }
     )
     .join("\n\n");
 }
