@@ -7,20 +7,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
-*   Centralized all prompt strings in `constants.js` for easier management and modification.
-*   Allowing for incorrect output of LLAMA4-scout model.
-*   Fixed obsessive tranlation to English bug.
-*   The initial summary prompt now instructs the LLM to determine the language of the input text and summarize in that language, rather than explicitly requesting a specific language. (v3.0.7)
-*   Major update, may require options reset.
-*   Now you can stop a chat request by clicking the "Stop" button.
-*   Changed the logic for languages: Now the user can set their own languages, with flags, and fast lookup!
-*   Languages can now be reordered by dragging them in the Options list.
-*   Language flags moved to the chat interface since a tranlation in needed probably 3% of the time; less clutter in popup.
-*   Language flags in the chat interface are now visually dimmed and show a "busy" tooltip while the LLM is processing a request. (v3.0.15)
-*   Temporary error messages (like "Chat is busy") now automatically disappear after a short duration. (v3.0.16)
-
-*   **Fixed Duplicate Function:** Removed a duplicate `focusInput` function declaration in `chat.js` to resolve a `SyntaxError`. (v3.1.3)
-*   **Simplified Chat Response Storage:** Modified `chat.js` to parse the single-string JSON array received from the LLM for chat responses and store only the extracted string in the chat history, simplifying rendering logic. (v3.2.0)
+*   **Fixed Markdown copy/download:** also simplified the processing.
 *   **Version Bump:** Updated version to 3.2.1. (v3.2.1)
 
 ---
@@ -103,24 +90,6 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
-*   **Fixed prompt separation that was screwed by LLM:** Now parts are clearly demarked and separate.
-*   **Fixed Chat Context Error:** Stored the selected element's HTML snippet in a global variable (`lastSelectedDomSnippet`) in `pageInteraction.js` when the floating icon is clicked, and used this stored snippet when opening the chat tab. This resolves the "no element selected" error when clicking the chat button after the summary appears. (v3.0.18)
-*   **Fixed Popup Callback Requirement:** Changed the `onCopy` callback passed to `SummaryPopup.showPopup` in `pageInteraction.js` from `null` to a no-op function (`() => {}`) to satisfy the function type requirement in `summaryPopup.js`. (v3.0.13)
-*   **Fixed Popup Update Timing:** Modified `summaryPopup.js` to return a Promise from `showPopup` that resolves when the popup is visible and ready, and updated `pageInteraction.js` to `await` this Promise before calling `updatePopupContent`. This resolves the "updatePopupContent called but popup doesn't exist" error. (v3.0.12)
-*   **Centralized Translation Prompt:** Moved the user message template used for translation requests (triggered by clicking a language flag in the chat) to `constants.js` as `CHAT_TRANSLATION_REQUEST_TEMPLATE`. (v3.0.9)
-*   **Removed No-Op Function:** Removed the `updatePopupFlags` function from `summaryPopup.js` as it was explicitly a no-op and flags are now handled in the chat interface. (v3.0.14)
-*   **Exported Default Constants:** Exported `DEFAULT_FORMAT_INSTRUCTIONS` and `DEFAULT_POSTAMBLE_TEXT` from `constants.js` to resolve import errors in `background.js` and `options.js`. (v3.0.8)
-*   **Prompt Language Determination:** The initial summary prompt now instructs the LLM to determine the language of the input text and summarize in that language. The extension no longer explicitly requests the summary in the first configured language. (v3.0.7)
-*   **Fixed Syntax Error:** Corrected a missing closing curly brace in the `openChatWithContext` function in `pageInteraction.js`.
-*   **Centralized Prompt Strings:** All prompt templates and fixed prompt parts have been moved to `constants.js` for better organization and maintainability.
-*   **Options Page Reload:** The options page now reloads automatically after saving settings to ensure all changes are fully applied and the UI is consistent.
-*   **Flags Moved to Chat:** Language flags are now displayed in the chat interface instead of the summary popup footer.
-*   **Simplified Summary Popup:** The summary popup footer now contains only "Copy", "Chat", and "Close" buttons. The "Chat" button initiates the chat tab with the summary context.
-*   **Chat Translation Feature:** Added functionality to translate the last assistant message in the chat by clicking a language flag button.
-*   **Improved Summary Popup UI:**
-    *   Redesigned the footer with language flags as buttons and a central "CHAT" button.
-    *   Enhanced flag visibility with a light gray background.
-    *   Fixed flag positioning.
 *   **Smarter Summaries:**
     *   Initial summaries are now requested in the original text's language.
     *   Fixed a bug preventing the correct summary model from being passed to and shown in the chat context.
@@ -131,7 +100,6 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
     *   Implemented a "Stop" button to cancel ongoing chat requests.
     *   Fixed issues with the Stop button remaining visible or error messages persisting incorrectly.
     *   Resolved bugs related to chat submission (Send button and Ctrl+Enter).
-    *   Fixed `TypeError` related to language selection (`chatTargetLanguage`).
     *   Ensured clicking language flags correctly initiates translation requests in the chat.
     *   Improved chat UI rendering for better message display and consistency.
     *   Assistant responses containing JSON arrays are now rendered as structured HTML lists.
@@ -142,28 +110,18 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Core Improvements & Fixes
 
-*   **Refactored Codebase:**
-    *   Major refactoring of the content script (`pageInteraction.js`) into distinct modules (`highlighter.js`, `floatingIcon.js`, `summaryPopup.js`) for better organization.
-    *   Standardized version/update headers added to JS files.
 *   **Centralized Settings:**
     *   Settings management is now handled centrally by `background.js`, improving consistency and simplifying access for other components.
-*   **Improved Error Handling:**
-    *   Better handling and logging for errors when communicating with closed tabs or channels (e.g., "message channel closed", "Receiving end does not exist").
-    *   Fixed issues where immediate validation errors (like missing API key) weren't shown correctly in the summary popup.
-    *   Enhanced validation for API keys, models, and language lists in `background.js`.
 *   **Enhanced Debugging:**
     *   Added more detailed debug logging (e.g., for API key retrieval, full LLM responses, health checks) while removing debug info from the user-facing popup UI.
     *   Improved log consistency and API key sanitization.
 *   **Options Page Improvements:**
-    *   Fixed saving/loading of custom model lists (including labels).
     *   Ensured the UI updates correctly after resetting options to default.
     *   Added post-save verification to check data integrity.
     *   Prevented settings from being saved prematurely during language selection.
     *   Fixed issues related to language data loading.
 *   **Language Handling:**
     *   Standardized internal property naming (`language_info`), simplified language data structures, and fixed issues with language data availability during initialization.
-*   **Version Consistency:**
-    *   Updated version numbers across all relevant files (targeting v2.30, v2.31, and later up to ~v2.50.13 implicitly).
 
 ---
 
