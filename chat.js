@@ -784,7 +784,7 @@ function renderMessages() {
           // Error handling: Handled within renderTextAsHtml.
           // Side effects: None.
           // Accessibility: N/A.
-          // Performance: Minimal impact per message.
+          // Performance: Markdown parsing or simple string replacement.
 
           if (!jsonParsed) {
             finalHtml = renderTextAsHtml(processedContent);
@@ -1187,6 +1187,8 @@ function extractJsonFromContent(content) {
  * @param {string} text - The text to render.
  * @returns {string} - The rendered HTML.
  */
+// REMOVED: renderTextAsHtml function definition
+/*
 function renderTextAsHtml(text) {
   // Spec: Renders plain text or markdown as HTML.
   // Arguments: text (string) - The input text.
@@ -1217,6 +1219,7 @@ function renderTextAsHtml(text) {
     return text.replace(/\n/g, "<br>");
   }
 }
+*/
 
 /**
  * Formats the chat messages as Markdown content.
