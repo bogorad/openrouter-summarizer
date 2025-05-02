@@ -1,5 +1,6 @@
 - name: openrouter/anthropic/claude-3.7-sonnet
   extra_params:
+    use_temperature: 0
     extra_body:
       provider:
         # Only use these providers, in this order
@@ -11,13 +12,9 @@
         # Only use providers supporting all parameters
         require_parameters: true
 
-- name: openrouter/google/gemini-2.5-flash-preview
-  use_temperature: 0
-  extra_params:
-    max_tokens: 90000
-
 - name: openrouter/deepseek/deepseek-r1
   extra_params:
+    use_temperature: 0
     extra_body:
       provider:
         # Only use these providers, in this order
@@ -28,3 +25,12 @@
         # data_collection: "deny"
         # Only use providers supporting all parameters
         require_parameters: true
+
+- name: openrouter/google/gemini-2.5-flash-preview
+  extra_params:
+    use_temperature: 0
+  edit_format: diff
+  use_repo_map: true
+  accepts_settings:
+    - thinking_tokens
+
