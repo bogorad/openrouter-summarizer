@@ -1,6 +1,7 @@
 console.log(`[LLM Utils] Loaded`);
 
-// utils.js: Provides shared utility functions for the extension. Reduces duplication by centralizing common logic. Called from: pageInteraction.js, chat.js, options.js, background.js.
+// utils.js: Provides shared utility functions for the extension. Reduces duplication by centralizing common logic. Called from: pageInteraction.js, chat.js, options.js,
+background.js.
 
 let errorTimeoutId = null; // Keep track of the timeout for temporary errors
 
@@ -55,7 +56,8 @@ export function showError(message, isFatal = true, duration = 0) {
   }
 
   errorDisplay.textContent = message;
-  errorDisplay.style.cssText = 'display: block; color: red; background-color: #ffebee; padding: 10px; border: 1px solid red; border-radius: 4px; margin: 10px auto; width: 80vw; max-width: 800px;';
+  errorDisplay.style.cssText = 'display: block; color: red; background-color: #ffebee; padding: 10px; border: 1px solid red; border-radius: 4px; margin: 10px auto; width: 80vw;
+max-width: 800px;';
 
   // Only disable chat input/send button if isFatal is true
   if (isFatal) {
