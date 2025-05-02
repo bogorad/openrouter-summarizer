@@ -35,6 +35,59 @@ const numToWord = {
   8: "eight",
 };
 
+// --- Core Processing Function ---
+/**
+ * Processes the currently selected element: gets its HTML and sends it to the LLM.
+ */
+function processSelectedElement() {
+  if (!Highlighter || !SummaryPopup || !importedShowError) {
+    console.error(
+      "[LLM Content] processSelectedElement called before modules loaded!",
+    );
+    importedShowError("Error: Core components not loaded.");
+    return;
+  }
+
+  const selectedElement = Highlighter.getSelectedElement();
+  if (!selectedElement) {
+    if (DEBUG)
+      console.warn(
+        "[LLM Content] processSelectedElement called but no element is selected.",
+      );
+    importedShowError("Error: No element selected to process.");
+    return;
+  }
+
+  // Store the selected element's outerHTML for chat context
+  lastSelectedDomSnippet = selectedElement.outerHTML;
+  if (DEBUG)
+    console.log(
+      "[LLM Content] Stored selected element snippet for chat context:",
+      lastSelectedDomSnippet.substring(0, 200) +
+        (lastSelectedDomSnippet.length > 200 ? "..." : ""),
+    );
+
+
+  // Remove the highlight immediately after getting the snippet
+  Highlighter.removeSelectionHighlight(); // This also triggers handleElementDeselected
+
+  // Get the HTML content of the selected element
+  const selectedHtml = selectedElement.outerHTML; // Or innerHTML depending on desired behavior
+
+  if (!selectedHtml || selectedHtml.trim() === "") {
+    if (DEBUG)
+      console.warn(
+        "[LLM Content] Selected element has no HTML content to summarize.",
+      );
+    importedShowError("Error: Selected element has no content.");
+    return;
+  }
+
+  // Send the HTML to the background script for LLM processing
+  sendToLLM(selectedHtml);
+}
+
+
 // --- Callback Functions for Modules ---
 
 function handleElementSelected(element, clickX, clickY) {
