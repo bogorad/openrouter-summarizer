@@ -238,20 +238,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const payload = {
           model: request.model,
           messages: request.messages,
-          // structured_outputs: "true", // Removed as per chat prompt
-          // response_format: { // Removed as per chat prompt
-          //   type: "json_schema",
-          //   json_schema: {
-          //     name: "list_of_strings",
-          //     strict: true,
-          //     schema: {
-          //       type: "array",
-          //       items: { type: "string" },
-          //       minItems: 1,
-          //       maxItems: 9,
-          //     },
-          //   },
-          // },
+          structured_outputs: "true", // Removed as per chat prompt
+          response_format: {
+            // Removed as per chat prompt
+            type: "json_schema",
+            json_schema: {
+              name: "list_of_strings",
+              strict: true,
+              schema: {
+                type: "array",
+                items: { type: "string" },
+                minItems: 1,
+                maxItems: 9,
+              },
+            },
+          },
         };
         if (DEBUG)
           console.log(
