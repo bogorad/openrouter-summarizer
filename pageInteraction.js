@@ -11,6 +11,7 @@ let FloatingIcon = null;
 let SummaryPopup = null;
 let constants = null;
 let importedShowError = null;
+let renderTextAsHtml = null; // Import renderTextAsHtml
 // ...
 
 // --- Global State ---
@@ -428,29 +429,12 @@ function handleMessage(req, sender, sendResponse) {
 
         if (combinedSummaryArray.length > 0) {
           // --- SUCCESSFUL PARSE ---
-          // Minimal Change: Process each item (Markdown string) with Markdown rendering
+          // Use the imported renderTextAsHtml function for Markdown rendering
           summaryHtml =
             "<ul>" +
             combinedSummaryArray
               .map((item) => {
-                // Replicate renderTextAsHtml logic here for minimal change
-                let itemHtml = item;
-                if (typeof marked !== "undefined") {
-                  try {
-                    // Use marked.parse for markdown rendering
-                    itemHtml = marked.parse(item, { sanitize: true });
-                  } catch (parseError) {
-                    console.error(
-                      "[LLM Content] Marked parse error for list item:",
-                      parseError,
-                    );
-                    // Fallback to simple line breaks if marked fails
-                    itemHtml = item.replace(/\n/g, "<br>");
-                  }
-                } else {
-                  // Fallback to simple line breaks if marked is not available
-                  itemHtml = item.replace(/\n/g, "<br>");
-                }
+                const itemHtml = renderTextAsHtml(item); // Use the imported function
                 return `<li>${itemHtml}</li>`; // Wrap the resulting HTML in <li>
               })
               .join("") +
@@ -513,7 +497,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     !modulesInitialized ||
     !SummaryPopup ||
     !importedShowError ||
-    !Highlighter
+    !Highlighter ||
+    !renderTextAsHtml // Check if renderTextAsHtml is loaded
   ) {
     if (DEBUG) {
       console.warn(
@@ -558,8 +543,9 @@ async function initialize() {
         /* ignore */
       }
     }
-    const { showError: importedShowErrorFn } = utilsModule || {};
+    const { showError: importedShowErrorFn, renderTextAsHtml: importedRenderTextAsHtmlFn } = utilsModule || {};
     importedShowError = importedShowErrorFn || console.error; // Fallback to console.error
+    renderTextAsHtml = importedRenderTextAsHtmlFn; // Assign the imported function
 
     [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
       import(chrome.runtime.getURL("./highlighter.js")),
