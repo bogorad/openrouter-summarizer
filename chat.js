@@ -11,7 +11,7 @@
 console.log(`[LLM Chat] Script Start (v3.0.16)`); // Updated version
 
 // ==== GLOBAL STATE ====
-import { tryParseJson, showError } from "./utils.js";
+import { tryParseJson, showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml
 import {
   CHAT_SYSTEM_PROMPT_TEMPLATE,
   CHAT_USER_CONTEXT_TEMPLATE,
@@ -1181,45 +1181,6 @@ function extractJsonFromContent(content) {
     afterText: afterText,
   };
 }
-
-/**
- * Renders text content as HTML using marked if available, or as plain text with line breaks.
- * @param {string} text - The text to render.
- * @returns {string} - The rendered HTML.
- */
-// REMOVED: renderTextAsHtml function definition
-/*
-function renderTextAsHtml(text) {
-  // Spec: Renders plain text or markdown as HTML.
-  // Arguments: text (string) - The input text.
-  // Called from: renderMessages.
-  // Returns: string - The HTML representation of the text.
-  // Call site: Inside renderMessages for assistant messages (if no JSON) and user messages.
-  // Dependencies: marked library (optional).
-  // State changes: None.
-  // Error handling: Logs error if marked parsing fails.
-  // Side effects: None.
-  // Accessibility: N/A.
-  // Performance: Markdown parsing or simple string replacement.
-
-  if (typeof text !== "string" || !text.trim()) {
-    return "";
-  }
-  if (typeof marked !== "undefined") {
-    try {
-      // Use marked.parse for markdown rendering
-      return marked.parse(text, { sanitize: true });
-    } catch (parseError) {
-      console.error("[LLM Chat Render] Marked parse error:", parseError);
-      // Fallback to simple line breaks if marked fails
-      return text.replace(/\n/g, "<br>");
-    }
-  } else {
-    // Fallback to simple line breaks if marked is not available
-    return text.replace(/\n/g, "<br>");
-  }
-}
-*/
 
 /**
  * Formats the chat messages as Markdown content.
