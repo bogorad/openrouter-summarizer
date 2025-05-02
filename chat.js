@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.1.6)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.2.0)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml
