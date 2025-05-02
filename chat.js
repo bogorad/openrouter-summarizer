@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.1.2)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.1.5)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml
@@ -256,6 +256,18 @@ function initializeChat() {
       showError("Error: Could not load models list from settings.");
     }
   });
+}
+
+/**
+ * Sets focus to the chat input textarea.
+ */
+function focusInput() {
+  if (chatInput) {
+    chatInput.focus();
+    if (DEBUG) console.log("[LLM Chat] Input focused.");
+  } else {
+    console.warn("[LLM Chat] chatInput element not found for focusing.");
+  }
 }
 
 /**
@@ -615,6 +627,18 @@ function populateModelDropdown(preferredModelId) {
 }
 
 /**
+ * Sets focus to the chat input textarea.
+ */
+function focusInput() {
+  if (chatInput) {
+    chatInput.focus();
+    if (DEBUG) console.log("[LLM Chat] Input focused.");
+  } else {
+    console.warn("[LLM Chat] chatInput element not found for focusing.");
+  }
+}
+
+/**
  * Renders the chat messages in the UI.
  */
 function renderMessages() {
@@ -668,7 +692,7 @@ function renderMessages() {
         const contentSpan = document.createElement("span");
         contentSpan.className = "assistant-inner";
 
-        let contentToRender = "[Error: Invalid message content]"; // Default error message
+        let contentToRender = "[Error: Invalid message content]";
 
         if (Array.isArray(msg.content)) {
           // This branch is for the initial summary, which is stored as an array
@@ -684,47 +708,98 @@ function renderMessages() {
             "</ul>";
         } else if (typeof msg.content === "string") {
           // This branch is for subsequent chat responses (expected to be single-element JSON array strings)
+          if (DEBUG)
+            console.log(
+              "[LLM Chat Render] Processing assistant string message:",
+              msg.content,
+            );
+
           let processedContent = stripCodeFences(msg.content);
-          let parsedContent = null;
+          if (DEBUG)
+            console.log(
+              "[LLM Chat Render] Processed content after stripCodeFences:",
+              processedContent,
+            );
 
-          try {
-            // Attempt to parse the processed content as JSON
-            parsedContent = JSON.parse(processedContent);
-
-            // Check if it's a valid array with exactly one element
-            if (
-              Array.isArray(parsedContent) &&
-              parsedContent.length === 1 &&
-              typeof parsedContent[0] === "string"
-            ) {
-              // Render the single string element using renderTextAsHtml
-              contentToRender = renderTextAsHtml(parsedContent[0]);
+          if (typeof processedContent !== "string") {
+            if (DEBUG)
+              console.warn(
+                "[LLM Chat Render] processedContent is not a string after stripCodeFences:",
+                processedContent,
+              );
+            contentToRender = renderTextAsHtml(String(processedContent));
+          } else {
+            let parsedContent = null;
+            try {
               if (DEBUG)
                 console.log(
-                  `[LLM Chat Render] Message ${index}: Rendered single JSON array element.`,
+                  "[LLM Chat Render] Attempting JSON.parse on processed content.",
                 );
-            } else {
-              // Fallback: If not a single-element JSON array, render the raw processed content as Markdown
+              parsedContent = JSON.parse(processedContent);
+              if (DEBUG)
+                console.log(
+                  "[LLM Chat Render] JSON.parse result:",
+                  parsedContent,
+                );
+
+              // Check if it's a valid array with exactly one element
+              if (
+                Array.isArray(parsedContent) &&
+                parsedContent.length === 1 &&
+                typeof parsedContent[0] === "string"
+              ) {
+                if (DEBUG)
+                  console.log(
+                    "[LLM Chat Render] Parsed content is a single-element string array. Rendering element 0.",
+                  );
+                if (DEBUG)
+                  console.log(
+                    "[LLM Chat Render] Element 0 content:",
+                    parsedContent[0],
+                  );
+                // Render the single string element using renderTextAsHtml
+                contentToRender = renderTextAsHtml(parsedContent[0]);
+                if (DEBUG)
+                  console.log(
+                    `[LLM Chat Render] Message ${index}: Rendered single JSON array element.`,
+                  );
+              } else {
+                if (DEBUG)
+                  console.warn(
+                    "[LLM Chat Render] Parsed content is NOT a single-element string array. Falling back to raw rendering.",
+                  );
+                // Fallback: If not a single-element JSON array, render the raw processed content as Markdown
+                contentToRender = renderTextAsHtml(processedContent);
+                if (DEBUG)
+                  console.log(
+                    `[LLM Chat Render] Message ${index}: Rendered raw string (not single JSON array).`,
+                  );
+              }
+            } catch (jsonError) {
+              if (DEBUG)
+                console.error(
+                  "[LLM Chat Render] JSON parsing failed:",
+                  jsonError,
+                );
+              if (DEBUG)
+                console.log(
+                  "[LLM Chat Render] Falling back to raw rendering due to JSON error.",
+                );
+              // Fallback on JSON parsing error
               contentToRender = renderTextAsHtml(processedContent);
               if (DEBUG)
                 console.log(
-                  `[LLM Chat Render] Message ${index}: Rendered raw string (not single JSON array).`,
+                  `[LLM Chat Render] Message ${index}: Rendered raw string due to JSON error.`,
                 );
             }
-          } catch (jsonError) {
-            console.error(
-              `[LLM Chat Render] Error parsing JSON for message ${index}:`,
-              jsonError,
-            );
-            // Fallback on JSON parsing error
-            contentToRender = renderTextAsHtml(processedContent);
-            if (DEBUG)
-              console.log(
-                `[LLM Chat Render] Message ${index}: Rendered raw string due to JSON error.`,
-              );
           }
         }
 
+        if (DEBUG)
+          console.log(
+            "[LLM Chat Render] Final contentToRender before setting innerHTML:",
+            contentToRender,
+          );
         contentSpan.innerHTML = contentToRender; // Set the determined HTML content
 
         msgDiv.appendChild(contentSpan);
