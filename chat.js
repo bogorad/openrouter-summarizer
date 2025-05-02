@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.0.16)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.1.2)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml
@@ -675,50 +675,53 @@ function renderMessages() {
           // We still render it as a list, applying renderTextAsHtml to each item
           contentToRender =
             "<ul>" +
-            msg.content.map((item) => {
-              const itemHtml = renderTextAsHtml(item);
-              return `<li>${itemHtml}</li>`;
-            }).join("") +
+            msg.content
+              .map((item) => {
+                const itemHtml = renderTextAsHtml(item);
+                return `<li>${itemHtml}</li>`;
+              })
+              .join("") +
             "</ul>";
         } else if (typeof msg.content === "string") {
           // This branch is for subsequent chat responses (expected to be single-element JSON array strings)
           let processedContent = stripCodeFences(msg.content);
+          let parsedContent = null;
 
-          if (typeof processedContent === "string") {
-            try {
-              const jsonResult = extractJsonFromContent(processedContent);
+          try {
+            // Attempt to parse the processed content as JSON
+            parsedContent = JSON.parse(processedContent);
 
-              // FIX: Always render the content of the single JSON array element if parsing is successful
-              if (jsonResult.jsonArray && Array.isArray(jsonResult.jsonArray) && jsonResult.jsonArray.length === 1) {
-                 // Render the single string element using renderTextAsHtml
-                 let singleItemHtml = renderTextAsHtml(jsonResult.jsonArray[0]);
-
-                 // Include any text found before or after the JSON array
-                 const beforeHtml = jsonResult.beforeText ? renderTextAsHtml(jsonResult.beforeText) : "";
-                 const afterHtml = jsonResult.afterText ? renderTextAsHtml(jsonResult.afterText) : "";
-
-                 contentToRender = `${beforeHtml}${singleItemHtml}${afterHtml}`;
-
-                 if (DEBUG) console.log(`[LLM Chat Render] Message ${index}: Rendered single JSON array element.`);
-
-              } else {
-                 // Fallback: If not a single-element JSON array, render the raw processed content as Markdown
-                 contentToRender = renderTextAsHtml(processedContent);
-                 if (DEBUG) console.log(`[LLM Chat Render] Message ${index}: Rendered raw string (not single JSON array).`);
-              }
-            } catch (jsonError) {
-              console.error(
-                `[LLM Chat Render] Error parsing JSON for message ${index}:`,
-                jsonError,
-              );
-              // Fallback on JSON parsing error
+            // Check if it's a valid array with exactly one element
+            if (
+              Array.isArray(parsedContent) &&
+              parsedContent.length === 1 &&
+              typeof parsedContent[0] === "string"
+            ) {
+              // Render the single string element using renderTextAsHtml
+              contentToRender = renderTextAsHtml(parsedContent[0]);
+              if (DEBUG)
+                console.log(
+                  `[LLM Chat Render] Message ${index}: Rendered single JSON array element.`,
+                );
+            } else {
+              // Fallback: If not a single-element JSON array, render the raw processed content as Markdown
               contentToRender = renderTextAsHtml(processedContent);
-              if (DEBUG) console.log(`[LLM Chat Render] Message ${index}: Rendered raw string due to JSON error.`);
+              if (DEBUG)
+                console.log(
+                  `[LLM Chat Render] Message ${index}: Rendered raw string (not single JSON array).`,
+                );
             }
-          } else {
-             // Fallback if processedContent is not a string
-             contentToRender = renderTextAsHtml(String(processedContent)); // Ensure it's a string for renderTextAsHtml
-             if (DEBUG) console.log(`[LLM Chat Render] Message ${index}: Rendered processed content (not string).`);
+          } catch (jsonError) {
+            console.error(
+              `[LLM Chat Render] Error parsing JSON for message ${index}:`,
+              jsonError,
+            );
+            // Fallback on JSON parsing error
+            contentToRender = renderTextAsHtml(processedContent);
+            if (DEBUG)
+              console.log(
+                `[LLM Chat Render] Message ${index}: Rendered raw string due to JSON error.`,
+              );
           }
         }
 
@@ -794,18 +797,6 @@ function scrollToBottom() {
     // console.log("[LLM Chat] Scrolled to bottom of chat messages."); // Less verbose
   } else {
     console.warn("[LLM Chat] chatMessages element not found for scrolling.");
-  }
-}
-
-/**
- * Focuses the chat input field.
- */
-function focusInput() {
-  if (chatInput) {
-    chatInput.focus();
-    // console.log("[LLM Chat] Input field focused."); // Less verbose
-  } else {
-    console.warn("[LLM Chat] chatInput element not found for focusing.");
   }
 }
 
@@ -960,126 +951,9 @@ function stripCodeFences(text) {
     console.warn("[LLM Chat] stripCodeFences received non-string input:", text);
     return "";
   }
-  // Replace code fences with a placeholder to preserve content if needed
-  const regex = /```[\s\S]*?```/g;
-  return text
-    .replace(regex, (match) => {
-      // Extract content inside fences if it's JSON-like, otherwise remove
-      const innerContent = match
-        .replace(/```(?:\w*)\s*/, "")
-        .replace(/\s*```/, "")
-        .trim();
-      if (innerContent.startsWith("[") && innerContent.endsWith("]")) {
-        return innerContent; // Keep potential JSON content
-      }
-      return ""; // Remove non-JSON fenced content
-    })
-    .trim();
-}
-
-/**
- * Extracts JSON array from content and separates surrounding text.
- * @param {string} content - The content to process.
- * @returns {object} - An object with beforeText, jsonArray, and afterText.
- */
-function extractJsonFromContent(content) {
-  // Spec: Attempts to find and parse JSON arrays within a string, separating surrounding text.
-  // Arguments: content (string) - The input string.
-  // Called from: renderMessages.
-  // Returns: object - { beforeText: string, jsonArray: array | null, afterText: string }.
-  // Call site: Inside renderMessages for assistant messages with string content.
-  // Dependencies: tryParseJson function.
-  // State changes: None.
-  // Error handling: Logs error if JSON parsing fails.
-  // Side effects: None.
-  // Accessibility: N/A.
-  // Performance: String searching and parsing.
-
-  if (typeof content !== "string") {
-    return { beforeText: "", jsonArray: null, afterText: "" };
-  }
-
-  const jsonArrayRegex = /\[.*?\]/gs; // Find all occurrences of [...]
-  let combinedJsonArray = [];
-  let lastIndex = 0;
-  let beforeText = "";
-  let afterText = "";
-  let foundJson = false;
-
-  let match;
-  while ((match = jsonArrayRegex.exec(content)) !== null) {
-    const jsonString = match[0];
-    const textBeforeMatch = content.substring(lastIndex, match.index).trim();
-
-    // Append text before this match to beforeText if it's the first JSON found
-    // or if there was text between JSON blocks.
-    if (!foundJson) {
-      beforeText += textBeforeMatch;
-    } else {
-      // If we found JSON before, any text between matches goes to afterText for now,
-      // we'll consolidate later.
-      afterText += textBeforeMatch;
-    }
-
-    try {
-      const parsedArray = JSON.parse(jsonString);
-      if (Array.isArray(parsedArray)) {
-        // Flatten nested arrays of strings if necessary, or just take strings
-        const stringArray = parsedArray.flatMap((item) => {
-          if (Array.isArray(item)) {
-            // If it's a nested array, try to flatten it
-            return item.map((subItem) => String(subItem));
-          }
-          return String(item); // Ensure it's a string
-        });
-        combinedJsonArray = combinedJsonArray.concat(stringArray);
-        foundJson = true; // Mark that we found at least one valid JSON array
-        afterText = ""; // Clear afterText accumulated *before* this valid JSON
-      } else {
-        // If it's not a valid array, treat the match and preceding text as just text
-        if (!foundJson) {
-          beforeText += jsonString;
-        } else {
-          afterText += jsonString;
-        }
-      }
-    } catch (e) {
-      // If parsing fails, treat the match and preceding text as just text
-      if (!foundJson) {
-        beforeText += jsonString;
-      } else {
-        afterText += jsonString;
-      }
-      if (DEBUG)
-        console.warn(
-          "[LLM Chat Render] Failed to parse potential JSON array:",
-          jsonString,
-          e,
-        );
-    }
-
-    lastIndex = jsonArrayRegex.lastIndex;
-  }
-
-  // Append any remaining text after the last match
-  afterText += content.substring(lastIndex).trim();
-
-  // Consolidate beforeText and afterText if no JSON was found
-  if (!foundJson) {
-    beforeText = content.trim();
-    afterText = "";
-  } else {
-    // If JSON was found, consolidate any text collected in afterText
-    // This handles cases like JSON followed by plain text.
-    // We'll just append it to the end for simplicity.
-    // The rendering logic will handle rendering beforeText, the list, and afterText.
-  }
-
-  return {
-    beforeText: beforeText,
-    jsonArray: foundJson ? combinedJsonArray : null,
-    afterText: afterText,
-  };
+  // Remove all occurrences of ``` followed by optional language identifier and newline,
+  // and the closing ```
+  return text.replace(/```(?:\w*\n)?([\s\S]*?)```/g, "$1").trim();
 }
 
 /**
@@ -1100,24 +974,22 @@ function formatChatAsMarkdown() {
   // Performance: Array mapping and joining.
 
   return messages
-    .map(
-      (msg) => {
-        let contentString = "";
-        if (Array.isArray(msg.content)) {
-          // FIX: Join array elements with newlines for Markdown formatting
-          contentString = msg.content.join("\n");
-        } else if (typeof msg.content === "string") {
-          contentString = msg.content;
-        } else {
-          contentString = "[Invalid message content]";
-        }
-
-        return msg.role === "user"
-          ? `**User:** ${contentString}`
-          : msg.role === "assistant"
-            ? `**Assistant (${msg.model || "Unknown"}):** ${contentString}` // Include model in MD
-            : `**System:** ${contentString}`; // Include system messages
+    .map((msg) => {
+      let contentString = "";
+      if (Array.isArray(msg.content)) {
+        // FIX: Join array elements with newlines for Markdown formatting
+        contentString = msg.content.join("\n");
+      } else if (typeof msg.content === "string") {
+        contentString = msg.content;
+      } else {
+        contentString = "[Invalid message content]";
       }
-    )
+
+      return msg.role === "user"
+        ? `**User:** ${contentString}`
+        : msg.role === "assistant"
+          ? `**Assistant (${msg.model || "Unknown"}):** ${contentString}` // Include model in MD
+          : `**System:** ${contentString}`; // Include system messages
+    })
     .join("\n\n");
 }
