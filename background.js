@@ -248,8 +248,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               schema: {
                 type: "array",
                 items: { type: "string" },
-                minItems: 1,
-                maxItems: 9,
+                minItems: 1, // Defined here
+                maxItems: 1, // FIX: Changed maxItems to 1 for chat requests
               },
             },
           },
@@ -552,8 +552,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 schema: {
                   type: "array",
                   items: { type: "string" },
-                  minItems: 3,
-                  maxItems: bulletCount + 1,
+                  minItems: 3, // minItems for summary is 3
+                  maxItems: bulletCount + 1, // maxItems for summary is bulletCount + 1
                 },
               },
             },
