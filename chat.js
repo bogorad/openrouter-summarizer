@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.1.5)`); // Updated version
+console.log(`[LLM Chat] Script Start (v3.1.6)`); // Updated version
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml
@@ -535,9 +535,27 @@ function sendChatRequestToBackground(userText) {
         //   "[LLM Chat] Received successful response from background:",
         //   response.data,
         // );
+        const rawContent = response.data.choices[0].message.content;
+        let contentToStore;
+
+        // Attempt to parse the raw content as a single-element JSON array
+        const parsedContent = tryParseJson(rawContent, false); // Use tryParseJson from utils
+
+        if (Array.isArray(parsedContent) && parsedContent.length === 1 && typeof parsedContent[0] === 'string') {
+          // If it's the expected format, store the single string element
+          contentToStore = parsedContent[0];
+          if (DEBUG) console.log("[LLM Chat] Stored parsed chat response string.");
+        } else {
+          // If not the expected format, store the raw content and log a warning
+          console.warn("[LLM Chat] Received unexpected chat response format:", rawContent);
+          contentToStore = rawContent; // Store the raw content as a fallback
+          showError("Received unexpected response format from LLM. Displaying raw text.", false);
+        }
+
+
         const newMessage = {
           role: "assistant",
-          content: response.data.choices[0].message.content,
+          content: contentToStore, // Store the processed content (should be a string)
           model: currentStreamModel,
         };
         messages.push(newMessage);
@@ -554,12 +572,12 @@ function sendChatRequestToBackground(userText) {
       if (stopButton) stopButton.style.display = "none";
       // Remove busy state from flags
       const flagButtons = languageFlagsContainer.querySelectorAll(
-        ".language-flag-button",
-      );
-      flagButtons.forEach((button) => {
-        button.classList.remove("language-flag-button-busy");
-        button.title = `Translate last assistant message to ${button.dataset.languageName}`;
-      });
+          ".language-flag-button",
+        );
+        flagButtons.forEach((button) => {
+          button.classList.remove("language-flag-button-busy");
+          button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+        });
     },
   );
 }
@@ -624,18 +642,6 @@ function populateModelDropdown(preferredModelId) {
     selectedModelId = this.value;
     console.log("[LLM Chat] Model changed to:", selectedModelId);
   };
-}
-
-/**
- * Sets focus to the chat input textarea.
- */
-function focusInput() {
-  if (chatInput) {
-    chatInput.focus();
-    if (DEBUG) console.log("[LLM Chat] Input focused.");
-  } else {
-    console.warn("[LLM Chat] chatInput element not found for focusing.");
-  }
 }
 
 /**
@@ -707,92 +713,25 @@ function renderMessages() {
               .join("") +
             "</ul>";
         } else if (typeof msg.content === "string") {
-          // This branch is for subsequent chat responses (expected to be single-element JSON array strings)
+          // This branch is for subsequent chat responses (now stored as strings)
+          // and also for fallback cases where parsing failed.
+          // We no longer need the JSON parsing logic here.
           if (DEBUG)
             console.log(
               "[LLM Chat Render] Processing assistant string message:",
               msg.content,
             );
 
+          // Keep stripCodeFences for robustness, in case LLM includes them
           let processedContent = stripCodeFences(msg.content);
+
+          contentToRender = renderTextAsHtml(processedContent);
+
           if (DEBUG)
             console.log(
-              "[LLM Chat Render] Processed content after stripCodeFences:",
-              processedContent,
+              `[LLM Chat Render] Message ${index}: Rendered string content.`,
             );
 
-          if (typeof processedContent !== "string") {
-            if (DEBUG)
-              console.warn(
-                "[LLM Chat Render] processedContent is not a string after stripCodeFences:",
-                processedContent,
-              );
-            contentToRender = renderTextAsHtml(String(processedContent));
-          } else {
-            let parsedContent = null;
-            try {
-              if (DEBUG)
-                console.log(
-                  "[LLM Chat Render] Attempting JSON.parse on processed content.",
-                );
-              parsedContent = JSON.parse(processedContent);
-              if (DEBUG)
-                console.log(
-                  "[LLM Chat Render] JSON.parse result:",
-                  parsedContent,
-                );
-
-              // Check if it's a valid array with exactly one element
-              if (
-                Array.isArray(parsedContent) &&
-                parsedContent.length === 1 &&
-                typeof parsedContent[0] === "string"
-              ) {
-                if (DEBUG)
-                  console.log(
-                    "[LLM Chat Render] Parsed content is a single-element string array. Rendering element 0.",
-                  );
-                if (DEBUG)
-                  console.log(
-                    "[LLM Chat Render] Element 0 content:",
-                    parsedContent[0],
-                  );
-                // Render the single string element using renderTextAsHtml
-                contentToRender = renderTextAsHtml(parsedContent[0]);
-                if (DEBUG)
-                  console.log(
-                    `[LLM Chat Render] Message ${index}: Rendered single JSON array element.`,
-                  );
-              } else {
-                if (DEBUG)
-                  console.warn(
-                    "[LLM Chat Render] Parsed content is NOT a single-element string array. Falling back to raw rendering.",
-                  );
-                // Fallback: If not a single-element JSON array, render the raw processed content as Markdown
-                contentToRender = renderTextAsHtml(processedContent);
-                if (DEBUG)
-                  console.log(
-                    `[LLM Chat Render] Message ${index}: Rendered raw string (not single JSON array).`,
-                  );
-              }
-            } catch (jsonError) {
-              if (DEBUG)
-                console.error(
-                  "[LLM Chat Render] JSON parsing failed:",
-                  jsonError,
-                );
-              if (DEBUG)
-                console.log(
-                  "[LLM Chat Render] Falling back to raw rendering due to JSON error.",
-                );
-              // Fallback on JSON parsing error
-              contentToRender = renderTextAsHtml(processedContent);
-              if (DEBUG)
-                console.log(
-                  `[LLM Chat Render] Message ${index}: Rendered raw string due to JSON error.`,
-                );
-            }
-          }
         }
 
         if (DEBUG)
