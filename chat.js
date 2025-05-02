@@ -1051,7 +1051,7 @@ function stripCodeFences(text) {
   // Call site: Inside renderMessages for assistant messages.
   // Dependencies: None.
   // State changes: None.
-  // Error handling: Logs a warning if the input is not a string (handled in stripCodeFences).
+  // Error handling: Logs a warning if input is not a string (handled in stripCodeFences).
   // Side effects: None.
   // Accessibility: N/A.
   // Performance: Simple string replacement.
