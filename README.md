@@ -35,6 +35,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ![Chat](media/chat.png)
 
+![Models](media/models.png)
 ---
 
 ## 🛠️ How It Works
