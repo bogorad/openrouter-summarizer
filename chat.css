@@ -82,7 +82,7 @@ Arial, sans-serif; font-size: 16px; display: flex; flex-direction: column; overf
     padding: 4px; /* Smaller padding for flags */
     border: 1px solid #ccc;
     border-radius: 4px; /* Slightly rounded corners */
-    background-color: #f0f0f0; /* Light gray background */
+    background-color: #CAD1D8; /* Darker gray background */
     cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; /* Added opacity transition */
     height: 30px; /* Fixed height for flag buttons */

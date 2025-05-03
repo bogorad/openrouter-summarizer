@@ -1,7 +1,7 @@
 /* ======================================== */
 /* OpenRouter Summarizer Options Styles     */
 /* Includes Model, Language, Prompt Sections*/
-/* v2.20                                    */
+/* v2.20 + Wide Model ID Input             */
 /* ======================================== */
 
 /* --- General Body & Layout --- */
@@ -32,6 +32,7 @@ h1 {
     color: #2c3e50;
     margin-bottom: 30px;
     font-weight: 600;
+    line-height: 1.3; /* Adjust line-height for two lines */
 }
 
 h2 {
@@ -115,12 +116,6 @@ input.wide-input { width: 100%; }
 }
 .option-group label {
     cursor: pointer; vertical-align: middle; display: inline-flex; align-items: center; width: auto;
-}
-
-
-/* --- Model Specific Option Groups --- */
-.model-option input[type="text"] {
-    flex: 1 1 auto; min-width: 150px; width: auto; /* Allow input to grow */
 }
 
 /* --- Language Specific Option Groups & Autocomplete --- */
@@ -248,26 +243,14 @@ img.language-flag {
     color: #000;
 }
 
-/* Style for "No results" message if used (currently commented out in JS) */
-/* .autocomplete-item.no-results {
-    font-style: italic;
-    color: #777;
-    cursor: default;
-}
-.autocomplete-item.no-results:hover,
-.autocomplete-item.no-results.selected {
-    background-color: transparent;
-    color: #777;
-} */
-
-
 .no-translate-option .remove-button { display: none; width: 30px; visibility: hidden; }
 
 
 /* --- Bullet Point Radio Group --- */
-.radio-group { display: flex; gap: 15px; flex-wrap: wrap; margin-left: 10px; }
-.radio-group label { display: flex; align-items: center; }
-.radio-group input[type="radio"] { margin-right: 5px; }
+/* This is the radio group for Summary Options, NOT model selection */
+.section .radio-group { display: flex; gap: 15px; flex-wrap: wrap; margin-left: 10px; }
+.section .radio-group label { display: flex; align-items: center; }
+.section .radio-group input[type="radio"] { margin-right: 5px; }
 
 /* --- Checkbox Group (Debug) --- */
 .checkbox-group { gap: 5px; }
@@ -381,8 +364,12 @@ textarea#promptFormatInstructions:focus {
 .save-button:hover { background-color: #27ae60; transform: translateY(-1px); }
 .reset-button { background-color: #f39c12; color: white; font-weight: 500; }
 .reset-button:hover { background-color: #e67e22; transform: translateY(-1px); }
+
+/* Original Add Button Style (keep for language button) */
 .add-button { background-color: #3498db; color: white; font-size: 0.9em; padding: 8px 15px; margin-top: 5px; }
 .add-button:hover { background-color: #2980b9; transform: translateY(-1px); }
+
+/* Original Remove Button Style (keep for language button) */
 .remove-button { background-color: #e74c3c; color: white; font-size: 0.8em; padding: 4px 8px; line-height: 1; border-radius: 4px; flex-shrink: 0; margin-left: 5px; height: fit-content; width: auto; }
 .remove-button:hover { background-color: #c0392b; }
 
@@ -447,3 +434,167 @@ textarea#promptFormatInstructions:focus {
     border-radius: 1px; /* Optional: slight rounding */
 }
 
+
+/* ======================================== */
+/* NEW Model Selection Styles (Adapted)     */
+/* ======================================== */
+
+/* Apply container styling directly to the JS-controlled area */
+#modelSelectionArea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Gap between model rows */
+  margin-bottom: 15px; /* Space below the model list */
+}
+
+/* Style the dynamically generated rows (.option-group.model-option) */
+#modelSelectionArea .option-group.model-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  background-color: #f9f9f9;
+  gap: 16px; /* Adjust gap between elements: model info, radios, remove btn */
+}
+
+#modelSelectionArea .option-group.model-option:hover {
+  background-color: #f0f0f0;
+}
+
+/* Style the wrapper for the ID input (Direct child of model-option row) */
+#modelSelectionArea .option-group.model-option > .model-info {
+  /* Tells this container to grow and shrink to fill available space */
+  flex: 1;
+  /* Allows shrinking below natural content size if needed */
+  min-width: 0;
+  /* Ensures content within aligns (though only one input now) */
+  display: flex;
+  align-items: center;
+}
+
+/* Style the JS-generated text input for Model ID */
+#modelSelectionArea input[id^="modelText_"] {
+  font-family: monospace;
+  color: #555;
+  padding: 4px 8px;
+  background-color: #e8e8e8;
+  border-radius: 4px;
+  font-size: 14px;
+  border: 1px solid #e8e8e8;
+  box-shadow: none;
+  margin: 0;
+  height: auto;
+  line-height: normal;
+
+  /* --- UPDATED FOR WIDER INPUT --- */
+  /* Make input fill its parent (.model-info) */
+  width: 100%;
+  /* Include padding/border in width calculation */
+  box-sizing: border-box;
+  /* Set a minimum width */
+  min-width: 150px;
+  /* REMOVED flex: 1; from here */
+  /* --- END WIDER INPUT UPDATE --- */
+}
+#modelSelectionArea input[id^="modelText_"]:focus {
+    border-color: #3498db;
+    background-color: #fff;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+
+/* --- Styles for the TWO Radio Button Layout --- */
+/* Container for BOTH radio groups (Summary + Chat) */
+.model-radios {
+  display: flex;
+  gap: 16px; /* Space between "Summary" group and "Chat" group */
+  align-items: center;
+  /* Prevent this section from shrinking */
+  flex-shrink: 0;
+}
+
+/* Container for a SINGLE radio button + its label */
+.radio-group { /* This selector now specifically targets the model radios */
+  display: flex;
+  align-items: center;
+  gap: 6px; /* Space between radio and its label */
+}
+
+/* Style the radio button itself within the model section */
+.model-radios input[type="radio"] {
+  margin: 0; /* Reset margin */
+  cursor: pointer;
+}
+
+/* Style the label text next to the radio button */
+.radio-label {
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  user-select: none; /* Prevent text selection */
+}
+/* --- End Styles for TWO Radio Button Layout --- */
+
+
+/* Style the Remove Button (JS generates .button.remove-button) */
+#modelSelectionArea .button.remove-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 28px; /* Fixed size */
+  height: 28px;
+  font-size: 16px; /* Make '✕' bigger */
+  cursor: pointer;
+  display: flex; /* Center the '✕' */
+  align-items: center;
+  justify-content: center;
+  padding: 0; /* Override default button padding */
+  margin: 0; /* Reset margin */
+  margin-left: 8px; /* Add specific margin */
+  /* Prevent the button from shrinking */
+  flex-shrink: 0;
+  line-height: 1; /* Ensure '✕' is centered */
+  transition: background-color 0.2s ease; /* Add transition */
+}
+#modelSelectionArea .button.remove-button:hover {
+   background-color: #d32f2f; /* Darker red on hover */
+   transform: none; /* Override default button transform */
+}
+
+
+/* Style the Add Model Button */
+#addModelBtn {
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  display: inline-flex; /* Use inline-flex to align icon and text */
+  align-items: center;
+  gap: 8px; /* Use gap if supported, otherwise use margin on SVG */
+  margin-top: 10px; /* Add some space above */
+  /* Override any conflicting base .button styles */
+  margin-left: 0;
+  margin-right: 0;
+  transition: background-color 0.2s ease;
+}
+
+#addModelBtn:hover {
+  background-color: #0b7dda;
+   transform: none; /* Override default button transform */
+}
+
+/* Adjust the Section Title and Paragraph for Model Selection */
+.container > .section:nth-child(3) > h2 { /* Target the Model Selection H2 specifically */
+   /* Using existing h2 style for now */
+}
+
+.container > .section:nth-child(3) > p:first-of-type { /* Target first p after h2 */
+    color: #666; /* Match new design paragraph color */
+    margin-bottom: 20px; /* Match new design paragraph margin */
+}
