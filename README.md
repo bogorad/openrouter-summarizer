@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.2.1
+# OpenRouter Summarizer v3.2.2
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,8 +7,8 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New Since Version 2.0
 
-*   **Fixed Markdown copy/download:** also simplified the processing.
-*   **Version Bump:** Updated version to 3.2.1. (v3.2.1)
+*   **Separate default prompts for popup/chat:** by popular demand, check options!
+*   **Simplified LLM interactions in chat:** more models can be reliably used now. Beware of context window limitations though.
 
 ---
 
@@ -16,13 +16,13 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 *   **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
 *   **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
-*   **Rich Formatting:**
+*   **Rich Formatting:** Markdown FTW!
 *   **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
 *   **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the last message.
 *   **Languages can now be reordered** by dragging them in the Options list.
 *   **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section.
 *   **Configurable Summary:** Choose the approximate number of summary points (3-8) for the initial summary prompt.
-*   **Keyboard Shortcuts:** Use `Ctrl+Enter` / `Cmd+Enter` to send messages in the chat window.
+*   **Keyboard Shortcuts:** Use `Ctrl/Cmd+Enter` to send messages in the chat window.
 *   **Instant Results:** Summaries appear in a clean popup; chat happens in a dedicated tab.
 *   **Secure & Private:** Your API key and options are stored locally in your browser storage. Chat context is stored temporarily in session storage. Nothing is sent anywhere except OpenRouter.ai when you request a summary or chat response.
 *   **Debug-Friendly:** Enable debug mode in Options for detailed console logging. The API key is filtered from the debug console messages.
