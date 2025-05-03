@@ -32,9 +32,9 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 ## Screenshots
 
 ![Summary](media/summary.png)
-
+***
 ![Chat](media/chat.png)
-
+***
 ![Models](media/models.png)
 ---
 
