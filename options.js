@@ -1,3 +1,5 @@
+// options.js
+
 import {
   PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
   PROMPT_STORAGE_KEY_PREAMBLE,
@@ -74,7 +76,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     textInput.addEventListener("input", (event) => {
       const query = event.target.value;
       const suggestions = filterLanguages(query);
-      if (DEBUG) console.log(`[LLM Options] Autocomplete suggestions for "${query}":`, suggestions);
+      if (DEBUG)
+        console.log(
+          `[LLM Options] Autocomplete suggestions for "${query}":`,
+          suggestions,
+        );
       showAutocompleteSuggestions(textInput, suggestions);
     });
     textInput.addEventListener("keydown", handleAutocompleteKeydown);
@@ -107,7 +113,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       item.dataset.languageName = lang.name;
       const flagImg = document.createElement("img");
       flagImg.className = LANGUAGE_FLAG_CLASS;
-      flagImg.src = chrome.runtime.getURL(`country-flags/svg/${lang.code.toLowerCase()}.svg`);
+      flagImg.src = chrome.runtime.getURL(
+        `country-flags/svg/${lang.code.toLowerCase()}.svg`,
+      );
       flagImg.alt = `${lang.name} flag`;
       flagImg.onerror = () => {
         flagImg.src = chrome.runtime.getURL("country-flags/svg/un.svg");
@@ -118,10 +126,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       nameSpan.className = "language-name";
       item.appendChild(flagImg);
       item.appendChild(nameSpan);
-      item.addEventListener("click", () => selectAutocompleteSuggestion(item, inputElement));
+      item.addEventListener("click", () =>
+        selectAutocompleteSuggestion(item, inputElement),
+      );
       autocompleteDropdown.appendChild(item);
     });
-    const rect = inputElement.closest(".language-input-wrapper").getBoundingClientRect();
+    const rect = inputElement
+      .closest(".language-input-wrapper")
+      .getBoundingClientRect();
     autocompleteDropdown.style.position = "absolute";
     autocompleteDropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
     autocompleteDropdown.style.left = `${rect.left + window.scrollX}px`;
@@ -140,7 +152,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     inputElement.value = itemElement.dataset.languageName;
     const flagImg = inputElement.parentElement.querySelector(".language-flag");
     if (flagImg) {
-      flagImg.src = chrome.runtime.getURL(`country-flags/svg/${itemElement.dataset.languageCode.toLowerCase()}.svg`);
+      flagImg.src = chrome.runtime.getURL(
+        `country-flags/svg/${itemElement.dataset.languageCode.toLowerCase()}.svg`,
+      );
       flagImg.alt = `${itemElement.dataset.languageName} flag`;
     }
     const event = new Event("input", { bubbles: true });
@@ -148,21 +162,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     hideAutocompleteSuggestions();
   }
   function handleAutocompleteKeydown(event) {
-    if (!autocompleteDropdown || autocompleteDropdown.style.display === "none") return;
+    if (!autocompleteDropdown || autocompleteDropdown.style.display === "none")
+      return;
     const items = autocompleteDropdown.querySelectorAll(".autocomplete-item");
     if (items.length === 0) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      highlightedAutocompleteIndex = (highlightedAutocompleteIndex + 1) % items.length;
+      highlightedAutocompleteIndex =
+        (highlightedAutocompleteIndex + 1) % items.length;
       updateAutocompleteHighlight(items);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      highlightedAutocompleteIndex = (highlightedAutocompleteIndex - 1 + items.length) % items.length;
+      highlightedAutocompleteIndex =
+        (highlightedAutocompleteIndex - 1 + items.length) % items.length;
       updateAutocompleteHighlight(items);
     } else if (event.key === "Enter") {
       if (highlightedAutocompleteIndex > -1) {
         event.preventDefault();
-        selectAutocompleteSuggestion(items[highlightedAutocompleteIndex], activeAutocompleteInput);
+        selectAutocompleteSuggestion(
+          items[highlightedAutocompleteIndex],
+          activeAutocompleteInput,
+        );
       }
     } else if (event.key === "Escape") {
       hideAutocompleteSuggestions();
@@ -174,13 +194,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
   function handleGlobalClick(event) {
-    const clickedInside = activeAutocompleteInput && activeAutocompleteInput.closest(".language-input-wrapper").contains(event.target);
+    const clickedInside =
+      activeAutocompleteInput &&
+      activeAutocompleteInput
+        .closest(".language-input-wrapper")
+        .contains(event.target);
     if (!clickedInside) {
       hideAutocompleteSuggestions();
     }
   }
   // --- End Autocomplete Functions ---
-
 
   // --- Model Selection Rendering and Handlers (UPDATED - No Labels) ---
   function renderModelOptions() {
@@ -188,24 +211,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     modelSelectionArea.innerHTML = "";
 
     if (!currentModels || currentModels.length === 0) {
-      modelSelectionArea.innerHTML = "<p>No models configured. Add one below or save to use defaults.</p>";
+      modelSelectionArea.innerHTML =
+        "<p>No models configured. Add one below or save to use defaults.</p>";
       if (addModelBtn) addModelBtn.disabled = true;
       return;
     }
 
     if (addModelBtn) {
-        addModelBtn.disabled = currentModels.length >= MAX_MODELS;
-        addModelBtn.title = currentModels.length >= MAX_MODELS
-            ? `Maximum limit of ${MAX_MODELS} models reached.`
-            : `Add another model (max ${MAX_MODELS}).`;
+      addModelBtn.disabled = currentModels.length >= MAX_MODELS;
+      addModelBtn.title =
+        currentModels.length >= MAX_MODELS
+          ? `Maximum limit of ${MAX_MODELS} models reached.`
+          : `Add another model (max ${MAX_MODELS}).`;
     }
 
-    const validModelIds = currentModels.filter(m => m.id.trim() !== '').map(m => m.id);
+    const validModelIds = currentModels
+      .filter((m) => m.id.trim() !== "")
+      .map((m) => m.id);
     if (!validModelIds.includes(currentSummaryModelId)) {
-        currentSummaryModelId = validModelIds.length > 0 ? validModelIds[0] : "";
+      currentSummaryModelId = validModelIds.length > 0 ? validModelIds[0] : "";
     }
     if (!validModelIds.includes(currentChatModelId)) {
-        currentChatModelId = validModelIds.length > 0 ? validModelIds[0] : "";
+      currentChatModelId = validModelIds.length > 0 ? validModelIds[0] : "";
     }
 
     currentModels.forEach((model, index) => {
@@ -242,7 +269,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       summaryRadio.id = `summary-radio-${index}`;
       summaryRadio.name = "summary-default";
       summaryRadio.value = modelIdTrimmed;
-      summaryRadio.checked = isModelIdValid && modelIdTrimmed === currentSummaryModelId;
+      summaryRadio.checked =
+        isModelIdValid && modelIdTrimmed === currentSummaryModelId;
       summaryRadio.disabled = !isModelIdValid;
       summaryRadio.dataset.index = index;
       summaryRadio.addEventListener("change", handleRadioChange);
@@ -262,7 +290,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       chatRadio.id = `chat-radio-${index}`;
       chatRadio.name = "chat-default";
       chatRadio.value = modelIdTrimmed;
-      chatRadio.checked = isModelIdValid && modelIdTrimmed === currentChatModelId;
+      chatRadio.checked =
+        isModelIdValid && modelIdTrimmed === currentChatModelId;
       chatRadio.disabled = !isModelIdValid;
       chatRadio.dataset.index = index;
       chatRadio.addEventListener("change", handleRadioChange);
@@ -294,14 +323,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   function handleRadioChange(event) {
     if (!event.target.checked) return;
     const modelId = event.target.value;
-    const type = event.target.name === 'summary-default' ? 'summary' : 'chat';
+    const type = event.target.name === "summary-default" ? "summary" : "chat";
 
-    if (type === 'summary') {
+    if (type === "summary") {
       currentSummaryModelId = modelId;
-      if (DEBUG) console.log(`[LLM Options] New Summary Default: ${currentSummaryModelId}`);
-    } else if (type === 'chat') {
+      if (DEBUG)
+        console.log(
+          `[LLM Options] New Summary Default: ${currentSummaryModelId}`,
+        );
+    } else if (type === "chat") {
       currentChatModelId = modelId;
-      if (DEBUG) console.log(`[LLM Options] New Chat Default: ${currentChatModelId}`);
+      if (DEBUG)
+        console.log(`[LLM Options] New Chat Default: ${currentChatModelId}`);
     }
   }
 
@@ -326,28 +359,35 @@ document.addEventListener("DOMContentLoaded", async () => {
       summaryRadio.value = newModelId;
       summaryRadio.disabled = !isNewIdValid;
       if (!isNewIdValid && summaryRadio.checked) {
-          summaryRadio.checked = false;
-          const firstValid = currentModels.find((m, i) => i !== idx && m.id.trim() !== '');
-          currentSummaryModelId = firstValid ? firstValid.id.trim() : "";
-          needsReRender = true;
+        summaryRadio.checked = false;
+        const firstValid = currentModels.find(
+          (m, i) => i !== idx && m.id.trim() !== "",
+        );
+        currentSummaryModelId = firstValid ? firstValid.id.trim() : "";
+        needsReRender = true;
       }
     }
     if (chatRadio) {
       chatRadio.value = newModelId;
       chatRadio.disabled = !isNewIdValid;
-       if (!isNewIdValid && chatRadio.checked) {
-          chatRadio.checked = false;
-          const firstValid = currentModels.find((m, i) => i !== idx && m.id.trim() !== '');
-          currentChatModelId = firstValid ? firstValid.id.trim() : "";
-          needsReRender = true;
+      if (!isNewIdValid && chatRadio.checked) {
+        chatRadio.checked = false;
+        const firstValid = currentModels.find(
+          (m, i) => i !== idx && m.id.trim() !== "",
+        );
+        currentChatModelId = firstValid ? firstValid.id.trim() : "";
+        needsReRender = true;
       }
     }
 
     // Re-render if defaults were potentially invalidated and reset
     if (needsReRender) {
-        if (DEBUG) console.log(`[LLM Options] Model ID made invalid, re-calculating defaults and re-rendering.`);
-        renderModelOptions();
-        return; // Exit early as render handles the rest
+      if (DEBUG)
+        console.log(
+          `[LLM Options] Model ID made invalid, re-calculating defaults and re-rendering.`,
+        );
+      renderModelOptions();
+      return; // Exit early as render handles the rest
     }
 
     // Update default selections if the changed model *was* the default
@@ -369,19 +409,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     const removedModelId = currentModels[index].id.trim();
     currentModels.splice(index, 1);
 
-    const remainingValidIds = currentModels.filter(m => m.id.trim() !== '').map(m => m.id.trim());
-    const newDefaultId = remainingValidIds.length > 0 ? remainingValidIds[0] : "";
+    const remainingValidIds = currentModels
+      .filter((m) => m.id.trim() !== "")
+      .map((m) => m.id.trim());
+    const newDefaultId =
+      remainingValidIds.length > 0 ? remainingValidIds[0] : "";
 
     let changedDefaults = false;
     if (removedModelId !== "" && removedModelId === currentSummaryModelId) {
       currentSummaryModelId = newDefaultId;
       changedDefaults = true;
-       if (DEBUG) console.log(`[LLM Options] Summary default removed, new default: ${currentSummaryModelId || 'None'}`);
+      if (DEBUG)
+        console.log(
+          `[LLM Options] Summary default removed, new default: ${currentSummaryModelId || "None"}`,
+        );
     }
     if (removedModelId !== "" && removedModelId === currentChatModelId) {
       currentChatModelId = newDefaultId;
       changedDefaults = true;
-       if (DEBUG) console.log(`[LLM Options] Chat default removed, new default: ${currentChatModelId || 'None'}`);
+      if (DEBUG)
+        console.log(
+          `[LLM Options] Chat default removed, new default: ${currentChatModelId || "None"}`,
+        );
     }
 
     renderModelOptions();
@@ -400,11 +449,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (DEBUG) console.log("[LLM Options] Added new model row (no label).");
     } else {
       alert(`Maximum limit of ${MAX_MODELS} models reached.`);
-      if (DEBUG) console.warn(`[LLM Options] Max models (${MAX_MODELS}) reached.`);
+      if (DEBUG)
+        console.warn(`[LLM Options] Max models (${MAX_MODELS}) reached.`);
     }
   }
   // --- End Model Selection ---
-
 
   // --- Language Selection Rendering and Handlers (Unchanged) ---
   function renderLanguageOptions() {
@@ -466,7 +515,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (addLangBtn) {
       addLangBtn.disabled = language_info.length >= MAX_LANGUAGES;
-      addLangBtn.title = language_info.length >= MAX_LANGUAGES
+      addLangBtn.title =
+        language_info.length >= MAX_LANGUAGES
           ? `Maximum limit of ${MAX_LANGUAGES} languages reached.`
           : `Add another language (max ${MAX_LANGUAGES}).`;
     }
@@ -480,8 +530,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         (lang) => lang.name.toLowerCase() === newLangName.toLowerCase(),
       );
       if (foundLang) {
-        language_info[idx].svg_path = chrome.runtime.getURL(`country-flags/svg/${foundLang.code.toLowerCase()}.svg`);
-        const flagImg = event.target.parentElement.querySelector(".language-flag");
+        language_info[idx].svg_path = chrome.runtime.getURL(
+          `country-flags/svg/${foundLang.code.toLowerCase()}.svg`,
+        );
+        const flagImg =
+          event.target.parentElement.querySelector(".language-flag");
         if (flagImg) {
           flagImg.src = language_info[idx].svg_path;
           flagImg.alt = `${newLangName} flag`;
@@ -493,13 +546,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const index = parseInt(event.target.dataset.index, 10);
     if (index >= 0 && index < language_info.length) {
       language_info.splice(index, 1);
-      if (language_info.length === 0) { // Repopulate with defaults if list becomes empty
-        const defaultLanguages = ["English", "Spanish", "Hebrew", "Mandarin Chinese"];
+      if (language_info.length === 0) {
+        // Repopulate with defaults if list becomes empty
+        const defaultLanguages = [
+          "English",
+          "Spanish",
+          "Hebrew",
+          "Mandarin Chinese",
+        ];
         language_info = defaultLanguages.map((langName) => {
           const lang = allLanguages.find((l) => l.name === langName);
           return {
             language_name: langName,
-            svg_path: lang ? chrome.runtime.getURL(`country-flags/svg/${lang.code.toLowerCase()}.svg`) : chrome.runtime.getURL("country-flags/svg/un.svg"),
+            svg_path: lang
+              ? chrome.runtime.getURL(
+                  `country-flags/svg/${lang.code.toLowerCase()}.svg`,
+                )
+              : chrome.runtime.getURL("country-flags/svg/un.svg"),
           };
         });
       }
@@ -518,36 +581,51 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (newInput) newInput.focus();
       if (DEBUG) console.log("[LLM Options] Added new language row.");
     } else {
-       alert(`Maximum limit of ${MAX_LANGUAGES} languages reached.`);
-       if (DEBUG) console.warn(`[LLM Options] Max languages (${MAX_LANGUAGES}) reached.`);
+      alert(`Maximum limit of ${MAX_LANGUAGES} languages reached.`);
+      if (DEBUG)
+        console.warn(`[LLM Options] Max languages (${MAX_LANGUAGES}) reached.`);
     }
   }
   // --- Drag and Drop Handlers (Unchanged) ---
   function handleDragStart(event) {
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", event.target.closest(".language-option").dataset.index);
-    draggedItemIndex = parseInt(event.target.closest(".language-option").dataset.index, 10);
-    if (DEBUG) console.log(`[LLM Options] Drag started on language index: ${draggedItemIndex}`);
+    event.dataTransfer.setData(
+      "text/plain",
+      event.target.closest(".language-option").dataset.index,
+    );
+    draggedItemIndex = parseInt(
+      event.target.closest(".language-option").dataset.index,
+      10,
+    );
+    if (DEBUG)
+      console.log(
+        `[LLM Options] Drag started on language index: ${draggedItemIndex}`,
+      );
     // Use setTimeout to allow the browser to render the drag image before applying class
     setTimeout(() => {
-         if(event.target.closest(".language-option")) {
-            event.target.closest(".language-option").classList.add("dragging");
-         }
+      if (event.target.closest(".language-option")) {
+        event.target.closest(".language-option").classList.add("dragging");
+      }
     }, 0);
   }
   function handleDragEnd(event) {
-     // Find the element that was being dragged using the index if possible
-     const draggedElement = languageSelectionArea.querySelector(`.language-option[data-index="${draggedItemIndex}"]`);
-     if (draggedElement) {
-       draggedElement.classList.remove("dragging");
-     } else { // Fallback if index somehow changed or element removed
-        const draggingElements = languageSelectionArea.querySelectorAll('.language-option.dragging');
-        draggingElements.forEach(el => el.classList.remove('dragging'));
-     }
+    // Find the element that was being dragged using the index if possible
+    const draggedElement = languageSelectionArea.querySelector(
+      `.language-option[data-index="${draggedItemIndex}"]`,
+    );
+    if (draggedElement) {
+      draggedElement.classList.remove("dragging");
+    } else {
+      // Fallback if index somehow changed or element removed
+      const draggingElements = languageSelectionArea.querySelectorAll(
+        ".language-option.dragging",
+      );
+      draggingElements.forEach((el) => el.classList.remove("dragging"));
+    }
 
     // Clear drag over styles from all items defensively
-    languageSelectionArea.querySelectorAll('.language-option').forEach(el => {
-        el.classList.remove('drag-over-top', 'drag-over-bottom');
+    languageSelectionArea.querySelectorAll(".language-option").forEach((el) => {
+      el.classList.remove("drag-over-top", "drag-over-bottom");
     });
     draggedItemIndex = null;
     if (DEBUG) console.log("[LLM Options] Drag ended for language.");
@@ -560,14 +638,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const targetIndex = parseInt(targetElement.dataset.index, 10);
 
     // Clear previous indicators first
-    languageSelectionArea.querySelectorAll('.language-option').forEach(el => {
-         // Don't remove indicator from the current target element yet
-         if (el !== targetElement) {
-            el.classList.remove('drag-over-top', 'drag-over-bottom');
-         }
+    languageSelectionArea.querySelectorAll(".language-option").forEach((el) => {
+      // Don't remove indicator from the current target element yet
+      if (el !== targetElement) {
+        el.classList.remove("drag-over-top", "drag-over-bottom");
+      }
     });
 
-    if (draggedItemIndex !== targetIndex) { // Don't show indicator when hovering over itself
+    if (draggedItemIndex !== targetIndex) {
+      // Don't show indicator when hovering over itself
       const rect = targetElement.getBoundingClientRect();
       const isOverTopHalf = event.clientY < rect.top + rect.height / 2;
       if (isOverTopHalf) {
@@ -578,8 +657,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         targetElement.classList.remove("drag-over-top");
       }
     } else {
-        // Clear indicators if hovering over the original dragged item
-        targetElement.classList.remove("drag-over-top", "drag-over-bottom");
+      // Clear indicators if hovering over the original dragged item
+      targetElement.classList.remove("drag-over-top", "drag-over-bottom");
     }
   }
   function handleDragLeave(event) {
@@ -587,9 +666,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const targetElement = event.target.closest(".language-option");
 
     // Check if the mouse is leaving the element entirely or just moving to a child/parent within it
-     if (targetElement && (!relatedTarget || !targetElement.contains(relatedTarget))) {
-        targetElement.classList.remove("drag-over-top", "drag-over-bottom");
-     }
+    if (
+      targetElement &&
+      (!relatedTarget || !targetElement.contains(relatedTarget))
+    ) {
+      targetElement.classList.remove("drag-over-top", "drag-over-bottom");
+    }
   }
   function handleDrop(event) {
     event.preventDefault();
@@ -601,15 +683,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Prevent dropping onto itself
     if (draggedItemIndex === targetIndex) {
-        draggedItemIndex = null; // Reset drag state
-        return;
+      draggedItemIndex = null; // Reset drag state
+      return;
     }
 
     const draggedItem = language_info[draggedItemIndex];
-    if (!draggedItem) { // Safety check
-        console.error("Could not find dragged item at index", draggedItemIndex);
-        draggedItemIndex = null;
-        return;
+    if (!draggedItem) {
+      // Safety check
+      console.error("Could not find dragged item at index", draggedItemIndex);
+      draggedItemIndex = null;
+      return;
     }
 
     // Remove from old position first
@@ -620,32 +703,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     const isOverTopHalf = event.clientY < rect.top + rect.height / 2;
 
     // Determine insertion index: Before target if dropped on top half, Adjusted index if dropped on bottom half
-    let newIndex = (draggedItemIndex < targetIndex) ? targetIndex -1 : targetIndex; // Adjust index because splice shifted items
-     if (!isOverTopHalf) {
-         newIndex = (draggedItemIndex < targetIndex) ? targetIndex : targetIndex + 1; // Insert after target
-     }
+    let newIndex =
+      draggedItemIndex < targetIndex ? targetIndex - 1 : targetIndex; // Adjust index because splice shifted items
+    if (!isOverTopHalf) {
+      newIndex = draggedItemIndex < targetIndex ? targetIndex : targetIndex + 1; // Insert after target
+    }
 
+    // Insert at the calculated new position
+    language_info.splice(newIndex, 0, draggedItem);
 
-     // Insert at the calculated new position
-     language_info.splice(newIndex, 0, draggedItem);
-
-    if (DEBUG) console.log(`[LLM Options] Dropped language from original index ${draggedItemIndex} to new index ${newIndex}`);
+    if (DEBUG)
+      console.log(
+        `[LLM Options] Dropped language from original index ${draggedItemIndex} to new index ${newIndex}`,
+      );
     renderLanguageOptions(); // Re-render to apply new order and indices
 
     draggedItemIndex = null; // Reset dragged item index
   }
   // --- End Language Selection ---
 
-
   // --- Prompt Preview & Collapsible (Unchanged) ---
-   function updatePromptPreview() {
+  function updatePromptPreview() {
     let bulletCount = DEFAULT_BULLET_COUNT;
     document.querySelectorAll('input[name="bulletCount"]').forEach((radio) => {
       if (radio.checked) bulletCount = radio.value;
     });
     const bulletWord = NUM_TO_WORD[bulletCount] || "five";
     if (promptPreambleDiv)
-      promptPreambleDiv.textContent = DEFAULT_PREAMBLE_TEMPLATE.replace("${bulletWord}", bulletWord);
+      promptPreambleDiv.textContent = DEFAULT_PREAMBLE_TEMPLATE.replace(
+        "${bulletWord}",
+        bulletWord,
+      );
     if (promptPostambleDiv)
       promptPostambleDiv.textContent = DEFAULT_POSTAMBLE_TEXT;
     if (promptFormatInstructionsTextarea)
@@ -654,11 +742,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   function setupCollapsible() {
     if (advancedOptionsToggle && advancedOptionsContent) {
       const toggleSection = () => {
-        const isExpanded = advancedOptionsToggle.getAttribute("aria-expanded") === "true";
+        const isExpanded =
+          advancedOptionsToggle.getAttribute("aria-expanded") === "true";
         advancedOptionsToggle.setAttribute("aria-expanded", !isExpanded);
         advancedOptionsContent.classList.toggle("active");
-        const toggleIndicator = advancedOptionsToggle.querySelector(".toggle-indicator");
-        if (toggleIndicator) toggleIndicator.textContent = isExpanded ? "►" : "▼";
+        const toggleIndicator =
+          advancedOptionsToggle.querySelector(".toggle-indicator");
+        if (toggleIndicator)
+          toggleIndicator.textContent = isExpanded ? "►" : "▼";
       };
       advancedOptionsToggle.addEventListener("click", toggleSection);
       advancedOptionsToggle.addEventListener("keydown", (event) => {
@@ -669,22 +760,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
       const isInitiallyExpanded = false;
       advancedOptionsToggle.setAttribute("aria-expanded", isInitiallyExpanded);
-      if(isInitiallyExpanded) advancedOptionsContent.classList.add("active");
-      const initialIndicator = advancedOptionsToggle.querySelector(".toggle-indicator");
-      if(initialIndicator) initialIndicator.textContent = isInitiallyExpanded ? "▼" : "►";
+      if (isInitiallyExpanded) advancedOptionsContent.classList.add("active");
+      const initialIndicator =
+        advancedOptionsToggle.querySelector(".toggle-indicator");
+      if (initialIndicator)
+        initialIndicator.textContent = isInitiallyExpanded ? "▼" : "►";
     }
   }
   // --- End Prompt Preview ---
 
-
   // --- Load, Save, Reset (UPDATED - No Labels) ---
   async function loadSettings() {
     try {
-      DEBUG = (await chrome.storage.sync.get("debug"))?.debug ?? DEFAULT_DEBUG_MODE;
+      DEBUG =
+        (await chrome.storage.sync.get("debug"))?.debug ?? DEFAULT_DEBUG_MODE;
     } catch (e) {
       DEBUG = DEFAULT_DEBUG_MODE;
     }
-    if(DEBUG) console.log('[LLM Options] Loading settings...');
+    if (DEBUG) console.log("[LLM Options] Loading settings...");
 
     if (statusMessage) {
       statusMessage.textContent = "Loading...";
@@ -692,18 +785,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-       const langDataResponse = await fetch(chrome.runtime.getURL("country-flags/languages.json"));
-       const langData = await langDataResponse.json();
-       allLanguages = Object.keys(langData).map((name) => ({ name, code: langData[name] }));
+      const langDataResponse = await fetch(
+        chrome.runtime.getURL("country-flags/languages.json"),
+      );
+      const langData = await langDataResponse.json();
+      allLanguages = Object.keys(langData).map((name) => ({
+        name,
+        code: langData[name],
+      }));
 
       const keysToGet = [
-          "apiKey", "models", "summaryModelId", "chatModelId", "debug", "bulletCount",
-          "language_info", PROMPT_STORAGE_KEY_CUSTOM_FORMAT
+        "apiKey",
+        "models",
+        "summaryModelId",
+        "chatModelId",
+        "debug",
+        "bulletCount",
+        "language_info",
+        PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
       ];
       const data = await chrome.storage.sync.get(keysToGet);
 
       if (chrome.runtime.lastError) {
-          throw new Error(chrome.runtime.lastError.message);
+        throw new Error(chrome.runtime.lastError.message);
       }
 
       DEBUG = data.debug ?? DEFAULT_DEBUG_MODE;
@@ -711,74 +815,117 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (debugCheckbox) debugCheckbox.checked = DEBUG;
 
       let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
-      bulletCountRadios.forEach((radio) => (radio.checked = radio.value === countValue));
+      bulletCountRadios.forEach(
+        (radio) => (radio.checked = radio.value === countValue),
+      );
 
       // Load models - now expect array of {id: string}
       currentModels = data.models || [...DEFAULT_MODEL_OPTIONS];
       // Basic validation: ensure models is an array and items have an 'id'
-      if (!Array.isArray(currentModels) || currentModels.some(m => typeof m.id !== 'string')) {
-          console.warn("[LLM Options] Loaded models data is invalid, resetting to defaults.");
-          currentModels = [...DEFAULT_MODEL_OPTIONS];
+      if (
+        !Array.isArray(currentModels) ||
+        currentModels.some((m) => typeof m.id !== "string")
+      ) {
+        console.warn(
+          "[LLM Options] Loaded models data is invalid, resetting to defaults.",
+        );
+        currentModels = [...DEFAULT_MODEL_OPTIONS];
       }
 
       currentSummaryModelId = data.summaryModelId || "";
       currentChatModelId = data.chatModelId || "";
 
-       const validModelIds = currentModels.filter(m => m.id.trim() !== '').map(m => m.id.trim());
-       if (validModelIds.length === 0) {
-           currentModels = [...DEFAULT_MODEL_OPTIONS]; // Use defaults from constants (already no labels)
-           const firstDefaultId = currentModels.length > 0 ? currentModels[0].id : "";
-           currentSummaryModelId = firstDefaultId;
-           currentChatModelId = firstDefaultId;
-           if(DEBUG) console.warn("[LLM Options] No valid models loaded or found, resetting to defaults.");
-       } else {
-           if (!validModelIds.includes(currentSummaryModelId)) {
-               currentSummaryModelId = validModelIds[0];
-               if(DEBUG) console.warn("[LLM Options] Loaded summary default invalid, resetting to first available.");
-           }
-           if (!validModelIds.includes(currentChatModelId)) {
-               currentChatModelId = validModelIds[0];
-               if(DEBUG) console.warn("[LLM Options] Loaded chat default invalid, resetting to first available.");
-           }
-       }
+      const validModelIds = currentModels
+        .filter((m) => m.id.trim() !== "")
+        .map((m) => m.id.trim());
+      if (validModelIds.length === 0) {
+        currentModels = [...DEFAULT_MODEL_OPTIONS]; // Use defaults from constants (already no labels)
+        const firstDefaultId =
+          currentModels.length > 0 ? currentModels[0].id : "";
+        currentSummaryModelId = firstDefaultId;
+        currentChatModelId = firstDefaultId;
+        if (DEBUG)
+          console.warn(
+            "[LLM Options] No valid models loaded or found, resetting to defaults.",
+          );
+      } else {
+        if (!validModelIds.includes(currentSummaryModelId)) {
+          currentSummaryModelId = validModelIds[0];
+          if (DEBUG)
+            console.warn(
+              "[LLM Options] Loaded summary default invalid, resetting to first available.",
+            );
+        }
+        if (!validModelIds.includes(currentChatModelId)) {
+          currentChatModelId = validModelIds[0];
+          if (DEBUG)
+            console.warn(
+              "[LLM Options] Loaded chat default invalid, resetting to first available.",
+            );
+        }
+      }
 
       language_info = data.language_info || [];
       if (language_info.length === 0) {
-        const defaultLanguages = ["English", "Spanish", "Hebrew", "Mandarin Chinese"];
+        const defaultLanguages = [
+          "English",
+          "Spanish",
+          "Hebrew",
+          "Mandarin Chinese",
+        ];
         language_info = defaultLanguages.map((langName) => {
           const lang = allLanguages.find((l) => l.name === langName);
           return {
             language_name: langName,
-            svg_path: lang ? chrome.runtime.getURL(`country-flags/svg/${lang.code.toLowerCase()}.svg`) : chrome.runtime.getURL("country-flags/svg/un.svg"),
+            svg_path: lang
+              ? chrome.runtime.getURL(
+                  `country-flags/svg/${lang.code.toLowerCase()}.svg`,
+                )
+              : chrome.runtime.getURL("country-flags/svg/un.svg"),
           };
         });
-         if(DEBUG) console.log("[LLM Options] No languages loaded, applying defaults.");
+        if (DEBUG)
+          console.log("[LLM Options] No languages loaded, applying defaults.");
       }
 
-      currentCustomFormatInstructions = data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] || DEFAULT_FORMAT_INSTRUCTIONS;
-      if (promptFormatInstructionsTextarea) promptFormatInstructionsTextarea.value = currentCustomFormatInstructions;
+      currentCustomFormatInstructions =
+        data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] || DEFAULT_FORMAT_INSTRUCTIONS;
+      if (promptFormatInstructionsTextarea)
+        promptFormatInstructionsTextarea.value =
+          currentCustomFormatInstructions;
 
       if (statusMessage) {
         statusMessage.textContent = "Options loaded.";
         statusMessage.className = "status-message success";
-        setTimeout(() => { statusMessage.textContent = ""; statusMessage.className = "status-message"; }, 1500);
+        setTimeout(() => {
+          statusMessage.textContent = "";
+          statusMessage.className = "status-message";
+        }, 1500);
       }
-       if (DEBUG) console.log("[LLM Options] Settings loaded successfully.");
-
+      if (DEBUG) console.log("[LLM Options] Settings loaded successfully.");
     } catch (error) {
       showError(`Error loading settings: ${error.message}. Using defaults.`);
       if (apiKeyInput) apiKeyInput.value = "";
       if (debugCheckbox) debugCheckbox.checked = DEFAULT_DEBUG_MODE;
       DEBUG = DEFAULT_DEBUG_MODE;
-      bulletCountRadios.forEach((radio) => (radio.checked = radio.value === DEFAULT_BULLET_COUNT));
+      bulletCountRadios.forEach(
+        (radio) => (radio.checked = radio.value === DEFAULT_BULLET_COUNT),
+      );
       currentModels = [...DEFAULT_MODEL_OPTIONS]; // Use defaults from constants (no labels)
-      const firstDefaultId = currentModels.length > 0 ? currentModels[0].id : "";
+      const firstDefaultId =
+        currentModels.length > 0 ? currentModels[0].id : "";
       currentSummaryModelId = firstDefaultId;
       currentChatModelId = firstDefaultId;
       language_info = [];
       currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
-      if (promptFormatInstructionsTextarea) promptFormatInstructionsTextarea.value = currentCustomFormatInstructions;
-       if (DEBUG) console.error("[LLM Options] Error loading settings, applied defaults.", error);
+      if (promptFormatInstructionsTextarea)
+        promptFormatInstructionsTextarea.value =
+          currentCustomFormatInstructions;
+      if (DEBUG)
+        console.error(
+          "[LLM Options] Error loading settings, applied defaults.",
+          error,
+        );
     }
 
     renderModelOptions();
@@ -801,41 +948,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Filter models: keep only valid IDs, limit count, store only {id: string}
     const modelsToSave = currentModels
-      .map(m => ({ id: m.id.trim() })) // Create object with only id
-      .filter(m => m.id !== "") // Keep only those with valid IDs
+      .map((m) => ({ id: m.id.trim() })) // Create object with only id
+      .filter((m) => m.id !== "") // Keep only those with valid IDs
       .slice(0, MAX_MODELS); // Enforce maximum
 
-    const savedModelIds = modelsToSave.map(m => m.id);
+    const savedModelIds = modelsToSave.map((m) => m.id);
     let finalSummaryModelId = currentSummaryModelId;
     let finalChatModelId = currentChatModelId;
 
     if (!savedModelIds.includes(finalSummaryModelId)) {
-        finalSummaryModelId = savedModelIds.length > 0 ? savedModelIds[0] : "";
-        if (DEBUG) console.warn(`[LLM Options] Summary default "${currentSummaryModelId}" invalid on save, resetting to "${finalSummaryModelId}".`);
+      finalSummaryModelId = savedModelIds.length > 0 ? savedModelIds[0] : "";
+      if (DEBUG)
+        console.warn(
+          `[LLM Options] Summary default "${currentSummaryModelId}" invalid on save, resetting to "${finalSummaryModelId}".`,
+        );
     }
-     if (!savedModelIds.includes(finalChatModelId)) {
-        finalChatModelId = savedModelIds.length > 0 ? savedModelIds[0] : "";
-         if (DEBUG) console.warn(`[LLM Options] Chat default "${currentChatModelId}" invalid on save, resetting to "${finalChatModelId}".`);
+    if (!savedModelIds.includes(finalChatModelId)) {
+      finalChatModelId = savedModelIds.length > 0 ? savedModelIds[0] : "";
+      if (DEBUG)
+        console.warn(
+          `[LLM Options] Chat default "${currentChatModelId}" invalid on save, resetting to "${finalChatModelId}".`,
+        );
     }
 
     // Filter languages (unchanged from previous version)
     const language_infoToSave = language_info
-      .map(lang => {
-          const name = lang.language_name.trim();
-          if (name === "") return null;
-          const foundLang = allLanguages.find(l => l.name.toLowerCase() === name.toLowerCase());
-          if (!foundLang) {
-               if(DEBUG) console.warn(`[LLM Options] Invalid language name "${name}" skipped on save.`);
-               return null;
-          }
-          return {
-              language_name: foundLang.name,
-              svg_path: chrome.runtime.getURL(`country-flags/svg/${foundLang.code.toLowerCase()}.svg`)
-          };
+      .map((lang) => {
+        const name = lang.language_name.trim();
+        if (name === "") return null;
+        const foundLang = allLanguages.find(
+          (l) => l.name.toLowerCase() === name.toLowerCase(),
+        );
+        if (!foundLang) {
+          if (DEBUG)
+            console.warn(
+              `[LLM Options] Invalid language name "${name}" skipped on save.`,
+            );
+          return null;
+        }
+        return {
+          language_name: foundLang.name,
+          svg_path: chrome.runtime.getURL(
+            `country-flags/svg/${foundLang.code.toLowerCase()}.svg`,
+          ),
+        };
       })
-      .filter(item => item !== null)
+      .filter((item) => item !== null)
       .slice(0, MAX_LANGUAGES);
-
 
     const settingsToSave = {
       apiKey,
@@ -851,7 +1010,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS,
     };
 
-    if (DEBUG) console.log("[LLM Options] Settings prepared for saving (no labels):", settingsToSave);
+    if (DEBUG)
+      console.log(
+        "[LLM Options] Settings prepared for saving (no labels):",
+        settingsToSave,
+      );
 
     chrome.storage.sync.set(settingsToSave, () => {
       if (chrome.runtime.lastError) {
@@ -860,28 +1023,44 @@ document.addEventListener("DOMContentLoaded", async () => {
           statusMessage.textContent = "Error saving options!";
           statusMessage.className = "status-message error";
         }
-        if (DEBUG) console.error("[LLM Options] Error saving settings:", chrome.runtime.lastError);
+        if (DEBUG)
+          console.error(
+            "[LLM Options] Error saving settings:",
+            chrome.runtime.lastError,
+          );
       } else {
-         if (DEBUG) console.log("[LLM Options] Settings saved successfully via API.");
-         // Optional verification
-         chrome.storage.sync.get(['models', 'summaryModelId', 'chatModelId'], (retrievedData) => {
-             if(JSON.stringify(settingsToSave.models) !== JSON.stringify(retrievedData.models) ||
-                settingsToSave.summaryModelId !== retrievedData.summaryModelId ||
-                settingsToSave.chatModelId !== retrievedData.chatModelId) {
-                 console.warn("[LLM Options] Save verification mismatch detected (basic check).");
-             } else {
-                  if (DEBUG) console.log("[LLM Options] Save verification passed (basic check).");
-             }
-         });
+        if (DEBUG)
+          console.log("[LLM Options] Settings saved successfully via API.");
+        // Optional verification
+        chrome.storage.sync.get(
+          ["models", "summaryModelId", "chatModelId"],
+          (retrievedData) => {
+            if (
+              JSON.stringify(settingsToSave.models) !==
+                JSON.stringify(retrievedData.models) ||
+              settingsToSave.summaryModelId !== retrievedData.summaryModelId ||
+              settingsToSave.chatModelId !== retrievedData.chatModelId
+            ) {
+              console.warn(
+                "[LLM Options] Save verification mismatch detected (basic check).",
+              );
+            } else {
+              if (DEBUG)
+                console.log(
+                  "[LLM Options] Save verification passed (basic check).",
+                );
+            }
+          },
+        );
 
-         if (statusMessage) {
-            statusMessage.textContent = "Changes saved!";
-            statusMessage.className = "status-message success";
-             setTimeout(() => {
-                 statusMessage.textContent = "";
-                 statusMessage.className = "status-message";
-             }, 1500);
-         }
+        if (statusMessage) {
+          statusMessage.textContent = "Changes saved!";
+          statusMessage.className = "status-message success";
+          setTimeout(() => {
+            statusMessage.textContent = "";
+            statusMessage.className = "status-message";
+          }, 1500);
+        }
       }
     });
   }
@@ -889,28 +1068,46 @@ document.addEventListener("DOMContentLoaded", async () => {
   // UPDATED Reset to Defaults function (Uses constants without labels)
   function resetToDefaults() {
     if (DEBUG) console.log("[LLM Options] Reset to Defaults initiated.");
-    if (confirm("Are you sure you want to reset all options (except API key) to their defaults?")) {
+    if (
+      confirm(
+        "Are you sure you want to reset all options (except API key) to their defaults?",
+      )
+    ) {
       if (DEBUG) console.log("[LLM Options] Reset confirmed.");
 
       // Reset Models using defaults from constants (already no labels)
       currentModels = [...DEFAULT_MODEL_OPTIONS];
-      const firstDefaultId = currentModels.length > 0 ? currentModels[0].id : "";
+      const firstDefaultId =
+        currentModels.length > 0 ? currentModels[0].id : "";
       currentSummaryModelId = firstDefaultId;
       currentChatModelId = firstDefaultId;
 
-      const defaultLanguages = ["English", "Spanish", "Hebrew", "Mandarin Chinese"];
+      const defaultLanguages = [
+        "English",
+        "Spanish",
+        "Hebrew",
+        "Mandarin Chinese",
+      ];
       language_info = defaultLanguages.map((langName) => {
         const lang = allLanguages.find((l) => l.name === langName);
         return {
           language_name: langName,
-          svg_path: lang ? chrome.runtime.getURL(`country-flags/svg/${lang.code.toLowerCase()}.svg`) : chrome.runtime.getURL("country-flags/svg/un.svg"),
+          svg_path: lang
+            ? chrome.runtime.getURL(
+                `country-flags/svg/${lang.code.toLowerCase()}.svg`,
+              )
+            : chrome.runtime.getURL("country-flags/svg/un.svg"),
         };
       });
 
       if (debugCheckbox) debugCheckbox.checked = DEFAULT_DEBUG_MODE;
-      bulletCountRadios.forEach((radio) => { radio.checked = radio.value === DEFAULT_BULLET_COUNT; });
+      bulletCountRadios.forEach((radio) => {
+        radio.checked = radio.value === DEFAULT_BULLET_COUNT;
+      });
       currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
-      if (promptFormatInstructionsTextarea) promptFormatInstructionsTextarea.value = currentCustomFormatInstructions;
+      if (promptFormatInstructionsTextarea)
+        promptFormatInstructionsTextarea.value =
+          currentCustomFormatInstructions;
 
       renderModelOptions();
       renderLanguageOptions();
@@ -919,21 +1116,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       saveSettings();
 
       if (statusMessage) {
-          statusMessage.textContent = "Options reset to defaults.";
-          statusMessage.className = "status-message success";
-           setTimeout(() => {
-               statusMessage.textContent = "";
-               statusMessage.className = "status-message";
-           }, 2000);
+        statusMessage.textContent = "Options reset to defaults.";
+        statusMessage.className = "status-message success";
+        setTimeout(() => {
+          statusMessage.textContent = "";
+          statusMessage.className = "status-message";
+        }, 2000);
       }
-       if (DEBUG) console.log("[LLM Options] Reset operation completed and saved.");
-
+      if (DEBUG)
+        console.log("[LLM Options] Reset operation completed and saved.");
     } else {
-         if (DEBUG) console.log("[LLM Options] Reset cancelled.");
+      if (DEBUG) console.log("[LLM Options] Reset cancelled.");
     }
   }
   // --- End Load, Save, Reset ---
-
 
   // --- Initial Setup ---
   async function initializeOptionsPage() {
@@ -962,15 +1158,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         console.error("[LLM Options] Save button not found.");
       }
-       if (DEBUG) console.log("[LLM Options] Event listeners attached.");
-
+      if (DEBUG) console.log("[LLM Options] Event listeners attached.");
     } catch (error) {
-        console.error("[LLM Options] Error during initialization:", error);
-        showError("Failed to initialize options page: " + error.message);
+      console.error("[LLM Options] Error during initialization:", error);
+      showError("Failed to initialize options page: " + error.message);
     }
   }
 
   initializeOptionsPage();
   // --- End Initial Setup ---
-
 }); // End DOMContentLoaded

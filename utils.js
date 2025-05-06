@@ -1,3 +1,5 @@
+// utils.js
+
 console.log(`[LLM Utils] Loaded`);
 
 // utils.js: Provides shared utility functions for the extension. Reduces duplication by centralizing common logic. Called from: pageInteraction.js, chat.js, options.js, background.js.

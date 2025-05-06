@@ -1,5 +1,3 @@
-// summaryPopup.js
-
 console.log(`[LLM Popup] Script Loaded (v3.0.14)`); // Updated version
 
 // --- Constants ---
@@ -35,50 +33,92 @@ const POPUP_TEMPLATE_HTML = `
 
 // --- Module State ---
 let popup = null;
-let currentContent = "";
+let currentContent = ""; // Stores the HTML/text content being displayed
 let popupCallbacks = { onCopy: null, onChat: null, onClose: null };
 let copyTimeoutId = null;
 let DEBUG = false;
 
+let currentOriginalMarkdownArray = null; // To store the array of original Markdown strings
+let currentPageURL = null; // To store the page URL
+
 // Handles copy logic
 function handleCopyClick(contentDiv, copyBtn) {
-  if (!contentDiv || !copyBtn) return;
+  if (!copyBtn) return;
   if (copyTimeoutId) clearTimeout(copyTimeoutId);
-  let val = "";
-  const listItems = contentDiv.querySelectorAll("li");
-  if (listItems.length > 0) {
-    val = Array.from(listItems)
-      .map((li) => {
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = li.innerHTML;
-        // Basic cleaning: replace non-breaking spaces, trim
-        return tempDiv.textContent.replace(/\u00A0/g, " ").trim();
-      })
-      .filter((text) => text !== "")
-      .map((text, idx) => `${idx + 1}. ${text}`)
-      .join("\n");
+
+  let textToCopy = "";
+
+  if (
+    currentOriginalMarkdownArray &&
+    currentOriginalMarkdownArray.length > 0 &&
+    currentPageURL
+  ) {
+    // New logic: Copy original Markdown items as a list, then the URL
+    let markdownToCopy = "";
+    currentOriginalMarkdownArray.forEach((item) => {
+      markdownToCopy += `* ${item}\n`; // Prepend Markdown list item indicator
+    });
+    markdownToCopy += `\n\n${currentPageURL}`; // Add two newlines before URL for a new paragraph
+    textToCopy = markdownToCopy;
+    if (DEBUG)
+      console.log("[LLM Popup] Copying constructed Markdown:", textToCopy);
   } else {
-    // Fallback for non-list content
-    val = contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
+    // Fallback logic: Copy plain text of what's visible in the popup
+    if (DEBUG)
+      console.log(
+        "[LLM Popup] Fallback: Copying visible plain text from popup.",
+      );
+    if (contentDiv) {
+      const listItems = contentDiv.querySelectorAll("li");
+      if (listItems.length > 0) {
+        textToCopy = Array.from(listItems)
+          .map((li) => {
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = li.innerHTML;
+            return tempDiv.textContent.replace(/\u00A0/g, " ").trim();
+          })
+          .filter((text) => text !== "")
+          .map((text, idx) => `${idx + 1}. ${text}`)
+          .join("\n");
+      } else {
+        textToCopy =
+          contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
+      }
+    } else if (
+      typeof currentContent === "string" &&
+      !currentContent.startsWith("<")
+    ) {
+      // If contentDiv isn't available but currentContent is simple text (e.g. "Thinking...")
+      textToCopy = currentContent.trim();
+    }
   }
 
-  navigator.clipboard
-    .writeText(val) // Use the cleaned value
-    .then(() => {
-      copyBtn.textContent = "Copied!";
-      copyTimeoutId = setTimeout(() => {
-        copyBtn.textContent = "Copy";
-        copyTimeoutId = null;
-      }, 1500);
-    })
-    .catch((err) => {
-      console.error("[LLM Popup] Failed to copy text: ", err);
-      copyBtn.textContent = "Error";
-      copyTimeoutId = setTimeout(() => {
-        copyBtn.textContent = "Copy";
-        copyTimeoutId = null;
-      }, 1500);
-    });
+  if (textToCopy) {
+    navigator.clipboard
+      .writeText(textToCopy)
+      .then(() => {
+        copyBtn.textContent = "Copied!";
+        copyTimeoutId = setTimeout(() => {
+          copyBtn.textContent = "Copy";
+          copyTimeoutId = null;
+        }, 1500);
+      })
+      .catch((err) => {
+        console.error("[LLM Popup] Failed to copy text: ", err);
+        copyBtn.textContent = "Error";
+        copyTimeoutId = setTimeout(() => {
+          copyBtn.textContent = "Copy";
+          copyTimeoutId = null;
+        }, 1500);
+      });
+  } else {
+    if (DEBUG) console.warn("[LLM Popup] Nothing to copy.");
+    copyBtn.textContent = "Empty";
+    copyTimeoutId = setTimeout(() => {
+      copyBtn.textContent = "Copy";
+      copyTimeoutId = null;
+    }, 1500);
+  }
 }
 
 // --- Public Functions ---
@@ -86,11 +126,20 @@ function handleCopyClick(contentDiv, copyBtn) {
 /**
  * Creates and shows the summary popup using an HTML template.
  * Returns a Promise that resolves when the popup is visible and ready.
+ * @param {string} content - The initial HTML or text content to display.
+ * @param {object} callbacks - Object containing onCopy, onChat, onClose callbacks.
+ * @param {string[] | null} [originalMarkdownArray=null] - Optional array of original Markdown strings.
+ * @param {string | null} [pageURL=null] - Optional page URL.
  * @returns {Promise<void>} A Promise that resolves when the popup is ready.
  */
-export function showPopup(content, callbacks) {
+export function showPopup(
+  content,
+  callbacks,
+  originalMarkdownArray = null,
+  pageURL = null,
+) {
   return new Promise((resolve) => {
-    hidePopup();
+    hidePopup(); // Clears previous state including markdown array and URL
 
     if (
       !callbacks ||
@@ -98,12 +147,16 @@ export function showPopup(content, callbacks) {
       typeof callbacks.onChat !== "function" ||
       typeof callbacks.onClose !== "function"
     ) {
-      console.error("[LLM Popup] showPopup failed: Required callbacks missing.");
-      resolve(); // Resolve even on error to prevent hanging
+      console.error(
+        "[LLM Popup] showPopup failed: Required callbacks missing.",
+      );
+      resolve();
       return;
     }
     popupCallbacks = callbacks;
     currentContent = content;
+    currentOriginalMarkdownArray = originalMarkdownArray;
+    currentPageURL = pageURL;
 
     try {
       const template = document.createElement("template");
@@ -111,19 +164,18 @@ export function showPopup(content, callbacks) {
       popup = template.content.firstChild.cloneNode(true);
     } catch (e) {
       console.error("[LLM Popup] Error parsing or cloning popup template:", e);
-      popup = null; // Ensure popup is null on error
-      resolve(); // Resolve even on error to prevent hanging
+      popup = null;
+      resolve();
       return;
     }
 
     const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
     const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
-    const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`); // Get the new single chat button
+    const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
     const closeBtn = popup.querySelector(`.${POPUP_CLOSE_BTN_CLASS}`);
 
     if (contentDiv) {
       if (typeof content === "string") {
-        // Render initial content (e.g., "Thinking...")
         if (content.startsWith("<ul>")) {
           contentDiv.innerHTML = content;
         } else {
@@ -138,23 +190,22 @@ export function showPopup(content, callbacks) {
       }
     } else {
       console.error(
-        "[LLM Popup] Cannot set initial content: Popup body div not found in template clone.",
+        "[LLM Popup] Cannot set initial content: Popup body div not found.",
       );
     }
 
-    if (copyBtn && contentDiv) {
+    if (copyBtn) {
+      // Pass contentDiv for fallback logic
       copyBtn.onclick = () => handleCopyClick(contentDiv, copyBtn);
     } else {
       console.error(
-        "[LLM Popup] Could not attach copy listener: Button or contentDiv missing.",
+        "[LLM Popup] Could not attach copy listener: Button missing.",
       );
     }
 
-    // Attach listener to the single chat button
     if (chatBtn) {
-      // Pass null for language to indicate default chat
       chatBtn.onclick = () => popupCallbacks.onChat(null);
-      chatBtn.disabled = true; // Start disabled until summary loads
+      chatBtn.disabled = true;
     } else {
       console.error(
         "[LLM Popup] Could not attach chat listener: Button missing.",
@@ -176,11 +227,11 @@ export function showPopup(content, callbacks) {
     requestAnimationFrame(() => {
       if (popup) {
         popup.classList.add("visible");
-        if (DEBUG) console.log("[LLM Popup] Popup visibility transition started.");
-        // Resolve the promise after the transition starts, indicating the element is in the DOM and visible
+        if (DEBUG)
+          console.log("[LLM Popup] Popup visibility transition started.");
         resolve();
       } else {
-         resolve(); // Resolve if popup is null for some reason
+        resolve();
       }
     });
   });
@@ -195,6 +246,8 @@ export function hidePopup() {
     popup = null;
     popupCallbacks = { onCopy: null, onChat: null, onClose: null };
     currentContent = "";
+    currentOriginalMarkdownArray = null; // Reset stored markdown
+    currentPageURL = null; // Reset stored URL
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
     popupElement.classList.remove("visible");
@@ -215,8 +268,15 @@ export function hidePopup() {
 
 /**
  * Updates the content of the existing popup body.
+ * @param {string} newContent - The new HTML or text content to display.
+ * @param {string[] | null} [originalMarkdownArray=null] - Optional array of original Markdown strings.
+ * @param {string | null} [pageURL=null] - Optional page URL.
  */
-export function updatePopupContent(newContent) {
+export function updatePopupContent(
+  newContent,
+  originalMarkdownArray = null,
+  pageURL = null,
+) {
   if (!popup) {
     if (DEBUG)
       console.warn(
@@ -225,6 +285,9 @@ export function updatePopupContent(newContent) {
     return;
   }
   currentContent = newContent;
+  currentOriginalMarkdownArray = originalMarkdownArray; // Store for copy
+  currentPageURL = pageURL; // Store for copy
+
   const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
   if (contentDiv) {
     if (typeof newContent === "string") {
@@ -253,7 +316,7 @@ export function updatePopupContent(newContent) {
  */
 export function enableChatButton(enable) {
   if (!popup) return;
-  const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`); // Get the single chat button
+  const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
 
   if (chatBtn) {
     chatBtn.disabled = !enable;
@@ -267,6 +330,6 @@ export function enableChatButton(enable) {
  * Initializes the popup manager module.
  */
 export function initializePopupManager(options) {
-  DEBUG = !!options?.initialDebugState; // Spec: Initializes the popup manager module. Arguments: options (object) - Configuration options including initialDebugState. Called from: pageInteraction.js.
+  DEBUG = !!options?.initialDebugState;
   if (DEBUG) console.log("[LLM Popup] Initialized.");
 }

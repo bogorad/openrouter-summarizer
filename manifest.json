@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenRouter Summarizer",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "description": "Summarize web pages with OpenRouter.ai using your chosen model.",
   "permissions": [
     "activeTab",
@@ -18,9 +18,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["pageInteraction.js"],
-      "css": ["pageInteraction.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "pageInteraction.js"
+      ],
+      "css": [
+        "pageInteraction.css"
+      ],
       "type": "module"
     }
   ],
@@ -45,17 +51,19 @@
         "utils.js",
         "marked.min.js"
       ],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
-  "action": {
-    "default_title": "Summarize Selected Element (OpenRouter)",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
+  //"action": {
+  //  "default_title": "Summarize Selected Element (OpenRouter)",
+  //  "default_icon": {
+  //    "16": "icons/icon16.png",
+  //    "32": "icons/icon32.png",
+  //    "48": "icons/icon48.png",
+  //    "128": "icons/icon128.png"
+  //  }
+  //},
   "options_page": "options.html"
 }
