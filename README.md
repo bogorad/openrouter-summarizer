@@ -5,10 +5,12 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ---
 
-## ✨ What's New Since Version 2.0
+## ✨ What's New
 
 *   **Separate default prompts for popup/chat:** by popular demand, check options!
 *   **Simplified LLM interactions in chat:** more models can be reliably used now. Beware of context window limitations though.
+*   **Removed toolbar icon action:** use the floating icon (💡) instead.
+*   **Optimized COPY button for sharing:** now it returns proper Markdown and the current URL at the end.
 
 ---
 
@@ -48,7 +50,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     *   On any webpage, hold <kbd>ALT</kbd> + Hover to preview highlightable elements (blue dashed outline).
     *   <kbd>ALT</kbd>+Click an element to select it (red solid outline). A floating icon (💡) appears.
 3.  **Summarize:**
-    *   Click the floating icon (💡), *or* right-click and choose "Send to LLM", *or* click the extension toolbar icon.
+    *   Click the floating icon (💡), *or* right-click and choose "Send to LLM".
     *   The extension sends the element's HTML and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model. The prompt now instructs the LLM to determine the language of the input text and summarize in that language.
 4.  **Review Summary:**
     *   The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (``````json ... ``````) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.

@@ -1,11 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
+<--- chat.html -->
+  <!DOCTYPE html>
+  <html lang="en">
+
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenRouter Summarizer — Chat</title>
     <link rel="stylesheet" href="chat.css"> <!-- Link to the CSS -->
   </head>
+
   <body>
     <!-- Main container for the entire chat UI -->
     <div id="chatContainer" class="chat-container">
@@ -34,14 +37,17 @@
 
         <!-- *** NEW: Export Actions and Flags *** -->
         <div class="actions-row"> <!-- New container for flags and export buttons -->
-            <div id="languageFlagsContainer" class="language-flags-container">
-                <!-- Language flag buttons will be rendered here by chat.js -->
-            </div>
-            <div class="export-actions">
-              <button type="button" id="copyMdBtn" class="button export-button" title="Copy chat as Markdown">Copy MD</button>
-              <button type="button" id="downloadMdBtn" class="button export-button" title="Download chat as Markdown file">Download MD</button>
-              <button type="button" id="downloadJsonBtn" class="button export-button" title="Download chat as JSON file">Download JSON</button>
-            </div>
+          <div id="languageFlagsContainer" class="language-flags-container">
+            <!-- Language flag buttons will be rendered here by chat.js -->
+          </div>
+          <div class="export-actions">
+            <button type="button" id="copyMdBtn" class="button export-button" title="Copy chat as Markdown">Copy
+              MD</button>
+            <button type="button" id="downloadMdBtn" class="button export-button"
+              title="Download chat as Markdown file">Download MD</button>
+            <button type="button" id="downloadJsonBtn" class="button export-button"
+              title="Download chat as JSON file">Download JSON</button>
+          </div>
         </div>
         <!-- *** END Export Actions and Flags *** -->
 
@@ -56,7 +62,8 @@
         <!-- Input Row (Constrained width applied via CSS .input-row) -->
         <!-- *** ADDED INNER WRAPPER FOR WIDTH CONSTRAINT *** -->
         <div class="input-row">
-          <textarea id="chatInput" placeholder="Type your message..." rows="1"></textarea> <!-- Start with rows=1, let CSS handle height -->
+          <textarea id="chatInput" placeholder="Type your message..." rows="1"></textarea>
+          <!-- Start with rows=1, let CSS handle height -->
           <button type="submit" id="sendButton">Send</button>
           <button type="button" id="stopButton" style="display: none;">Stop</button>
         </div>
@@ -71,4 +78,5 @@
     <script src="chat.js" type="module"></script> <!-- Updated to type="module" -->
     <!-- === End Scripts === -->
   </body>
-</html>
+
+  </html>

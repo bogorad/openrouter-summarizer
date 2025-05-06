@@ -5,7 +5,7 @@ export AIDER_EDITOR=nvim
 # Check if running on NixOS
 if [[ -d /etc/nixos ]] || grep -q "ID=nixos" /etc/os-release 2>/dev/null; then
     echo "Running on NixOS, using native aider"
-    aider --chat-mode ask
+    aider 
 else
     echo "Not on NixOS, using Docker"
     docker pull paulgauthier/aider-full
