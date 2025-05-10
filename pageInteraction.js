@@ -96,7 +96,9 @@ async function validateAndSendToLLM(selectedHtml) {
     return;
   }
   if (DEBUG)
-    console.log("[LLM Request] Validating cost before sending summarization request.");
+    console.log(
+      "[LLM Request] Validating cost before sending summarization request.",
+    );
 
   const requestId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   lastSummary = "Thinking...";
@@ -134,7 +136,10 @@ async function validateAndSendToLLM(selectedHtml) {
     if (chrome.runtime.lastError || !response) {
       const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
       importedShowError(errorMsg);
-      if (DEBUG) console.log("[LLM Content] Setting error state to true for settings retrieval error.");
+      if (DEBUG)
+        console.log(
+          "[LLM Content] Setting error state to true for settings retrieval error.",
+        );
       SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
@@ -143,13 +148,17 @@ async function validateAndSendToLLM(selectedHtml) {
       return;
     }
 
-    const maxRequestPrice = response.maxRequestPrice || DEFAULT_MAX_REQUEST_PRICE;
+    const maxRequestPrice =
+      response.maxRequestPrice || DEFAULT_MAX_REQUEST_PRICE;
     const summaryModelId = response.summaryModelId || "";
 
     if (!summaryModelId) {
       const errorMsg = "Error: No summary model selected.";
       importedShowError(errorMsg);
-      if (DEBUG) console.log("[LLM Content] Setting error state to true for no summary model selected.");
+      if (DEBUG)
+        console.log(
+          "[LLM Content] Setting error state to true for no summary model selected.",
+        );
       SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
@@ -160,8 +169,12 @@ async function validateAndSendToLLM(selectedHtml) {
 
     // Estimate token count based on content size and Unicode presence
     const contentSize = selectedHtml.length;
-    const sampleSize = Math.min(1024, contentSize);
-    const sampleContent = selectedHtml.substring(0, sampleSize);
+    const sampleSize = Math.min(4096, contentSize);
+    const startPos = Math.floor((contentSize - sampleSize) / 2); // Start at middle
+    const sampleContent = selectedHtml.substring(
+      startPos,
+      startPos + sampleSize,
+    );
     let unicodeMultiplier = 1.0;
     let unicodeCount = 0;
     for (let i = 0; i < sampleContent.length; i++) {
@@ -170,60 +183,90 @@ async function validateAndSendToLLM(selectedHtml) {
       }
     }
     const unicodeRatio = unicodeCount / sampleContent.length;
-    if (unicodeRatio > 0.2) {
+    if (unicodeRatio > 0.05) {
       unicodeMultiplier = 2.0; // Double the token estimate for Unicode-heavy content
-      if (DEBUG) console.log(`[LLM Content] Unicode-heavy content detected (ratio: ${unicodeRatio.toFixed(2)}), applying multiplier: ${unicodeMultiplier}`);
+      if (DEBUG)
+        console.log(
+          `[LLM Content] Unicode-heavy content detected (ratio: ${unicodeRatio.toFixed(2)}), applying multiplier: ${unicodeMultiplier}`,
+        );
     } else {
-      if (DEBUG) console.log(`[LLM Content] ASCII-dominant content detected (ratio: ${unicodeRatio.toFixed(2)}), no multiplier applied.`);
+      if (DEBUG)
+        console.log(
+          `[LLM Content] ASCII-dominant content detected (ratio: ${unicodeRatio.toFixed(2)}), no multiplier applied.`,
+        );
     }
 
     // Approximate tokens per KB (from options.js TOKENS_PER_KB = 227.56)
     const tokensPerChar = 227.56 / 1024;
-    const estimatedTokens = Math.ceil(contentSize * tokensPerChar * unicodeMultiplier);
-    if (DEBUG) console.log(`[LLM Content] Estimated tokens for content: ${estimatedTokens} (size: ${contentSize} chars, multiplier: ${unicodeMultiplier})`);
+    const estimatedTokens = Math.ceil(
+      contentSize * tokensPerChar * unicodeMultiplier,
+    );
+    if (DEBUG)
+      console.log(
+        `[LLM Content] Estimated tokens for content: ${estimatedTokens} (size: ${contentSize} chars, multiplier: ${unicodeMultiplier})`,
+      );
 
     // Get pricing data for the summary model
-    chrome.runtime.sendMessage({
-      action: "getModelPricing",
-      modelId: summaryModelId
-    }, (priceResponse) => {
-      if (chrome.runtime.lastError || !priceResponse || priceResponse.status !== "success") {
-        const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
-        importedShowError(errorMsg);
-        if (DEBUG) console.log("[LLM Content] Setting error state to true for pricing data fetch error.");
-        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
-        FloatingIcon.removeFloatingIcon();
-        Highlighter.removeSelectionHighlight();
-        lastSummary = "";
-        lastSelectedDomSnippet = null;
-        return;
-      }
+    chrome.runtime.sendMessage(
+      {
+        action: "getModelPricing",
+        modelId: summaryModelId,
+      },
+      (priceResponse) => {
+        if (
+          chrome.runtime.lastError ||
+          !priceResponse ||
+          priceResponse.status !== "success"
+        ) {
+          const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
+          importedShowError(errorMsg);
+          if (DEBUG)
+            console.log(
+              "[LLM Content] Setting error state to true for pricing data fetch error.",
+            );
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+          FloatingIcon.removeFloatingIcon();
+          Highlighter.removeSelectionHighlight();
+          lastSummary = "";
+          lastSelectedDomSnippet = null;
+          return;
+        }
 
-      const pricePerToken = priceResponse.pricePerToken || 0;
-      if (pricePerToken === 0) {
-        if (DEBUG) console.log(`[LLM Content] Free model detected (${summaryModelId}), skipping cost validation.`);
+        const pricePerToken = priceResponse.pricePerToken || 0;
+        if (pricePerToken === 0) {
+          if (DEBUG)
+            console.log(
+              `[LLM Content] Free model detected (${summaryModelId}), skipping cost validation.`,
+            );
+          sendRequestToBackground(selectedHtml, requestId);
+          return;
+        }
+
+        const estimatedCost = estimatedTokens * pricePerToken;
+        if (DEBUG)
+          console.log(
+            `[LLM Content] Estimated cost: $${estimatedCost.toFixed(6)} (max allowed: $${maxRequestPrice.toFixed(3)})`,
+          );
+
+        if (estimatedCost > maxRequestPrice) {
+          const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options.`;
+          importedShowError(errorMsg);
+          if (DEBUG)
+            console.log(
+              "[LLM Content] Setting error state to true for max price exceeded.",
+            );
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+          FloatingIcon.removeFloatingIcon();
+          Highlighter.removeSelectionHighlight();
+          lastSummary = "";
+          lastSelectedDomSnippet = null;
+          return;
+        }
+
+        // If cost is within limit, proceed with the request
         sendRequestToBackground(selectedHtml, requestId);
-        return;
-      }
-
-      const estimatedCost = estimatedTokens * pricePerToken;
-      if (DEBUG) console.log(`[LLM Content] Estimated cost: $${estimatedCost.toFixed(6)} (max allowed: $${maxRequestPrice.toFixed(3)})`);
-
-      if (estimatedCost > maxRequestPrice) {
-        const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options.`;
-        importedShowError(errorMsg);
-        if (DEBUG) console.log("[LLM Content] Setting error state to true for max price exceeded.");
-        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
-        FloatingIcon.removeFloatingIcon();
-        Highlighter.removeSelectionHighlight();
-        lastSummary = "";
-        lastSelectedDomSnippet = null;
-        return;
-      }
-
-      // If cost is within limit, proceed with the request
-      sendRequestToBackground(selectedHtml, requestId);
-    });
+      },
+    );
   });
 }
 
@@ -253,7 +296,10 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
         importedShowError(errorMsg);
-        if (DEBUG) console.log("[LLM Content] Setting error state to true for sending request error.");
+        if (DEBUG)
+          console.log(
+            "[LLM Content] Setting error state to true for sending request error.",
+          );
         SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
@@ -270,7 +316,10 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         importedShowError(errorMsg);
-        if (DEBUG) console.log("[LLM Content] Setting error state to true for background validation error.");
+        if (DEBUG)
+          console.log(
+            "[LLM Content] Setting error state to true for background validation error.",
+          );
         SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
@@ -291,7 +340,10 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = "Error: Unexpected response from background.";
         importedShowError(errorMsg);
-        if (DEBUG) console.log("[LLM Content] Setting error state to true for unexpected response error.");
+        if (DEBUG)
+          console.log(
+            "[LLM Content] Setting error state to true for unexpected response error.",
+          );
         SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
@@ -400,7 +452,10 @@ function handlePopupOptions() {
   if (DEBUG) console.log("[LLM Content] handlePopupOptions called.");
   chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
     if (chrome.runtime.lastError) {
-      console.error("[LLM Content] Error opening options page:", chrome.runtime.lastError);
+      console.error(
+        "[LLM Content] Error opening options page:",
+        chrome.runtime.lastError,
+      );
       importedShowError("Error opening options page.");
     }
   });
@@ -513,7 +568,6 @@ function openChatWithContext(targetLang = "") {
     },
   );
 }
-
 
 // --- Core Message Handling Logic ---
 // Extracted from the listener to be reusable for queued messages
