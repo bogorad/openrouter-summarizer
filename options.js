@@ -445,6 +445,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       modelInfo.appendChild(textInput); // Only append ID input
       group.appendChild(modelInfo);
+      setupAutocomplete(textInput, 'model'); // Setup autocomplete for model input
 
       // --- Radios Container (Summary + Chat) ---
       const modelRadios = document.createElement("div");
