@@ -12,7 +12,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.2.6 (Pricing Cache)`);
+console.log(`[LLM Options] Script Start v3.2.7 (Pricing Cache)`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!maxRequestPriceInput || !maxKbDisplay) return;
     
     const priceValue = parseFloat(maxRequestPriceInput.value);
-    if (isNaN(priceValue) || priceValue <= 0) {
+    if (isNaN(priceValue) || priceValue < 0) {
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
       maxKbDisplay.textContent = `max price: ${DEFAULT_MAX_REQUEST_PRICE.toFixed(2)} max KiB: Calculating...`;
       currentSummaryKbLimit = "";
@@ -130,8 +130,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (cachedPricing && currentTime - cachedPricing.timestamp < PRICING_CACHE_EXPIRY) {
       const pricePerToken = cachedPricing.pricePerToken || 0;
       if (pricePerToken === 0) {
-        currentSummaryKbLimit = "Unlimited";
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Unlimited`;
+        currentSummaryKbLimit = "No limit";
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: No limit (free model)`;
+      } else if (currentMaxRequestPrice === 0) {
+        currentSummaryKbLimit = "0";
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: 0 (no budget set)`;
       } else {
         const maxTokens = currentMaxRequestPrice / pricePerToken;
         const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
@@ -161,8 +164,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
       
       if (pricePerToken === 0) {
-        currentSummaryKbLimit = "Unlimited";
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Unlimited`;
+        currentSummaryKbLimit = "No limit";
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: No limit (free model)`;
+      } else if (currentMaxRequestPrice === 0) {
+        currentSummaryKbLimit = "0";
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: 0 (no budget set)`;
       } else {
         const maxTokens = currentMaxRequestPrice / pricePerToken;
         const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
@@ -1347,7 +1353,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         maxRequestPriceInput.addEventListener("blur", () => {
           const priceValue = parseFloat(maxRequestPriceInput.value);
-          if (isNaN(priceValue) || priceValue <= 0) {
+          if (isNaN(priceValue) || priceValue < 0) {
             maxRequestPriceInput.value = DEFAULT_MAX_REQUEST_PRICE;
             if (debounceTimeoutId) {
               clearTimeout(debounceTimeoutId);
