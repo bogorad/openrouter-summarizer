@@ -12,7 +12,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.2.5 (Pricing Cache)`);
+console.log(`[LLM Options] Script Start v3.2.6 (Pricing Cache)`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
   const DEFAULT_MAX_REQUEST_PRICE = 0.01;
   const DEBOUNCE_DELAY = 300; // ms delay for input processing
-  const PRICING_CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  const PRICING_CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
 
   let DEBUG = false;
