@@ -1,4 +1,4 @@
-console.log(`[LLM Content] Script Start (v3.0.21)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.22)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -210,7 +210,7 @@ async function validateAndSendToLLM(selectedHtml) {
       if (DEBUG) console.log(`[LLM Content] Estimated cost: $${estimatedCost.toFixed(6)} (max allowed: $${maxRequestPrice.toFixed(3)})`);
 
       if (estimatedCost > maxRequestPrice) {
-        const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options (accessible via extension icon > Options).`;
+        const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options.`;
         importedShowError(errorMsg);
         if (DEBUG) console.log("[LLM Content] Setting error state to true for max price exceeded.");
         SummaryPopup.updatePopupContent(errorMsg, null, null, true);
