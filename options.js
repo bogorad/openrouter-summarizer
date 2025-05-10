@@ -9,6 +9,7 @@ import {
   DEFAULT_POSTAMBLE_TEXT,
   DEFAULT_FORMAT_INSTRUCTIONS,
   DEFAULT_MODEL_OPTIONS,
+  DEFAULT_MAX_REQUEST_PRICE,
 } from "./constants.js";
 import { showError } from "./utils.js";
 
