@@ -289,7 +289,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           if (cachedEntry && cachedEntry.timestamp + cacheExpiry > currentTime) {
             if (DEBUG)
-              console.log("[LLM Background] Using cached pricing data for model:", request.modelId);
+              console.log("[LLM Background] Using cached pricing data for model:", request.modelId, { pricePerToken: cachedEntry.pricePerToken });
             sendResponse({ status: "success", pricePerToken: cachedEntry.pricePerToken });
             return;
           }
@@ -324,7 +324,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           })
           .then(data => {
             if (DEBUG)
-              console.log("[LLM Background] Received pricing data for model:", request.modelId, data);
+              console.log("[LLM Background] Full Pricing Response Data for model:", request.modelId, data);
             
             const pricePerToken = data?.data?.[0]?.pricing?.prompt || 0;
             // Cache the pricing data
