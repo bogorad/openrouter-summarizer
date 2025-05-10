@@ -1232,9 +1232,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("[LLM Options] Save button not found.");
       }
       if (maxRequestPriceInput) {
-        maxRequestPriceInput.addEventListener("input", () =>
-          calculateKbLimitForSummary(),
-        );
+        maxRequestPriceInput.addEventListener("input", (event) => {
+          if (debounceTimeoutId) {
+            clearTimeout(debounceTimeoutId);
+          }
+          debounceTimeoutId = setTimeout(() => {
+            calculateKbLimitForSummary();
+            debounceTimeoutId = null;
+          }, DEBOUNCE_DELAY);
+        });
+        maxRequestPriceInput.addEventListener("blur", () => {
+          const priceValue = parseFloat(maxRequestPriceInput.value);
+          if (isNaN(priceValue) || priceValue <= 0) {
+            maxRequestPriceInput.value = DEFAULT_MAX_REQUEST_PRICE;
+            if (debounceTimeoutId) {
+              clearTimeout(debounceTimeoutId);
+            }
+            calculateKbLimitForSummary();
+          }
+        });
       } else {
         console.error("[LLM Options] Max Request Price input not found.");
       }
