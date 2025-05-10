@@ -185,7 +185,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]:
             data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] ||
             DEFAULT_FORMAT_INSTRUCTIONS,
-          maxRequestPrice: data[STORAGE_KEY_MAX_REQUEST_PRICE] || 0.01
+          maxRequestPrice: data[STORAGE_KEY_MAX_REQUEST_PRICE] || DEFAULT_MAX_REQUEST_PRICE
         };
         if (DEBUG)
           console.log("[LLM Background] Sending settings response - OK.", {
