@@ -91,7 +91,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sender,
       );
 
-    // --- getSettings Handler (Unchanged) ---
+    // --- getSettings Handler (Updated for Max Request Price) ---
     if (request.action === "getSettings") {
       if (DEBUG) console.log("[LLM Background] Handling getSettings request.");
       const keysToFetch = [
@@ -106,6 +106,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         PROMPT_STORAGE_KEY_PREAMBLE,
         PROMPT_STORAGE_KEY_POSTAMBLE,
         PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
+        STORAGE_KEY_MAX_REQUEST_PRICE
       ];
       chrome.storage.sync.get(keysToFetch, (data) => {
         if (DEBUG)
@@ -184,6 +185,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]:
             data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] ||
             DEFAULT_FORMAT_INSTRUCTIONS,
+          maxRequestPrice: data[STORAGE_KEY_MAX_REQUEST_PRICE] || 0.01
         };
         if (DEBUG)
           console.log("[LLM Background] Sending settings response - OK.", {
@@ -256,6 +258,91 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
         },
       );
+      return true;
+    }
+    // --- getModelPricing Handler for Fetching Model Pricing Data ---
+    else if (request.action === "getModelPricing") {
+      if (DEBUG)
+        console.log("[LLM Background] Handling getModelPricing request for model:", request.modelId);
+      if (!request.modelId || typeof request.modelId !== "string" || request.modelId.trim() === "") {
+        if (DEBUG)
+          console.log("[LLM Background] Invalid model ID provided for pricing request.");
+        sendResponse({ status: "error", message: "Invalid model ID provided." });
+        return true;
+      }
+
+      chrome.storage.sync.get([STORAGE_KEY_API_KEY], (data) => {
+        const apiKey = data[STORAGE_KEY_API_KEY];
+        if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
+          if (DEBUG)
+            console.log("[LLM Background] API key missing for pricing request.");
+          sendResponse({ status: "error", message: "API key required for pricing data." });
+          return;
+        }
+
+        // Check local storage cache for pricing data
+        chrome.storage.local.get(["modelPricingCache"], (cacheData) => {
+          const cache = cacheData.modelPricingCache || {};
+          const cachedEntry = cache[request.modelId];
+          const currentTime = Date.now();
+          const cacheExpiry = 60 * 60 * 1000; // 1 hour expiry
+
+          if (cachedEntry && cachedEntry.timestamp + cacheExpiry > currentTime) {
+            if (DEBUG)
+              console.log("[LLM Background] Using cached pricing data for model:", request.modelId);
+            sendResponse({ status: "success", pricePerToken: cachedEntry.pricePerToken });
+            return;
+          }
+
+          // Fetch pricing data from OpenRouter API if not in cache or expired
+          const [author, slug] = request.modelId.split("/");
+          if (!author || !slug) {
+            if (DEBUG)
+              console.log("[LLM Background] Invalid model ID format for API request:", request.modelId);
+            sendResponse({ status: "error", message: "Invalid model ID format." });
+            return;
+          }
+
+          const apiUrl = `https://openrouter.ai/api/v1/models/${author}/${slug}/endpoints`;
+          if (DEBUG)
+            console.log("[LLM Background] Fetching pricing data from:", apiUrl);
+          
+          fetch(apiUrl, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
+              "X-Title": "OR-Summ"
+            }
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (DEBUG)
+              console.log("[LLM Background] Received pricing data for model:", request.modelId, data);
+            
+            const pricePerToken = data?.data?.[0]?.pricing?.prompt || 0;
+            // Cache the pricing data
+            const updatedCache = { ...cache, [request.modelId]: { pricePerToken, timestamp: currentTime } };
+            chrome.storage.local.set({ modelPricingCache: updatedCache }, () => {
+              if (DEBUG)
+                console.log("[LLM Background] Cached pricing data for model:", request.modelId);
+            });
+            
+            sendResponse({ status: "success", pricePerToken });
+          })
+          .catch(error => {
+            if (DEBUG)
+              console.error("[LLM Background] Error fetching pricing data:", error);
+            sendResponse({ status: "error", message: error.message });
+          });
+        });
+      });
       return true;
     }
 
