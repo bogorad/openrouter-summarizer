@@ -126,10 +126,10 @@
           <p>Set a maximum cost in USD for summary requests to control expenses.</p>
           <div class="option-group">
             <label for="maxRequestPrice">Max Request Price (USD):</label>
-            <input type="number" step="0.01" min="0" id="maxRequestPrice" placeholder="0.01" class="wide-input">
+            <input type="number" step="0.01" min="0" id="maxRequestPrice" placeholder="0.01" class="wide-input" title="Set maximum cost in USD for summary requests (default: 0.01)" aria-label="Maximum Request Price in USD">
           </div>
           <div class="option-group">
-            <span id="maxKbDisplay">max price: - max KiB: - (- for non-English)</span>
+            <span id="maxKbDisplay" aria-live="polite">max price: - max KiB: - (- for non-English)</span>
           </div>
           <p class="note">Note: KB value is an estimate for English text. Non-English text may use more bytes (halved estimate shown).</p>
 

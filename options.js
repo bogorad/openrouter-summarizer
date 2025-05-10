@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const TOKENS_PER_KB = 227.56; // Approximation based on 4.5 characters per token and 1024 characters per KB
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
   const DEFAULT_MAX_REQUEST_PRICE = 0.01;
+  const DEBOUNCE_DELAY = 300; // ms delay for input processing
 
   let DEBUG = false;
   let currentModels = []; // Array of objects like { id: "model/id" }
@@ -65,6 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentChatModelId = "";
   let currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
   let currentSummaryKbLimit = "";
+  let debounceTimeoutId = null;
 
   let language_info = [];
   let allLanguages = []; // For autocomplete suggestions
@@ -102,15 +104,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
       maxKbDisplay.textContent = `max price: ${DEFAULT_MAX_REQUEST_PRICE.toFixed(2)} max KiB: Calculating...`;
       currentSummaryKbLimit = "";
+    } else {
+      currentMaxRequestPrice = priceValue;
+      maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Calculating...`;
+      currentSummaryKbLimit = "";
     }
     
-    currentMaxRequestPrice = priceValue;
+    if (!currentSummaryModelId) {
+      maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: No model selected`;
+      currentSummaryKbLimit = "";
+      return;
+    }
+    
     chrome.runtime.sendMessage({
       action: "getModelPricing",
       modelId: currentSummaryModelId
     }, (response) => {
       if (chrome.runtime.lastError || !response || response.status !== "success") {
-        maxKbDisplay.textContent = "max price: " + currentMaxRequestPrice.toFixed(2) + " max KiB: Pricing unavailable";
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
         currentSummaryKbLimit = "";
         if (DEBUG) console.error("[LLM Options] Error fetching model pricing:", chrome.runtime.lastError || "No response");
         return;
@@ -119,7 +130,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const pricePerToken = response.pricePerToken || 0;
       if (pricePerToken === 0) {
         currentSummaryKbLimit = "Unlimited";
-        maxKbDisplay.textContent = "max price: " + currentMaxRequestPrice.toFixed(2) + " max KiB: Unlimited";
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Unlimited`;
       } else {
         const maxTokens = currentMaxRequestPrice / pricePerToken;
         const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
