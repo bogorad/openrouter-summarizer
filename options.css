@@ -114,6 +114,39 @@ input.wide-input { width: 100%; }
     cursor: pointer; vertical-align: middle; display: inline-flex; align-items: center; width: auto;
 }
 
+/* --- Price KB Table Styling --- */
+.price-kb-table {
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    width: auto;
+}
+.price-kb-table th, .price-kb-table td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: center;
+}
+.price-kb-table th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+    color: #555;
+}
+.price-kb-table td {
+    background-color: #fafafa;
+}
+.price-kb-table input[type="number"] {
+    border: none;
+    background: transparent;
+    text-align: center;
+    padding: 2px 4px;
+    font-size: 1em;
+    width: 80px;
+}
+.price-kb-table input[type="number"]:focus {
+    border: 1px solid #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    outline: none;
+}
+
 /* --- Language Specific Option Groups & Autocomplete --- */
 /* The main container for each language row */
 .language-option {

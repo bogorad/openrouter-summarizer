@@ -39,7 +39,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const advancedOptionsContent = document.getElementById(
     "advancedOptionsContent",
   );
-  const maxRequestPriceInput = document.getElementById("maxRequestPrice");
   const maxKbDisplay = document.getElementById("maxKbDisplay");
   const updatePricingBtn = document.getElementById("updatePricingBtn");
   const pricingNotification = document.getElementById("pricingNotification");
@@ -119,7 +118,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     
     if (!currentSummaryModelId) {
-      maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: No model selected`;
+      maxKbDisplay.innerHTML = `
+        <table class="price-kb-table">
+          <thead>
+            <tr>
+              <th>Max Price (USD)</th>
+              <th>Max KiB (English)</th>
+              <th>Max KiB (Unicode)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="number" id="maxPriceInput" step="0.01" min="0" value="${currentMaxRequestPrice.toFixed(2)}" style="width: 80px;"></td>
+              <td>No model selected</td>
+              <td>No model selected</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+      document.getElementById("maxPriceInput").addEventListener("input", handleMaxPriceInput);
+      document.getElementById("maxPriceInput").addEventListener("blur", handleMaxPriceBlur);
       currentSummaryKbLimit = "";
       return;
     }
@@ -129,19 +147,44 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     if (cachedPricing && currentTime - cachedPricing.timestamp < PRICING_CACHE_EXPIRY) {
       const pricePerToken = cachedPricing.pricePerToken || 0;
+      let kbEnglish = "Calculating...";
+      let kbUnicode = "Calculating...";
       if (pricePerToken === 0) {
         currentSummaryKbLimit = "No limit";
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: No limit (free model)`;
+        kbEnglish = "No limit";
+        kbUnicode = "No limit";
       } else if (currentMaxRequestPrice === 0) {
         currentSummaryKbLimit = "0";
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: 0 (no budget set)`;
+        kbEnglish = "0";
+        kbUnicode = "0";
       } else {
         const maxTokens = currentMaxRequestPrice / pricePerToken;
         const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
         const maxKbNonEnglish = Math.round(maxKb / 2);
         currentSummaryKbLimit = maxKb.toString();
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: ~${maxKb} (~${maxKbNonEnglish} for non-English)`;
+        kbEnglish = `~${maxKb}`;
+        kbUnicode = `~${maxKbNonEnglish}`;
       }
+      maxKbDisplay.innerHTML = `
+        <table class="price-kb-table">
+          <thead>
+            <tr>
+              <th>Max Price (USD)</th>
+              <th>Max KiB (English)</th>
+              <th>Max KiB (Unicode)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="number" id="maxPriceInput" step="0.01" min="0" value="${currentMaxRequestPrice.toFixed(2)}" style="width: 80px;"></td>
+              <td>${kbEnglish}</td>
+              <td>${kbUnicode}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+      document.getElementById("maxPriceInput").addEventListener("input", handleMaxPriceInput);
+      document.getElementById("maxPriceInput").addEventListener("blur", handleMaxPriceBlur);
       if (DEBUG) console.log(`[LLM Options] Used cached pricing for ${currentSummaryModelId}:`, cachedPricing);
       return;
     }
@@ -163,19 +206,44 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (DEBUG) console.log(`[LLM Options] Updated pricing cache for ${currentSummaryModelId}`);
       });
       
+      let kbEnglish = "Calculating...";
+      let kbUnicode = "Calculating...";
       if (pricePerToken === 0) {
         currentSummaryKbLimit = "No limit";
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: No limit (free model)`;
+        kbEnglish = "No limit";
+        kbUnicode = "No limit";
       } else if (currentMaxRequestPrice === 0) {
         currentSummaryKbLimit = "0";
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: 0 (no budget set)`;
+        kbEnglish = "0";
+        kbUnicode = "0";
       } else {
         const maxTokens = currentMaxRequestPrice / pricePerToken;
         const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
         const maxKbNonEnglish = Math.round(maxKb / 2);
         currentSummaryKbLimit = maxKb.toString();
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: ~${maxKb} (~${maxKbNonEnglish} for non-English)`;
+        kbEnglish = `~${maxKb}`;
+        kbUnicode = `~${maxKbNonEnglish}`;
       }
+      maxKbDisplay.innerHTML = `
+        <table class="price-kb-table">
+          <thead>
+            <tr>
+              <th>Max Price (USD)</th>
+              <th>Max KiB (English)</th>
+              <th>Max KiB (Unicode)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="number" id="maxPriceInput" step="0.01" min="0" value="${currentMaxRequestPrice.toFixed(2)}" style="width: 80px;"></td>
+              <td>${kbEnglish}</td>
+              <td>${kbUnicode}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+      document.getElementById("maxPriceInput").addEventListener("input", handleMaxPriceInput);
+      document.getElementById("maxPriceInput").addEventListener("blur", handleMaxPriceBlur);
     });
   }
   function filterLanguages(query) {
@@ -1060,9 +1128,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       currentMaxRequestPrice =
         data[STORAGE_KEY_MAX_REQUEST_PRICE] || DEFAULT_MAX_REQUEST_PRICE;
-      if (maxRequestPriceInput) {
-        maxRequestPriceInput.value = currentMaxRequestPrice > 0 ? currentMaxRequestPrice : DEFAULT_MAX_REQUEST_PRICE;
-      }
+      // Handled in calculateKbLimitForSummary
 
       // Load pricing cache from local storage
       const cacheData = await chrome.storage.local.get(STORAGE_KEY_PRICING_CACHE);
@@ -1097,7 +1163,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-      if (maxRequestPriceInput) maxRequestPriceInput.value = DEFAULT_MAX_REQUEST_PRICE;
+      // Input field is handled in calculateKbLimitForSummary
       if (DEBUG)
         console.error(
           "[LLM Options] Error loading settings, applied defaults.",
@@ -1289,7 +1355,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-      if (maxRequestPriceInput) maxRequestPriceInput.value = DEFAULT_MAX_REQUEST_PRICE;
+      // Input field is handled in calculateKbLimitForSummary
 
       renderModelOptions();
       renderLanguageOptions();
@@ -1341,29 +1407,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         console.error("[LLM Options] Save button not found.");
       }
-      if (maxRequestPriceInput) {
-        maxRequestPriceInput.addEventListener("input", (event) => {
-          if (debounceTimeoutId) {
-            clearTimeout(debounceTimeoutId);
-          }
-          debounceTimeoutId = setTimeout(() => {
-            calculateKbLimitForSummary();
-            debounceTimeoutId = null;
-          }, DEBOUNCE_DELAY);
-        });
-        maxRequestPriceInput.addEventListener("blur", () => {
-          const priceValue = parseFloat(maxRequestPriceInput.value);
-          if (isNaN(priceValue) || priceValue < 0) {
-            maxRequestPriceInput.value = DEFAULT_MAX_REQUEST_PRICE;
-            if (debounceTimeoutId) {
-              clearTimeout(debounceTimeoutId);
-            }
-            calculateKbLimitForSummary();
-          }
-        });
-      } else {
-        console.error("[LLM Options] Max Request Price input not found.");
-      }
+      // Event listeners are added dynamically in calculateKbLimitForSummary
       if (updatePricingBtn) {
         updatePricingBtn.addEventListener("click", updateAllModelPricing);
       } else {
@@ -1373,6 +1417,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (error) {
       console.error("[LLM Options] Error during initialization:", error);
       showError("Failed to initialize options page: " + error.message);
+    }
+  }
+
+  /**
+   * Handles input changes for the max price field in the table.
+   */
+  function handleMaxPriceInput(event) {
+    if (debounceTimeoutId) {
+      clearTimeout(debounceTimeoutId);
+    }
+    debounceTimeoutId = setTimeout(() => {
+      const priceValue = parseFloat(event.target.value);
+      if (!isNaN(priceValue) && priceValue >= 0) {
+        currentMaxRequestPrice = priceValue;
+      }
+      calculateKbLimitForSummary();
+      debounceTimeoutId = null;
+    }, DEBOUNCE_DELAY);
+  }
+
+  /**
+   * Handles blur event for the max price field to reset invalid values.
+   */
+  function handleMaxPriceBlur(event) {
+    const priceValue = parseFloat(event.target.value);
+    if (isNaN(priceValue) || priceValue < 0) {
+      event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(2);
+      currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+      if (debounceTimeoutId) {
+        clearTimeout(debounceTimeoutId);
+      }
+      calculateKbLimitForSummary();
     }
   }
 
