@@ -12,7 +12,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.2.7 (Pricing Cache)`);
+console.log(`[LLM Options] Script Start v3.2.8 (Pricing Cache)`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
    * Calculates the KB limit for the current summary model based on cached or fetched pricing data.
    */
   function calculateKbLimitForSummary() {
-    if (!maxRequestPriceInput || !maxKbDisplay) return;
+    if (!maxKbDisplay) return;
     
     // No direct reference to maxRequestPriceInput since it's now dynamically created in the table
     maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Calculating...`;
