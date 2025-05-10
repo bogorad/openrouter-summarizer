@@ -35,3 +35,6 @@
   accepts_settings:
     - thinking_tokens
 
+# - name: xai/grok-3-fast-beta
+#   extra_params:
+#     use_temperature: 0
