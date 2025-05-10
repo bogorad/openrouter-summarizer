@@ -39,6 +39,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const advancedOptionsContent = document.getElementById(
     "advancedOptionsContent",
   );
+  const maxRequestPriceInput = document.getElementById("maxRequestPrice");
+  const maxKbDisplay = document.getElementById("maxKbDisplay");
 
   const DEFAULT_BULLET_COUNT = "5";
   const LANGUAGE_FLAG_CLASS = "language-flag";
@@ -53,11 +55,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const MAX_MODELS = 7;
   const MAX_LANGUAGES = 5;
+  const TOKENS_PER_KB = 227.56; // Approximation based on 4.5 characters per token and 1024 characters per KB
+  const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
+  const DEFAULT_MAX_REQUEST_PRICE = 0;
 
   let DEBUG = false;
   let currentModels = []; // Array of objects like { id: "model/id" }
   let currentSummaryModelId = "";
   let currentChatModelId = "";
+  let currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+  let currentSummaryKbLimit = "";
 
   let language_info = [];
   let allLanguages = []; // For autocomplete suggestions
@@ -84,6 +91,44 @@ document.addEventListener("DOMContentLoaded", async () => {
       showAutocompleteSuggestions(textInput, suggestions);
     });
     textInput.addEventListener("keydown", handleAutocompleteKeydown);
+  }
+
+  // --- Price Limit Calculation and Display ---
+  function calculateKbLimitForSummary() {
+    if (!maxRequestPriceInput || !maxKbDisplay) return;
+    
+    const priceValue = parseFloat(maxRequestPriceInput.value);
+    if (isNaN(priceValue) || priceValue <= 0) {
+      currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+      maxKbDisplay.textContent = "max price: - max KiB: - (- for non-English)";
+      currentSummaryKbLimit = "";
+      return;
+    }
+    
+    currentMaxRequestPrice = priceValue;
+    chrome.runtime.sendMessage({
+      action: "getModelPricing",
+      modelId: currentSummaryModelId
+    }, (response) => {
+      if (chrome.runtime.lastError || !response || response.status !== "success") {
+        maxKbDisplay.textContent = "max price: " + currentMaxRequestPrice.toFixed(2) + " max KiB: Pricing unavailable";
+        currentSummaryKbLimit = "";
+        if (DEBUG) console.error("[LLM Options] Error fetching model pricing:", chrome.runtime.lastError || "No response");
+        return;
+      }
+      
+      const pricePerToken = response.pricePerToken || 0;
+      if (pricePerToken === 0) {
+        currentSummaryKbLimit = "Unlimited";
+        maxKbDisplay.textContent = "max price: " + currentMaxRequestPrice.toFixed(2) + " max KiB: Unlimited";
+      } else {
+        const maxTokens = currentMaxRequestPrice / pricePerToken;
+        const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
+        const maxKbNonEnglish = Math.round(maxKb / 2);
+        currentSummaryKbLimit = maxKb.toString();
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: ~${maxKb} (~${maxKbNonEnglish} for non-English)`;
+      }
+    });
   }
   function filterLanguages(query) {
     const lowerQuery = query.toLowerCase().trim();
@@ -274,6 +319,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       summaryRadio.disabled = !isModelIdValid;
       summaryRadio.dataset.index = index;
       summaryRadio.addEventListener("change", handleRadioChange);
+      summaryRadio.addEventListener("change", () => calculateKbLimitForSummary());
       const summaryLabel = document.createElement("label");
       summaryLabel.htmlFor = summaryRadio.id;
       summaryLabel.className = "radio-label";
@@ -317,6 +363,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       modelSelectionArea.appendChild(group);
     });
+    calculateKbLimitForSummary();
   }
 
   // Handler for Summary/Chat radio changes (Unchanged)
@@ -1008,6 +1055,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       [PROMPT_STORAGE_KEY_PREAMBLE]: DEFAULT_PREAMBLE_TEMPLATE,
       [PROMPT_STORAGE_KEY_POSTAMBLE]: DEFAULT_POSTAMBLE_TEXT,
       [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS,
+      [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice
     };
 
     if (DEBUG)
@@ -1108,10 +1156,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (promptFormatInstructionsTextarea)
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
+      currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+      if (maxRequestPriceInput) maxRequestPriceInput.value = "";
 
       renderModelOptions();
       renderLanguageOptions();
       updatePromptPreview();
+      calculateKbLimitForSummary();
 
       saveSettings();
 
@@ -1157,6 +1208,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         saveBtn.addEventListener("click", saveSettings);
       } else {
         console.error("[LLM Options] Save button not found.");
+      }
+      if (maxRequestPriceInput) {
+        maxRequestPriceInput.addEventListener("input", () => calculateKbLimitForSummary());
+      } else {
+        console.error("[LLM Options] Max Request Price input not found.");
       }
       if (DEBUG) console.log("[LLM Options] Event listeners attached.");
     } catch (error) {

@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Price Limit for Summary Requests:** Added an advanced option to set a maximum price (in USD) for summary requests, displaying an approximate KB limit based on the selected summary model's pricing. (v3.2.4)
 *   **Smarter Summaries:**
     *   Initial summaries are now requested in the original text's language.
     *   Fixed a bug preventing the correct summary model from being passed to and shown in the chat context.
