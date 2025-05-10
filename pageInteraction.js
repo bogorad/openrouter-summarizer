@@ -208,7 +208,7 @@ async function validateAndSendToLLM(selectedHtml) {
       if (DEBUG) console.log(`[LLM Content] Estimated cost: $${estimatedCost.toFixed(6)} (max allowed: $${maxRequestPrice.toFixed(3)})`);
 
       if (estimatedCost > maxRequestPrice) {
-        const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options.`;
+        const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options (accessible via extension icon > Options).`;
         importedShowError(errorMsg);
         SummaryPopup.updatePopupContent(errorMsg, null, null);
         SummaryPopup.enableChatButton(false);
@@ -216,12 +216,6 @@ async function validateAndSendToLLM(selectedHtml) {
         Highlighter.removeSelectionHighlight();
         lastSummary = "";
         lastSelectedDomSnippet = null;
-        // Provide a link to open options page
-        chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("[LLM Content] Error opening options page:", chrome.runtime.lastError);
-          }
-        });
         return;
       }
 
@@ -628,7 +622,7 @@ async function validateAndSendToLLM(selectedHtml) {
       if (DEBUG) console.log(`[LLM Content] Estimated cost: $${estimatedCost.toFixed(6)} (max allowed: $${maxRequestPrice.toFixed(3)})`);
 
       if (estimatedCost > maxRequestPrice) {
-        const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options.`;
+        const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options (accessible via extension icon > Options).`;
         importedShowError(errorMsg);
         SummaryPopup.updatePopupContent(errorMsg, null, null);
         SummaryPopup.enableChatButton(false);
@@ -636,12 +630,6 @@ async function validateAndSendToLLM(selectedHtml) {
         Highlighter.removeSelectionHighlight();
         lastSummary = "";
         lastSelectedDomSnippet = null;
-        // Provide a link to open options page
-        chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("[LLM Content] Error opening options page:", chrome.runtime.lastError);
-          }
-        });
         return;
       }
 

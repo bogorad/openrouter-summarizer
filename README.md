@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Removed Automatic Options Page Opening:** Changed behavior to prevent automatic opening of the options page when max price is exceeded, updating the error message to guide users instead. (v3.2.17)
 *   **Fixed Missing Constant in Background:** Imported `STORAGE_KEY_MAX_REQUEST_PRICE` in `background.js` to resolve a reference error for max request price settings. (v3.2.16)
 *   **Fixed Missing Constant in Options:** Imported `DEFAULT_MAX_REQUEST_PRICE` in `options.js` to resolve a reference error for max request price settings. (v3.2.15)
 *   **Fixed Reference Error for Max Request Price:** Defined `STORAGE_KEY_MAX_REQUEST_PRICE` in `constants.js` to resolve a reference error, ensuring proper handling of max request price settings with a default value of $0.001. (v3.2.14)
