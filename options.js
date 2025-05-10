@@ -932,10 +932,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // --- Pricing Data Check and Update Functions ---
   /**
-   * Checks if pricing data is available for all configured models and updates the notification UI.
-   * Triggers an automatic update if no pricing data is cached.
-   */
-  /**
    * Checks if model and pricing data is available and updates the notification UI.
    * Triggers an automatic update if data is missing or expired.
    */
