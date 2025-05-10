@@ -273,17 +273,20 @@ function openChatWithContext(targetLang = "") {
   );
 }
 
-// --- LLM Interaction (Delegated to background.js) ---
-async function sendToLLM(selectedHtml) {
-  // Made function async
+// --- Cost Validation and LLM Interaction ---
+/**
+ * Validates the cost of the request against the max price limit before sending to LLM.
+ * @param {string} selectedHtml - The HTML content to be summarized.
+ */
+async function validateAndSendToLLM(selectedHtml) {
   if (!SummaryPopup) {
     console.error(
-      "[LLM Content] sendToLLM called before SummaryPopup module loaded!",
+      "[LLM Content] validateAndSendToLLM called before SummaryPopup module loaded!",
     );
     return;
   }
   if (DEBUG)
-    console.log("[LLM Request] Sending summarization request to background.");
+    console.log("[LLM Request] Validating cost before sending summarization request.");
 
   const requestId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   lastSummary = "Thinking...";
@@ -304,15 +307,128 @@ async function sendToLLM(selectedHtml) {
     if (DEBUG) console.log("[LLM Content] Summary popup is now ready.");
   } catch (error) {
     console.error("[LLM Content] Error showing summary popup:", error);
-    importedShowError("Error displaying summary popup."); // Use importedShowError
+    importedShowError("Error displaying summary popup.");
     FloatingIcon.removeFloatingIcon();
     Highlighter.removeSelectionHighlight();
     lastSummary = "";
-    lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on send error
+    lastSelectedDomSnippet = null;
     return; // Stop if popup failed to show
   }
 
   SummaryPopup.enableChatButton(false);
+
+  // Get settings including max request price and summary model
+  chrome.runtime.sendMessage({ action: "getSettings" }, (response) => {
+    if (chrome.runtime.lastError || !response) {
+      const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
+      importedShowError(errorMsg);
+      SummaryPopup.updatePopupContent(errorMsg, null, null);
+      SummaryPopup.enableChatButton(false);
+      FloatingIcon.removeFloatingIcon();
+      Highlighter.removeSelectionHighlight();
+      lastSummary = "";
+      lastSelectedDomSnippet = null;
+      return;
+    }
+
+    const maxRequestPrice = response.maxRequestPrice || 0.001;
+    const summaryModelId = response.summaryModelId || "";
+
+    if (!summaryModelId) {
+      const errorMsg = "Error: No summary model selected.";
+      importedShowError(errorMsg);
+      SummaryPopup.updatePopupContent(errorMsg, null, null);
+      SummaryPopup.enableChatButton(false);
+      FloatingIcon.removeFloatingIcon();
+      Highlighter.removeSelectionHighlight();
+      lastSummary = "";
+      lastSelectedDomSnippet = null;
+      return;
+    }
+
+    // Estimate token count based on content size and Unicode presence
+    const contentSize = selectedHtml.length;
+    const sampleSize = Math.min(1024, contentSize);
+    const sampleContent = selectedHtml.substring(0, sampleSize);
+    let unicodeMultiplier = 1.0;
+    let unicodeCount = 0;
+    for (let i = 0; i < sampleContent.length; i++) {
+      if (sampleContent.charCodeAt(i) > 127) {
+        unicodeCount++;
+      }
+    }
+    const unicodeRatio = unicodeCount / sampleContent.length;
+    if (unicodeRatio > 0.2) {
+      unicodeMultiplier = 2.0; // Double the token estimate for Unicode-heavy content
+      if (DEBUG) console.log(`[LLM Content] Unicode-heavy content detected (ratio: ${unicodeRatio.toFixed(2)}), applying multiplier: ${unicodeMultiplier}`);
+    } else {
+      if (DEBUG) console.log(`[LLM Content] ASCII-dominant content detected (ratio: ${unicodeRatio.toFixed(2)}), no multiplier applied.`);
+    }
+
+    // Approximate tokens per KB (from options.js TOKENS_PER_KB = 227.56)
+    const tokensPerChar = 227.56 / 1024;
+    const estimatedTokens = Math.ceil(contentSize * tokensPerChar * unicodeMultiplier);
+    if (DEBUG) console.log(`[LLM Content] Estimated tokens for content: ${estimatedTokens} (size: ${contentSize} chars, multiplier: ${unicodeMultiplier})`);
+
+    // Get pricing data for the summary model
+    chrome.runtime.sendMessage({
+      action: "getModelPricing",
+      modelId: summaryModelId
+    }, (priceResponse) => {
+      if (chrome.runtime.lastError || !priceResponse || priceResponse.status !== "success") {
+        const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
+        importedShowError(errorMsg);
+        SummaryPopup.updatePopupContent(errorMsg, null, null);
+        SummaryPopup.enableChatButton(false);
+        FloatingIcon.removeFloatingIcon();
+        Highlighter.removeSelectionHighlight();
+        lastSummary = "";
+        lastSelectedDomSnippet = null;
+        return;
+      }
+
+      const pricePerToken = priceResponse.pricePerToken || 0;
+      if (pricePerToken === 0) {
+        if (DEBUG) console.log(`[LLM Content] Free model detected (${summaryModelId}), skipping cost validation.`);
+        sendRequestToBackground(selectedHtml, requestId);
+        return;
+      }
+
+      const estimatedCost = estimatedTokens * pricePerToken;
+      if (DEBUG) console.log(`[LLM Content] Estimated cost: $${estimatedCost.toFixed(6)} (max allowed: $${maxRequestPrice.toFixed(3)})`);
+
+      if (estimatedCost > maxRequestPrice) {
+        const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options.`;
+        importedShowError(errorMsg);
+        SummaryPopup.updatePopupContent(errorMsg, null, null);
+        SummaryPopup.enableChatButton(false);
+        FloatingIcon.removeFloatingIcon();
+        Highlighter.removeSelectionHighlight();
+        lastSummary = "";
+        lastSelectedDomSnippet = null;
+        // Provide a link to open options page
+        chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error("[LLM Content] Error opening options page:", chrome.runtime.lastError);
+          }
+        });
+        return;
+      }
+
+      // If cost is within limit, proceed with the request
+      sendRequestToBackground(selectedHtml, requestId);
+    });
+  });
+}
+
+/**
+ * Sends the request to the background script for LLM processing.
+ * @param {string} selectedHtml - The HTML content to be summarized.
+ * @param {string} requestId - Unique ID for the request.
+ */
+function sendRequestToBackground(selectedHtml, requestId) {
+  if (DEBUG)
+    console.log("[LLM Request] Sending summarization request to background.");
 
   chrome.runtime.sendMessage(
     {
@@ -330,14 +446,13 @@ async function sendToLLM(selectedHtml) {
           chrome.runtime.lastError,
         );
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
-        importedShowError(errorMsg); // Use importedShowError
-        // Now that showPopup is awaited, updatePopupContent should work
-        SummaryPopup.updatePopupContent(errorMsg, null, null); // Pass null for new params
+        importedShowError(errorMsg);
+        SummaryPopup.updatePopupContent(errorMsg, null, null);
         SummaryPopup.enableChatButton(false);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
-        lastSummary = ""; // Clear state on send error
-        lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on send error
+        lastSummary = "";
+        lastSelectedDomSnippet = null;
         return;
       }
 
@@ -348,14 +463,13 @@ async function sendToLLM(selectedHtml) {
           response.message,
         );
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
-        importedShowError(errorMsg); // Use importedShowError
-        // Now that showPopup is awaited, updatePopupContent should work
-        SummaryPopup.updatePopupContent(errorMsg, null, null); // Pass null for new params
+        importedShowError(errorMsg);
+        SummaryPopup.updatePopupContent(errorMsg, null, null);
         SummaryPopup.enableChatButton(false);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
-        lastSummary = ""; // Clear state on validation error
-        lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on validation error
+        lastSummary = "";
+        lastSelectedDomSnippet = null;
       } else if (response && response.status === "processing") {
         // Correct path: Background acknowledged the request and will send result later via tabs.sendMessage
         if (DEBUG)
@@ -370,14 +484,13 @@ async function sendToLLM(selectedHtml) {
           response,
         );
         const errorMsg = "Error: Unexpected response from background.";
-        importedShowError(errorMsg); // Use importedShowError
-        // Now that showPopup is awaited in sendToLLM, updatePopupContent should work
-        SummaryPopup.updatePopupContent(errorMsg, null, null); // Pass null for new params
+        importedShowError(errorMsg);
+        SummaryPopup.updatePopupContent(errorMsg, null, null);
         SummaryPopup.enableChatButton(false);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
-        lastSummary = ""; // Clear state on unexpected response
-        lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on unexpected response
+        lastSummary = "";
+        lastSelectedDomSnippet = null;
       }
     },
   );

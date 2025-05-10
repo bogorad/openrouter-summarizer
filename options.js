@@ -12,7 +12,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.2.11 (Pricing Cache)`);
+console.log(`[LLM Options] Script Start v3.2.12 (Pricing Cache)`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
