@@ -405,11 +405,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
     }
 
-    // --- llmChatStream Handler (UPDATED - No response_format, direct content) ---
+    // --- llmChatStream Handler ---
     else if (request.action === "llmChatStream") {
       if (DEBUG)
         console.log(
-          "[LLM Background] Handling llmChatStream request (direct markdown) with messages:",
+          "[LLM Background] Handling llmChatStream request with messages:",
           request.messages.length,
           "messages.",
         );
@@ -457,18 +457,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const signal = controller.signal;
           chrome.storage.session.set({ abortController: controller });
 
-          // --- MODIFIED PAYLOAD: REMOVED response_format ---
           const payload = {
             model: request.model,
             messages: request.messages,
-            // structured_outputs: "true", // Keep commented if not needed
-            // response_format: { ... } // REMOVED
           };
-          // --- END MODIFICATION ---
 
           if (DEBUG)
             console.log(
-              "[LLM Background] Sending payload to OpenRouter for chat (direct markdown):",
+              "[LLM Background] Sending payload to OpenRouter for chat:",
               payload,
             );
 
@@ -520,7 +516,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 return;
               }
 
-              // --- MODIFIED SUCCESS HANDLING ---
               // Extract the direct content string
               const directContent =
                 data?.choices?.[0]?.message?.content?.trim();
@@ -535,7 +530,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 try {
                   sendResponse({ status: "success", content: directContent });
                 } catch (e) {
-                  // Send 'content' instead of 'data'
                   if (DEBUG)
                     console.warn(
                       "Failed to send chat success response:",
@@ -561,7 +555,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     );
                 }
               }
-              // --- END MODIFICATION ---
 
               chrome.storage.session.remove("abortController");
             })
@@ -808,27 +801,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               DEFAULT_FORMAT_INSTRUCTIONS,
           );
 
-          // Summary still uses structured output
           const payload = {
             model: summaryModelId,
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: request.selectedHtml },
             ],
-            structured_outputs: "true",
-            response_format: {
-              type: "json_schema",
-              json_schema: {
-                name: "list_of_strings",
-                strict: true,
-                schema: {
-                  type: "array",
-                  items: { type: "string" },
-                  minItems: 3,
-                  maxItems: bulletCount + 1,
-                },
-              },
-            },
             provider: {
               ignore: ["Chutes"], // Is doesn't respect JSON schema requests.
             },
