@@ -15,7 +15,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.3.1`);
+console.log(`[LLM Options] Script Start v3.3.2`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -1203,7 +1203,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderLanguageOptions();
     updatePromptPreview();
     calculateKbLimitForSummary();
-    checkPricingData(); // Check pricing data on load
+    checkModelAndPricingData(); // Check pricing data on load
   }
 
   // UPDATED Save Settings function (No Labels)
