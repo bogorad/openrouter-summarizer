@@ -850,6 +850,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "bulletCount",
         "language_info",
         PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
+        STORAGE_KEY_MAX_REQUEST_PRICE
       ];
       const data = await chrome.storage.sync.get(keysToGet);
 
@@ -941,6 +942,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
 
+      currentMaxRequestPrice = data[STORAGE_KEY_MAX_REQUEST_PRICE] || DEFAULT_MAX_REQUEST_PRICE;
+      if (maxRequestPriceInput) {
+        maxRequestPriceInput.value = currentMaxRequestPrice > 0 ? currentMaxRequestPrice : "";
+      }
+
       if (statusMessage) {
         statusMessage.textContent = "Options loaded.";
         statusMessage.className = "status-message success";
@@ -968,6 +974,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (promptFormatInstructionsTextarea)
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
+      currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+      if (maxRequestPriceInput) maxRequestPriceInput.value = "";
       if (DEBUG)
         console.error(
           "[LLM Options] Error loading settings, applied defaults.",
@@ -978,6 +986,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderModelOptions();
     renderLanguageOptions();
     updatePromptPreview();
+    calculateKbLimitForSummary();
   }
 
   // UPDATED Save Settings function (No Labels)
