@@ -110,9 +110,11 @@ async function validateAndSendToLLM(selectedHtml) {
         onCopy: () => {}, // Provide a no-op function instead of null
         onChat: handlePopupChat,
         onClose: handlePopupClose,
+        onOptions: handlePopupOptions,
       },
       null,
       null,
+      false,
     );
     if (DEBUG) console.log("[LLM Content] Summary popup is now ready.");
   } catch (error) {
@@ -132,8 +134,7 @@ async function validateAndSendToLLM(selectedHtml) {
     if (chrome.runtime.lastError || !response) {
       const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
       importedShowError(errorMsg);
-      SummaryPopup.updatePopupContent(errorMsg, null, null);
-      SummaryPopup.enableChatButton(false);
+      SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
@@ -147,8 +148,7 @@ async function validateAndSendToLLM(selectedHtml) {
     if (!summaryModelId) {
       const errorMsg = "Error: No summary model selected.";
       importedShowError(errorMsg);
-      SummaryPopup.updatePopupContent(errorMsg, null, null);
-      SummaryPopup.enableChatButton(false);
+      SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
@@ -391,7 +391,22 @@ function handlePopupClose() {
   // Clear state variables
   lastSummary = "";
   lastModelUsed = "";
-  lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on close
+  lastSelectedDomSnippet = null; // Clear stored snippet on close
+}
+
+function handlePopupOptions() {
+  if (DEBUG) console.log("[LLM Content] handlePopupOptions called.");
+  chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error("[LLM Content] Error opening options page:", chrome.runtime.lastError);
+      importedShowError("Error opening options page.");
+    }
+  });
+  SummaryPopup.hidePopup();
+  Highlighter.removeSelectionHighlight();
+  FloatingIcon.removeFloatingIcon();
+  lastSummary = "";
+  lastSelectedDomSnippet = null;
 }
 
 // --- Chat Context Handling ---
@@ -546,8 +561,7 @@ async function validateAndSendToLLM(selectedHtml) {
     if (chrome.runtime.lastError || !response) {
       const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
       importedShowError(errorMsg);
-      SummaryPopup.updatePopupContent(errorMsg, null, null);
-      SummaryPopup.enableChatButton(false);
+      SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
@@ -561,8 +575,7 @@ async function validateAndSendToLLM(selectedHtml) {
     if (!summaryModelId) {
       const errorMsg = "Error: No summary model selected.";
       importedShowError(errorMsg);
-      SummaryPopup.updatePopupContent(errorMsg, null, null);
-      SummaryPopup.enableChatButton(false);
+      SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
       lastSummary = "";

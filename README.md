@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Dynamic Chat/Options Button:** Replaced 'CHAT' button with 'OPTIONS' in summary popup for max price exceeded and configuration issues, guiding users to adjust settings. (v3.2.18)
 *   **Removed Automatic Options Page Opening:** Changed behavior to prevent automatic opening of the options page when max price is exceeded, updating the error message to guide users instead. (v3.2.17)
 *   **Fixed Missing Constant in Background:** Imported `STORAGE_KEY_MAX_REQUEST_PRICE` in `background.js` to resolve a reference error for max request price settings. (v3.2.16)
 *   **Fixed Missing Constant in Options:** Imported `DEFAULT_MAX_REQUEST_PRICE` in `options.js` to resolve a reference error for max request price settings. (v3.2.15)

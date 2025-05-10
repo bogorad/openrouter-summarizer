@@ -1,4 +1,4 @@
-console.log(`[LLM Popup] Script Loaded (v3.0.14)`); // Updated version
+console.log(`[LLM Popup] Script Loaded (v3.0.15)`); // Updated version
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -8,7 +8,7 @@ const POPUP_BODY_CLASS = "summarizer-body";
 const POPUP_ACTIONS_CLASS = "summarizer-actions";
 const POPUP_BTN_CLASS = "summarizer-btn";
 const POPUP_COPY_BTN_CLASS = "copy-btn";
-const POPUP_CHAT_BTN_CLASS = "chat-btn"; // New class for the single chat button
+const POPUP_CHAT_BTN_CLASS = "chat-btn"; // Class for the dynamic chat/options button
 const POPUP_CLOSE_BTN_CLASS = "close-btn";
 
 // --- HTML Template String ---
@@ -34,12 +34,13 @@ const POPUP_TEMPLATE_HTML = `
 // --- Module State ---
 let popup = null;
 let currentContent = ""; // Stores the HTML/text content being displayed
-let popupCallbacks = { onCopy: null, onChat: null, onClose: null };
+let popupCallbacks = { onCopy: null, onChat: null, onClose: null, onOptions: null };
 let copyTimeoutId = null;
 let DEBUG = false;
 
 let currentOriginalMarkdownArray = null; // To store the array of original Markdown strings
 let currentPageURL = null; // To store the page URL
+let isErrorState = false; // To track if the popup is in an error state
 
 // Handles copy logic
 function handleCopyClick(contentDiv, copyBtn) {
@@ -127,9 +128,10 @@ function handleCopyClick(contentDiv, copyBtn) {
  * Creates and shows the summary popup using an HTML template.
  * Returns a Promise that resolves when the popup is visible and ready.
  * @param {string} content - The initial HTML or text content to display.
- * @param {object} callbacks - Object containing onCopy, onChat, onClose callbacks.
+ * @param {object} callbacks - Object containing onCopy, onChat, onClose, and onOptions callbacks.
  * @param {string[] | null} [originalMarkdownArray=null] - Optional array of original Markdown strings.
  * @param {string | null} [pageURL=null] - Optional page URL.
+ * @param {boolean} [errorState=false] - Indicates if the popup is in an error state (e.g., max price exceeded or config issues).
  * @returns {Promise<void>} A Promise that resolves when the popup is ready.
  */
 export function showPopup(
@@ -137,6 +139,7 @@ export function showPopup(
   callbacks,
   originalMarkdownArray = null,
   pageURL = null,
+  errorState = false,
 ) {
   return new Promise((resolve) => {
     hidePopup(); // Clears previous state including markdown array and URL
@@ -145,7 +148,8 @@ export function showPopup(
       !callbacks ||
       typeof callbacks.onCopy !== "function" ||
       typeof callbacks.onChat !== "function" ||
-      typeof callbacks.onClose !== "function"
+      typeof callbacks.onClose !== "function" ||
+      typeof callbacks.onOptions !== "function"
     ) {
       console.error(
         "[LLM Popup] showPopup failed: Required callbacks missing.",
@@ -157,6 +161,7 @@ export function showPopup(
     currentContent = content;
     currentOriginalMarkdownArray = originalMarkdownArray;
     currentPageURL = pageURL;
+    isErrorState = errorState;
 
     try {
       const template = document.createElement("template");
@@ -204,11 +209,20 @@ export function showPopup(
     }
 
     if (chatBtn) {
-      chatBtn.onclick = () => popupCallbacks.onChat(null);
-      chatBtn.disabled = true;
+      if (isErrorState) {
+        chatBtn.textContent = "Options";
+        chatBtn.title = "Open options to adjust settings";
+        chatBtn.onclick = () => popupCallbacks.onOptions();
+        chatBtn.disabled = false;
+      } else {
+        chatBtn.textContent = "Chat";
+        chatBtn.title = "Open chat with summary context";
+        chatBtn.onclick = () => popupCallbacks.onChat(null);
+        chatBtn.disabled = true;
+      }
     } else {
       console.error(
-        "[LLM Popup] Could not attach chat listener: Button missing.",
+        "[LLM Popup] Could not attach chat/options listener: Button missing.",
       );
     }
 
@@ -271,11 +285,13 @@ export function hidePopup() {
  * @param {string} newContent - The new HTML or text content to display.
  * @param {string[] | null} [originalMarkdownArray=null] - Optional array of original Markdown strings.
  * @param {string | null} [pageURL=null] - Optional page URL.
+ * @param {boolean} [errorState=false] - Indicates if the popup is in an error state (e.g., max price exceeded or config issues).
  */
 export function updatePopupContent(
   newContent,
   originalMarkdownArray = null,
   pageURL = null,
+  errorState = false,
 ) {
   if (!popup) {
     if (DEBUG)
@@ -287,8 +303,10 @@ export function updatePopupContent(
   currentContent = newContent;
   currentOriginalMarkdownArray = originalMarkdownArray; // Store for copy
   currentPageURL = pageURL; // Store for copy
+  isErrorState = errorState;
 
   const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
+  const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
   if (contentDiv) {
     if (typeof newContent === "string") {
       if (newContent.startsWith("<ul>")) {
@@ -308,6 +326,20 @@ export function updatePopupContent(
     console.error(
       "[LLM Popup] Cannot update content: Popup body div not found.",
     );
+  }
+
+  if (chatBtn) {
+    if (isErrorState) {
+      chatBtn.textContent = "Options";
+      chatBtn.title = "Open options to adjust settings";
+      chatBtn.onclick = () => popupCallbacks.onOptions();
+      chatBtn.disabled = false;
+    } else {
+      chatBtn.textContent = "Chat";
+      chatBtn.title = "Open chat with summary context";
+      chatBtn.onclick = () => popupCallbacks.onChat(null);
+      chatBtn.disabled = true;
+    }
   }
 }
 
