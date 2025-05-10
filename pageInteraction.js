@@ -212,8 +212,8 @@ async function validateAndSendToLLM(selectedHtml) {
       if (estimatedCost > maxRequestPrice) {
         const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options (accessible via extension icon > Options).`;
         importedShowError(errorMsg);
-        SummaryPopup.updatePopupContent(errorMsg, null, null);
-        SummaryPopup.enableChatButton(false);
+        if (DEBUG) console.log("[LLM Content] Setting error state to true for max price exceeded.");
+        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = "";
