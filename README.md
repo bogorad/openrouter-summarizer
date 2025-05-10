@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Fixed Missing Constant in Background:** Imported `STORAGE_KEY_MAX_REQUEST_PRICE` in `background.js` to resolve a reference error for max request price settings. (v3.2.16)
 *   **Fixed Missing Constant in Options:** Imported `DEFAULT_MAX_REQUEST_PRICE` in `options.js` to resolve a reference error for max request price settings. (v3.2.15)
 *   **Fixed Reference Error for Max Request Price:** Defined `STORAGE_KEY_MAX_REQUEST_PRICE` in `constants.js` to resolve a reference error, ensuring proper handling of max request price settings with a default value of $0.001. (v3.2.14)
 *   **Enhanced Price Limits with Unicode Detection:** Improved cost estimation by detecting Unicode content in the first 1024 bytes of selected HTML, adjusting token estimates to prevent exceeding the max request price. (v3.2.13)
