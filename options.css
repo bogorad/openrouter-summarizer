@@ -258,7 +258,7 @@ img.language-flag {
     background: none; /* No background */
 }
 
-.autocomplete-item .language-name { /* Style for the country name text in dropdown */
+.autocomplete-item .language-name, .autocomplete-item .model-name { /* Style for the name text in dropdown */
     flex-grow: 1; /* Allow name to take space */
     white-space: nowrap; /* Prevent wrapping */
     overflow: hidden; /* Hide overflow */
