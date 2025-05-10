@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!maxKbDisplay) return;
     
     // No direct reference to maxRequestPriceInput since it's now dynamically created in the table
-    maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Calculating...`;
+    maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(3)} max KiB: Calculating...`;
     currentSummaryKbLimit = "";
     
     if (!currentSummaryModelId) {
