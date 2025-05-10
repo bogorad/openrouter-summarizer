@@ -900,43 +900,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     updatePricingBtn.disabled = true;
     pricingNotification.textContent = "Fetching pricing data for all models...";
     
-    const validModelIds = currentModels.filter(m => m.id.trim() !== "").map(m => m.id);
-    if (validModelIds.length === 0) {
-      pricingNotification.textContent = "No models configured to fetch pricing data.";
-      updatePricingBtn.disabled = false;
-      return;
-    }
-    
-    let completed = 0;
-    let errors = 0;
-    const currentTime = Date.now();
-    
-    validModelIds.forEach(modelId => {
-      chrome.runtime.sendMessage({
-        action: "getModelPricing",
-        modelId: modelId
-      }, (response) => {
-        completed++;
-        if (chrome.runtime.lastError || !response || response.status !== "success") {
-          errors++;
-          if (DEBUG) console.error(`[LLM Options] Error fetching pricing for ${modelId}:`, chrome.runtime.lastError || "No response");
+    chrome.runtime.sendMessage({
+      action: "updateAllModelPricing"
+    }, (response) => {
+      if (chrome.runtime.lastError || !response || response.status !== "success") {
+        pricingNotification.textContent = `Error updating pricing data: ${chrome.runtime.lastError?.message || response?.message || "Unknown error"}`;
+        if (DEBUG) console.error("[LLM Options] Error updating pricing for all models:", chrome.runtime.lastError || response?.message);
+      } else {
+        const updated = response.updated || 0;
+        const errors = response.errors || 0;
+        if (errors > 0) {
+          pricingNotification.textContent = `Pricing data updated for ${updated} model(s) with ${errors} error(s). Some data may be missing.`;
         } else {
-          modelPricingCache[modelId] = { pricePerToken: response.pricePerToken || 0, timestamp: currentTime };
+          pricingNotification.textContent = `Pricing data updated for all ${updated} model(s).`;
         }
-        
-        if (completed === validModelIds.length) {
-          chrome.storage.local.set({ [STORAGE_KEY_PRICING_CACHE]: modelPricingCache }, () => {
-            if (DEBUG) console.log(`[LLM Options] Updated pricing cache for all models.`);
-          });
-          if (errors > 0) {
-            pricingNotification.textContent = `Pricing data updated with ${errors} error(s). Some data may be missing.`;
-          } else {
-            pricingNotification.textContent = "Pricing data updated for all models.";
-          }
-          updatePricingBtn.disabled = false;
+        if (DEBUG) console.log(`[LLM Options] Updated pricing for ${updated} models with ${errors} errors.`);
+        // Reload the cache after update
+        chrome.storage.local.get(STORAGE_KEY_PRICING_CACHE, (cacheData) => {
+          modelPricingCache = cacheData[STORAGE_KEY_PRICING_CACHE] || {};
+          if (DEBUG) console.log("[LLM Options] Reloaded pricing cache:", modelPricingCache);
           calculateKbLimitForSummary(); // Recalculate KB limit after updating pricing
-        }
-      });
+        });
+      }
+      updatePricingBtn.disabled = false;
     });
   }
 
