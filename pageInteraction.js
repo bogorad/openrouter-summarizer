@@ -1,4 +1,4 @@
-console.log(`[LLM Content] Script Start (v3.0.20)`); // Updated version
+console.log(`[LLM Content] Script Start (v3.0.21)`); // Updated version
 
 // --- Module References (will be populated after dynamic import) ---
 let Highlighter = null;
@@ -188,8 +188,7 @@ async function validateAndSendToLLM(selectedHtml) {
       if (chrome.runtime.lastError || !priceResponse || priceResponse.status !== "success") {
         const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
         importedShowError(errorMsg);
-        SummaryPopup.updatePopupContent(errorMsg, null, null);
-        SummaryPopup.enableChatButton(false);
+        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -251,8 +250,7 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
         importedShowError(errorMsg);
-        SummaryPopup.updatePopupContent(errorMsg, null, null);
-        SummaryPopup.enableChatButton(false);
+        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -268,8 +266,7 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         importedShowError(errorMsg);
-        SummaryPopup.updatePopupContent(errorMsg, null, null);
-        SummaryPopup.enableChatButton(false);
+        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -289,8 +286,7 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = "Error: Unexpected response from background.";
         importedShowError(errorMsg);
-        SummaryPopup.updatePopupContent(errorMsg, null, null);
-        SummaryPopup.enableChatButton(false);
+        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
         lastSummary = "";

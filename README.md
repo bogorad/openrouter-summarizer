@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Consistent Options Button on Errors:** Updated `pageInteraction.js` to ensure 'OPTIONS' button appears for all error states in the summary popup by consistently setting `errorState = true`. (v3.2.20)
 *   **Fixed Missing Callback in Popup:** Updated `validateAndSendToLLM` to include `onOptions` callback in `showPopup`, resolving error for missing callbacks, and removed duplicate function. (v3.2.19)
 *   **Dynamic Chat/Options Button:** Replaced 'CHAT' button with 'OPTIONS' in summary popup for max price exceeded and configuration issues, guiding users to adjust settings. (v3.2.18)
 *   **Removed Automatic Options Page Opening:** Changed behavior to prevent automatic opening of the options page when max price is exceeded, updating the error message to guide users instead. (v3.2.17)
