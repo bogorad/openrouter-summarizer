@@ -214,11 +214,13 @@ export function showPopup(
         chatBtn.title = "Open options to adjust settings";
         chatBtn.onclick = () => popupCallbacks.onOptions();
         chatBtn.disabled = false;
+        if (DEBUG) console.log("[LLM Popup] Button set to 'Options' due to error state.");
       } else {
         chatBtn.textContent = "Chat";
         chatBtn.title = "Open chat with summary context";
         chatBtn.onclick = () => popupCallbacks.onChat(null);
         chatBtn.disabled = true;
+        if (DEBUG) console.log("[LLM Popup] Button set to 'Chat' for normal state.");
       }
     } else {
       console.error(
@@ -334,11 +336,13 @@ export function updatePopupContent(
       chatBtn.title = "Open options to adjust settings";
       chatBtn.onclick = () => popupCallbacks.onOptions();
       chatBtn.disabled = false;
+      if (DEBUG) console.log("[LLM Popup] Button updated to 'Options' due to error state in updatePopupContent.");
     } else {
       chatBtn.textContent = "Chat";
       chatBtn.title = "Open chat with summary context";
       chatBtn.onclick = () => popupCallbacks.onChat(null);
       chatBtn.disabled = true;
+      if (DEBUG) console.log("[LLM Popup] Button updated to 'Chat' for normal state in updatePopupContent.");
     }
   }
 }
