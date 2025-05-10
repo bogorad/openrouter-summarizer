@@ -20,6 +20,7 @@ export const STORAGE_KEY_BULLET_COUNT = "bulletCount";
 export const STORAGE_KEY_LANGUAGE_INFO = "language_info";
 export const STORAGE_KEY_SUMMARY_HISTORY = "summaryHistory"; // Keep if used elsewhere
 export const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
+export const STORAGE_KEY_KNOWN_MODELS_AND_PRICES = "knownModelsAndPrices";
 
 // --- Prompt Storage Keys ---
 export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT =
@@ -113,6 +114,7 @@ export const DEFAULT_BULLET_COUNT_NUM = 5; // As a number
 export const DEFAULT_DEBUG_MODE = false;
 export const DEFAULT_SUMMARY_HISTORY_COUNT = 20; // Max number of summaries to keep
 export const DEFAULT_MAX_REQUEST_PRICE = 0.001; // Default max request price in USD
+export const DEFAULT_CACHE_EXPIRY_DAYS = 7; // Default cache expiry for model and pricing data
 
 // --- API & UI Related (Confirmed) ---
 export const OPENROUTER_API_URL =
