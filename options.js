@@ -75,7 +75,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   let knownModelsAndPrices = {}; // Combined structure for models supporting structured_outputs and their pricing
 
   let language_info = [];
-  let allLanguages = []; // For autocomplete suggestions
+  let allLanguages = []; // For autocomplete suggestions for languages
+  let allModels = []; // For autocomplete suggestions for models
 
   let currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
 
@@ -85,18 +86,28 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let draggedItemIndex = null;
 
-  // --- Autocomplete Functions (Unchanged) ---
-  function setupAutocomplete(textInput) {
+  // --- Autocomplete Functions for Languages and Models ---
+  function setupAutocomplete(textInput, type = 'language') {
     if (!textInput) return;
     textInput.addEventListener("input", (event) => {
       const query = event.target.value;
-      const suggestions = filterLanguages(query);
-      if (DEBUG)
-        console.log(
-          `[LLM Options] Autocomplete suggestions for "${query}":`,
-          suggestions,
-        );
-      showAutocompleteSuggestions(textInput, suggestions);
+      let suggestions = [];
+      if (type === 'language') {
+        suggestions = filterLanguages(query);
+        if (DEBUG)
+          console.log(
+            `[LLM Options] Language autocomplete suggestions for "${query}":`,
+            suggestions,
+          );
+      } else if (type === 'model') {
+        suggestions = filterModels(query);
+        if (DEBUG)
+          console.log(
+            `[LLM Options] Model autocomplete suggestions for "${query}":`,
+            suggestions,
+          );
+      }
+      showAutocompleteSuggestions(textInput, suggestions, type);
     });
     textInput.addEventListener("keydown", handleAutocompleteKeydown);
   }
@@ -248,7 +259,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       .filter((lang) => lang.name.toLowerCase().includes(lowerQuery))
       .map((lang) => ({ name: lang.name, code: lang.code }));
   }
-  function showAutocompleteSuggestions(inputElement, suggestions) {
+
+  function filterModels(query) {
+    const lowerQuery = query.toLowerCase().trim();
+    if (!lowerQuery || allModels.length === 0) return [];
+    return allModels
+      .filter((model) => 
+        model.id.toLowerCase().includes(lowerQuery) || 
+        (model.name && model.name.toLowerCase().includes(lowerQuery))
+      )
+      .slice(0, 10); // Limit to top 10 suggestions
+  }
+  function showAutocompleteSuggestions(inputElement, suggestions, type = 'language') {
     if (!autocompleteDropdown) {
       autocompleteDropdown = document.createElement("div");
       autocompleteDropdown.className = "autocomplete-dropdown";
@@ -261,35 +283,41 @@ document.addEventListener("DOMContentLoaded", async () => {
       autocompleteDropdown.style.display = "none";
       return;
     }
-    suggestions.forEach((lang, index) => {
-      const item = document.createElement("div");
-      item.className = "autocomplete-item";
-      item.dataset.index = index;
-      item.dataset.languageCode = lang.code;
-      item.dataset.languageName = lang.name;
-      const flagImg = document.createElement("img");
-      flagImg.className = LANGUAGE_FLAG_CLASS;
-      flagImg.src = chrome.runtime.getURL(
-        `country-flags/svg/${lang.code.toLowerCase()}.svg`,
+    suggestions.forEach((item, index) => {
+      const div = document.createElement("div");
+      div.className = "autocomplete-item";
+      div.dataset.index = index;
+      if (type === 'language') {
+        div.dataset.languageCode = item.code;
+        div.dataset.languageName = item.name;
+        const flagImg = document.createElement("img");
+        flagImg.className = LANGUAGE_FLAG_CLASS;
+        flagImg.src = chrome.runtime.getURL(
+          `country-flags/svg/${item.code.toLowerCase()}.svg`,
+        );
+        flagImg.alt = `${item.name} flag`;
+        flagImg.onerror = () => {
+          flagImg.src = chrome.runtime.getURL("country-flags/svg/un.svg");
+          flagImg.alt = "Flag not found";
+        };
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = item.name;
+        nameSpan.className = "language-name";
+        div.appendChild(flagImg);
+        div.appendChild(nameSpan);
+      } else if (type === 'model') {
+        div.dataset.modelId = item.id;
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = item.name ? `${item.id} (${item.name})` : item.id;
+        nameSpan.className = "model-name";
+        div.appendChild(nameSpan);
+      }
+      div.addEventListener("click", () =>
+        selectAutocompleteSuggestion(div, inputElement, type),
       );
-      flagImg.alt = `${lang.name} flag`;
-      flagImg.onerror = () => {
-        flagImg.src = chrome.runtime.getURL("country-flags/svg/un.svg");
-        flagImg.alt = "Flag not found";
-      };
-      const nameSpan = document.createElement("span");
-      nameSpan.textContent = lang.name;
-      nameSpan.className = "language-name";
-      item.appendChild(flagImg);
-      item.appendChild(nameSpan);
-      item.addEventListener("click", () =>
-        selectAutocompleteSuggestion(item, inputElement),
-      );
-      autocompleteDropdown.appendChild(item);
+      autocompleteDropdown.appendChild(div);
     });
-    const rect = inputElement
-      .closest(".language-input-wrapper")
-      .getBoundingClientRect();
+    const rect = (type === 'language' ? inputElement.closest(".language-input-wrapper") : inputElement).getBoundingClientRect();
     autocompleteDropdown.style.position = "absolute";
     autocompleteDropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
     autocompleteDropdown.style.left = `${rect.left + window.scrollX}px`;
@@ -304,14 +332,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     activeAutocompleteInput = null;
   }
-  function selectAutocompleteSuggestion(itemElement, inputElement) {
-    inputElement.value = itemElement.dataset.languageName;
-    const flagImg = inputElement.parentElement.querySelector(".language-flag");
-    if (flagImg) {
-      flagImg.src = chrome.runtime.getURL(
-        `country-flags/svg/${itemElement.dataset.languageCode.toLowerCase()}.svg`,
-      );
-      flagImg.alt = `${itemElement.dataset.languageName} flag`;
+  function selectAutocompleteSuggestion(itemElement, inputElement, type = 'language') {
+    if (type === 'language') {
+      inputElement.value = itemElement.dataset.languageName;
+      const flagImg = inputElement.parentElement.querySelector(".language-flag");
+      if (flagImg) {
+        flagImg.src = chrome.runtime.getURL(
+          `country-flags/svg/${itemElement.dataset.languageCode.toLowerCase()}.svg`,
+        );
+        flagImg.alt = `${itemElement.dataset.languageName} flag`;
+      }
+    } else if (type === 'model') {
+      inputElement.value = itemElement.dataset.modelId;
     }
     const event = new Event("input", { bubbles: true });
     inputElement.dispatchEvent(event);
@@ -338,6 +370,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectAutocompleteSuggestion(
           items[highlightedAutocompleteIndex],
           activeAutocompleteInput,
+          activeAutocompleteInput.id.startsWith('modelText_') ? 'model' : 'language'
         );
       }
     } else if (event.key === "Escape") {
@@ -955,6 +988,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
       pricingNotification.textContent = "Model and pricing data up to date.";
       validateCurrentModels();
+      updateAllModelsList(); // Update autocomplete list after data is confirmed
     }
   }
   
@@ -983,6 +1017,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (DEBUG) console.log("[LLM Options] Reloaded model and pricing data:", knownModelsAndPrices);
           calculateKbLimitForSummary(); // Recalculate KB limit after updating data
           validateCurrentModels(); // Validate models after update
+          updateAllModelsList(); // Update autocomplete list after data refresh
         });
       }
       updatePricingBtn.disabled = false;
@@ -1162,6 +1197,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       knownModelsAndPrices = cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
       if (DEBUG) console.log("[LLM Options] Loaded pricing cache:", modelPricingCache);
       if (DEBUG) console.log("[LLM Options] Loaded known models and pricing data:", knownModelsAndPrices);
+      
+      // Populate allModels from knownModelsAndPrices for autocomplete
+      updateAllModelsList();
 
       if (statusMessage) {
         statusMessage.textContent = "Options loaded.";
@@ -1484,6 +1522,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /**
+   * Updates the allModels list for autocomplete from knownModelsAndPrices.
+   */
+  function updateAllModelsList() {
+    allModels = Object.values(knownModelsAndPrices).map(model => ({
+      id: model.id,
+      name: model.name || ''
+    }));
+    if (DEBUG) console.log("[LLM Options] Updated allModels list for autocomplete:", allModels.length, "models available.");
+  }
+
+  /**
    * Checks pricing data for all configured models and updates if necessary.
    */
   function checkPricingData() {
@@ -1505,6 +1554,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       updateKnownModelsAndPricing();
     } else {
       pricingNotification.textContent = "Model and pricing data up to date.";
+      updateAllModelsList(); // Ensure autocomplete list is updated
     }
   }
 
