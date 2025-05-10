@@ -106,16 +106,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   function calculateKbLimitForSummary() {
     if (!maxRequestPriceInput || !maxKbDisplay) return;
     
-    const priceValue = parseFloat(maxRequestPriceInput.value);
-    if (isNaN(priceValue) || priceValue < 0) {
-      currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-      maxKbDisplay.textContent = `max price: ${DEFAULT_MAX_REQUEST_PRICE.toFixed(2)} max KiB: Calculating...`;
-      currentSummaryKbLimit = "";
-    } else {
-      currentMaxRequestPrice = priceValue;
-      maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Calculating...`;
-      currentSummaryKbLimit = "";
-    }
+    // No direct reference to maxRequestPriceInput since it's now dynamically created in the table
+    maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Calculating...`;
+    currentSummaryKbLimit = "";
     
     if (!currentSummaryModelId) {
       maxKbDisplay.innerHTML = `
