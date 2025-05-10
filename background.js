@@ -315,11 +315,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true;
     }
-    // --- updateKnownModelsAndPricing Handler for Fetching and Filtering Models with Pricing Data ---
+    // --- updateKnownModelsAndPricing Handler for Fetching Models with Pricing Data ---
     else if (request.action === "updateKnownModelsAndPricing") {
       if (DEBUG)
         console.log(
-          "[LLM Background] Handling updateKnownModelsAndPricing request for all models supporting structured_outputs.",
+          "[LLM Background] Handling updateKnownModelsAndPricing request for all models.",
         );
 
       chrome.storage.sync.get([STORAGE_KEY_API_KEY], (data) => {
@@ -369,19 +369,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             let updatedCount = 0;
 
             data.data.forEach((model) => {
-              if (
-                model.supported_parameters &&
-                model.supported_parameters.includes("structured_outputs")
-              ) {
-                const pricePerToken = model.pricing?.prompt || 0;
-                knownModelsAndPrices[model.id] = {
-                  id: model.id,
-                  name: model.name || model.id,
-                  pricePerToken: pricePerToken,
-                  timestamp: currentTime,
-                };
-                updatedCount++;
-              }
+              const pricePerToken = model.pricing?.prompt || 0;
+              knownModelsAndPrices[model.id] = {
+                id: model.id,
+                name: model.name || model.id,
+                pricePerToken: pricePerToken,
+                timestamp: currentTime,
+              };
+              updatedCount++;
             });
 
             chrome.storage.local.set(
@@ -389,7 +384,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               () => {
                 if (DEBUG)
                   console.log(
-                    `[LLM Background] Updated known models and pricing for ${updatedCount} models supporting structured_outputs.`,
+                    `[LLM Background] Updated known models and pricing for ${updatedCount} models.`,
                   );
                 sendResponse({
                   status: "success",
