@@ -285,7 +285,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const cache = cacheData.modelPricingCache || {};
           const cachedEntry = cache[request.modelId];
           const currentTime = Date.now();
-          const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours expiry
+          const cacheExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days expiry
 
           if (cachedEntry && currentTime - cachedEntry.timestamp < cacheExpiry) {
             if (DEBUG)
