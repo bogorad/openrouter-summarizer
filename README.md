@@ -94,6 +94,8 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Removed Unicode Content Checks:** Simplified token estimation by removing Unicode detection and adjustments, using a uniform calculation based on content size. (v3.3.3)
+*   **Removed Structured Outputs Filter:** Broadened model compatibility by eliminating the `structured_outputs` filter, allowing all OpenRouter models to be used. (v3.3.3)
 *   **Added Pricing Data Check for Models:** Implemented a new function `checkPricingData()` in `options.js` to ensure pricing data for all configured models is checked and updated if necessary. (v3.3.2)
 *   **Simplified Error Message:** Removed 'accessible via extension icon > Options' from error messages to make them more concise. (v3.2.21)
 *   **Consistent Options Button on Errors:** Updated `pageInteraction.js` to ensure 'OPTIONS' button appears for all error states in the summary popup by consistently setting `errorState = true`. (v3.2.20)
