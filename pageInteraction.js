@@ -1,10 +1,11 @@
 console.log(`[LLM Content] Script Start (v3.0.22)`); // Updated version
 
-// --- Module References (will be populated after dynamic import) ---
+/* Module References (will be populated after dynamic import) */
 let Highlighter = null;
 let FloatingIcon = null;
 let SummaryPopup = null;
 let constants = null;
+let TurndownService = null; // Will be assigned from dynamic import
 let importedShowError = null; // Will be assigned from dynamic import
 let renderTextAsHtml = null; // Will be assigned from dynamic import
 // REMOVED: Direct import of showError and renderTextAsHtml
@@ -15,7 +16,8 @@ let renderTextAsHtml = null; // Will be assigned from dynamic import
 let DEBUG = false; // Debug logging state
 let lastSummary = ""; // Raw or Cleaned/Combined summary string for chat context
 let lastModelUsed = ""; // Model used for the last summary
-let lastSelectedDomSnippet = null; // ADDED: New state variable to store the HTML snippet
+let lastSelectedDomSnippet = null; // New state variable to store the original HTML snippet
+let lastProcessedMarkdown = null; // New state variable to store the processed Markdown content
 
 // Queue for messages received before modules are fully initialized
 let messageQueue = [];
@@ -34,15 +36,15 @@ const numToWord = {
 
 // --- Core Processing Function ---
 /**
- * Processes the currently selected element: gets its HTML and sends it to the LLM.
+ * Processes the currently selected element: gets its HTML, converts it to Markdown using Turndown.js, and sends it to the LLM.
  */
 function processSelectedElement() {
-  // FIX: Check for importedShowError instead of showError directly
-  if (!Highlighter || !SummaryPopup || !importedShowError) {
+  // Check if required modules are loaded
+  if (!Highlighter || !SummaryPopup || !importedShowError || !TurndownService) {
     console.error(
       "[LLM Content] processSelectedElement called before modules loaded!",
     );
-    importedShowError("Error: Core components not loaded."); // Use importedShowError
+    importedShowError("Error: Core components not loaded.");
     return;
   }
 
@@ -52,7 +54,7 @@ function processSelectedElement() {
       console.warn(
         "[LLM Content] processSelectedElement called but no element is selected.",
       );
-    importedShowError("Error: No element selected to process."); // Use importedShowError
+    importedShowError("Error: No element selected to process.");
     return;
   }
 
@@ -69,19 +71,57 @@ function processSelectedElement() {
   Highlighter.removeSelectionHighlight(); // This also triggers handleElementDeselected
 
   // Get the HTML content of the selected element
-  const selectedHtml = selectedElement.outerHTML; // Or innerHTML depending on desired behavior
+  const selectedHtml = selectedElement.outerHTML;
 
   if (!selectedHtml || selectedHtml.trim() === "") {
     if (DEBUG)
       console.warn(
         "[LLM Content] Selected element has no HTML content to summarize.",
       );
-    importedShowError("Error: Selected element has no content."); // Use importedShowError
+    importedShowError("Error: Selected element has no content.");
     return;
   }
 
-  // Send the HTML to the background script for LLM processing with price validation
-  sendToLLM(selectedHtml);
+  // Convert HTML to Markdown using Turndown.js
+  let processedMarkdown;
+  try {
+    const turndown = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+      bulletListMarker: '-'
+    });
+    // Customize Turndown.js to ignore certain elements if needed
+    turndown.remove(['script', 'style', 'nav']);
+    processedMarkdown = turndown.turndown(selectedHtml);
+    if (DEBUG)
+      console.log(
+        "[LLM Content] Successfully converted HTML to Markdown:",
+        processedMarkdown.substring(0, 200) +
+          (processedMarkdown.length > 200 ? "..." : ""),
+      );
+  } catch (error) {
+    console.error("[LLM Content] Error converting HTML to Markdown:", error);
+    importedShowError("Error processing content for summarization.");
+    return;
+  }
+
+  // Store the processed Markdown for chat context or fallback
+  lastProcessedMarkdown = processedMarkdown;
+
+  // Fallback to raw HTML if Markdown conversion results in empty or very short output
+  const minMarkdownLength = 50; // Arbitrary threshold for meaningful content
+  if (!processedMarkdown || processedMarkdown.length < minMarkdownLength) {
+    if (DEBUG)
+      console.warn(
+        "[LLM Content] Markdown output is empty or too short, falling back to raw HTML.",
+        `Markdown length: ${processedMarkdown?.length || 0}`,
+      );
+    importedShowError("Warning: Content processing incomplete, using raw data.");
+    sendToLLM(selectedHtml);
+  } else {
+    // Send the processed Markdown to the background script for LLM processing
+    sendToLLM(processedMarkdown);
+  }
 }
 
 /**
@@ -356,7 +396,8 @@ function handleElementDeselected() {
   // Clear state variables
   lastSummary = "";
   lastModelUsed = "";
-  lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on deselect
+  lastSelectedDomSnippet = null;
+  lastProcessedMarkdown = null; // Clear processed Markdown on deselect
   // FloatingIcon.removeFloatingIcon(); // Removed - handled in handleIconClick/handleIconDismiss
 }
 
@@ -393,7 +434,8 @@ function handleIconDismiss() {
   // Clear state variables
   lastSummary = "";
   lastModelUsed = "";
-  lastSelectedDomSnippet = null; // ADDED: Clear stored snippet on dismiss
+  lastSelectedDomSnippet = null;
+  lastProcessedMarkdown = null; // Clear processed Markdown on dismiss
 }
 
 function handlePopupChat(targetLang = null) {
@@ -416,7 +458,8 @@ function handlePopupClose() {
   // Clear state variables
   lastSummary = "";
   lastModelUsed = "";
-  lastSelectedDomSnippet = null; // Clear stored snippet on close
+  lastSelectedDomSnippet = null;
+  lastProcessedMarkdown = null; // Clear processed Markdown on close
 }
 
 function handlePopupOptions() {
@@ -439,15 +482,14 @@ function handlePopupOptions() {
 
 // --- Chat Context Handling ---
 function openChatWithContext(targetLang = "") {
-  // REMOVED: Check for !Highlighter module loaded here, assume loaded if popup was shown.
-  // REMOVED: Check for selectedElement being null.
-
-  // Use the stored domSnippet instead of getting it from the element again
+  // Assume modules are loaded if popup was shown
+  // Use the stored domSnippet and processed Markdown
   const domSnippet = lastSelectedDomSnippet;
+  const processedMarkdown = lastProcessedMarkdown;
 
-  // Check if we actually have a snippet to send
+  // Check if we have content to send
   if (!domSnippet || domSnippet.trim() === "") {
-    importedShowError("Cannot open chat: No element content available."); // Use importedShowError
+    importedShowError("Cannot open chat: No element content available.");
     if (DEBUG)
       console.warn(
         "[LLM Chat Context] Chat attempt failed: lastSelectedDomSnippet is null or empty.",
@@ -455,15 +497,14 @@ function openChatWithContext(targetLang = "") {
     return;
   }
 
-  // Use the raw lastSummary stored in this main script's state
   // Check if lastSummary is valid (not empty, not "Thinking...", not an error)
   if (
     !lastSummary ||
     lastSummary === "Thinking..." ||
     lastSummary.startsWith("Error:") ||
-    lastSummary === "Error: Could not parse summary response." // Add check for parsing error
+    lastSummary === "Error: Could not parse summary response."
   ) {
-    importedShowError("Cannot open chat: No valid summary available."); // Use importedShowError
+    importedShowError("Cannot open chat: No valid summary available.");
     if (DEBUG)
       console.warn(
         "[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.",
@@ -475,10 +516,11 @@ function openChatWithContext(targetLang = "") {
   const summaryForChat = lastSummary;
 
   const contextPayload = {
-    domSnippet: domSnippet, // Use the stored snippet
+    domSnippet: domSnippet, // Original HTML for reference
     summary: summaryForChat,
     chatTargetLanguage: targetLang,
-    modelUsedForSummary: lastModelUsed, // Include the model used
+    modelUsedForSummary: lastModelUsed,
+    processedMarkdown: processedMarkdown || "" // Include processed Markdown if available
   };
 
   if (DEBUG)
@@ -525,7 +567,8 @@ function openChatWithContext(targetLang = "") {
               // Highlight and icon removal are handled in handleIconClick/handlePopupClose
               lastSummary = "";
               lastModelUsed = "";
-              lastSelectedDomSnippet = null; // ADDED: Clear stored snippet after successful chat open
+              lastSelectedDomSnippet = null;
+              lastProcessedMarkdown = null; // Clear processed Markdown after successful chat open
             }
           },
         );
@@ -707,7 +750,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     !SummaryPopup ||
     !importedShowError || // Check if importedShowError is loaded
     !Highlighter ||
-    !renderTextAsHtml // Check if renderTextAsHtml is loaded
+    !renderTextAsHtml || // Check if renderTextAsHtml is loaded
+    !TurndownService // Check if Turndown.js is loaded
   ) {
     if (DEBUG) {
       console.warn(
@@ -770,13 +814,14 @@ async function initialize() {
       }
     }
 
-    [Highlighter, FloatingIcon, SummaryPopup, constants] = await Promise.all([
+    [Highlighter, FloatingIcon, SummaryPopup, constants, TurndownService] = await Promise.all([
       import(chrome.runtime.getURL("./highlighter.js")),
       import(chrome.runtime.getURL("./floatingIcon.js")),
       import(chrome.runtime.getURL("./summaryPopup.js")),
       import(chrome.runtime.getURL("./constants.js")),
+      import(chrome.runtime.getURL("./turndown.js"))
     ]);
-    if (DEBUG) console.log("[LLM Content] All modules loaded dynamically.");
+    if (DEBUG) console.log("[LLM Content] All modules loaded dynamically including Turndown.js.");
 
     Highlighter.initializeHighlighter({
       onElementSelected: handleElementSelected,
