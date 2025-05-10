@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.2.12
+# OpenRouter Summarizer v3.2.13
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Enhanced Price Limits with Unicode Detection:** Improved cost estimation by detecting Unicode content in the first 1024 bytes of selected HTML, adjusting token estimates to prevent exceeding the max request price. (v3.2.13)
 *   **Implemented Price Limits:** Added cost estimation and validation against user-defined max request price before sending summary requests, with Unicode detection for accurate token estimation. (v3.2.12)
 *   **Corrected Default Price:** Updated the default Max Request Price to $0.001 to match the enforced minimum for finer cost control. (v3.2.11)
 *   **Enforced Minimum Price:** Set a minimum value of $0.001 for Max Request Price to prevent disabling requests with paid models. (v3.2.10)
