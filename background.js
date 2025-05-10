@@ -260,7 +260,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       );
       return true;
     }
-    // --- getModelPricing Handler for Fetching Model Pricing Data ---
+    // --- getModelPricing Handler for Fetching Model Pricing Data for a Single Model ---
     else if (request.action === "getModelPricing") {
       if (DEBUG)
         console.log("[LLM Background] Handling getModelPricing request for model:", request.modelId);
@@ -341,6 +341,88 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               console.error("[LLM Background] Error fetching pricing data:", error);
             sendResponse({ status: "error", message: error.message });
           });
+        });
+      });
+      return true;
+    }
+    // --- updateAllModelPricing Handler for Fetching Pricing Data for All Models ---
+    else if (request.action === "updateAllModelPricing") {
+      if (DEBUG)
+        console.log("[LLM Background] Handling updateAllModelPricing request for all configured models.");
+      
+      chrome.storage.sync.get([STORAGE_KEY_API_KEY, STORAGE_KEY_MODELS], (data) => {
+        const apiKey = data[STORAGE_KEY_API_KEY];
+        if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
+          if (DEBUG)
+            console.log("[LLM Background] API key missing for pricing request.");
+          sendResponse({ status: "error", message: "API key required for pricing data." });
+          return;
+        }
+
+        let configuredModels = [];
+        if (Array.isArray(data[STORAGE_KEY_MODELS]) && data[STORAGE_KEY_MODELS].length > 0) {
+          configuredModels = data[STORAGE_KEY_MODELS].map(m => m.id).filter(id => id.trim() !== "");
+        }
+        if (configuredModels.length === 0) {
+          if (DEBUG)
+            console.log("[LLM Background] No configured models to update pricing for.");
+          sendResponse({ status: "error", message: "No configured models to update." });
+          return;
+        }
+
+        const apiUrl = `https://openrouter.ai/api/v1/models`;
+        if (DEBUG)
+          console.log("[LLM Background] Fetching pricing data for all models from:", apiUrl);
+
+        fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
+            "X-Title": "OR-Summ"
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (DEBUG)
+            console.log("[LLM Background] Full Pricing Response Data for all models received.");
+          
+          const currentTime = Date.now();
+          chrome.storage.local.get(["modelPricingCache"], (cacheData) => {
+            const cache = cacheData.modelPricingCache || {};
+            let updatedCount = 0;
+            let errors = 0;
+
+            configuredModels.forEach(modelId => {
+              const modelData = data.data.find(m => m.id === modelId);
+              if (modelData && modelData.pricing) {
+                const pricePerToken = modelData.pricing.prompt || 0;
+                cache[modelId] = { pricePerToken, timestamp: currentTime };
+                updatedCount++;
+              } else {
+                if (DEBUG)
+                  console.log(`[LLM Background] Pricing data not found for model: ${modelId}`);
+                errors++;
+              }
+            });
+
+            chrome.storage.local.set({ modelPricingCache: cache }, () => {
+              if (DEBUG)
+                console.log(`[LLM Background] Updated pricing cache for ${updatedCount} models with ${errors} errors.`);
+              sendResponse({ status: "success", updated: updatedCount, errors: errors });
+            });
+          });
+        })
+        .catch(error => {
+          if (DEBUG)
+            console.error("[LLM Background] Error fetching pricing data for all models:", error);
+          sendResponse({ status: "error", message: error.message });
         });
       });
       return true;

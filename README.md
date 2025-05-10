@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Efficient Model Pricing Update:** Implemented a new mechanism to update pricing data for all configured models using a single API call to `/api/v1/models`, improving performance over individual model requests. (v3.2.5)
 *   **Price Limit for Summary Requests:** Added an advanced option to set a maximum price (in USD) for summary requests, displaying an approximate KB limit based on the selected summary model's pricing. (v3.2.4)
 *   **Smarter Summaries:**
     *   Initial summaries are now requested in the original text's language.
