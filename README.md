@@ -94,6 +94,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Text Extraction with Turndown.js:** Added functionality to convert selected HTML to Markdown using Turndown.js before sending to the LLM, reducing token usage and improving summary quality. (v3.3.4)
 *   **Removed Unicode Content Checks:** Simplified token estimation by removing Unicode detection and adjustments, using a uniform calculation based on content size. (v3.3.3)
 *   **Removed Structured Outputs Filter:** Broadened model compatibility by eliminating the `structured_outputs` filter, allowing all OpenRouter models to be used. (v3.3.3)
 *   **Added Pricing Data Check for Models:** Implemented a new function `checkPricingData()` in `options.js` to ensure pricing data for all configured models is checked and updated if necessary. (v3.3.2)
