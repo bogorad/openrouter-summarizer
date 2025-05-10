@@ -167,43 +167,14 @@ async function validateAndSendToLLM(selectedHtml) {
       return;
     }
 
-    // Estimate token count based on content size and Unicode presence
+    // Estimate token count based on content size
     const contentSize = selectedHtml.length;
-    const sampleSize = Math.min(4096, contentSize);
-    const startPos = Math.floor((contentSize - sampleSize) / 2); // Start at middle
-    const sampleContent = selectedHtml.substring(
-      startPos,
-      startPos + sampleSize,
-    );
-    let unicodeMultiplier = 1.0;
-    let unicodeCount = 0;
-    for (let i = 0; i < sampleContent.length; i++) {
-      if (sampleContent.charCodeAt(i) > 127) {
-        unicodeCount++;
-      }
-    }
-    const unicodeRatio = unicodeCount / sampleContent.length;
-    if (unicodeRatio > 0.05) {
-      unicodeMultiplier = 2.0; // Double the token estimate for Unicode-heavy content
-      if (DEBUG)
-        console.log(
-          `[LLM Content] Unicode-heavy content detected (ratio: ${unicodeRatio.toFixed(2)}), applying multiplier: ${unicodeMultiplier}`,
-        );
-    } else {
-      if (DEBUG)
-        console.log(
-          `[LLM Content] ASCII-dominant content detected (ratio: ${unicodeRatio.toFixed(2)}), no multiplier applied.`,
-        );
-    }
-
     // Approximate tokens per KB (from options.js TOKENS_PER_KB = 227.56)
     const tokensPerChar = 227.56 / 1024;
-    const estimatedTokens = Math.ceil(
-      contentSize * tokensPerChar * unicodeMultiplier,
-    );
+    const estimatedTokens = Math.ceil(contentSize * tokensPerChar);
     if (DEBUG)
       console.log(
-        `[LLM Content] Estimated tokens for content: ${estimatedTokens} (size: ${contentSize} chars, multiplier: ${unicodeMultiplier})`,
+        `[LLM Content] Estimated tokens for content: ${estimatedTokens} (size: ${contentSize} chars)`,
       );
 
     // Get pricing data for the summary model
