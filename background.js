@@ -801,12 +801,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               DEFAULT_FORMAT_INSTRUCTIONS,
           );
 
+          // Summary still uses structured output
           const payload = {
             model: summaryModelId,
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: request.selectedHtml },
             ],
+            structured_outputs: "true",
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "list_of_strings",
+                strict: true,
+                schema: {
+                  type: "array",
+                  items: { type: "string" },
+                  minItems: 3,
+                  maxItems: bulletCount + 1,
+                },
+              },
+            },
             provider: {
               ignore: ["Chutes"], // Is doesn't respect JSON schema requests.
             },
