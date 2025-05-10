@@ -134,6 +134,7 @@ async function validateAndSendToLLM(selectedHtml) {
     if (chrome.runtime.lastError || !response) {
       const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
       importedShowError(errorMsg);
+      if (DEBUG) console.log("[LLM Content] Setting error state to true for settings retrieval error.");
       SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
@@ -148,6 +149,7 @@ async function validateAndSendToLLM(selectedHtml) {
     if (!summaryModelId) {
       const errorMsg = "Error: No summary model selected.";
       importedShowError(errorMsg);
+      if (DEBUG) console.log("[LLM Content] Setting error state to true for no summary model selected.");
       SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
@@ -188,6 +190,7 @@ async function validateAndSendToLLM(selectedHtml) {
       if (chrome.runtime.lastError || !priceResponse || priceResponse.status !== "success") {
         const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
         importedShowError(errorMsg);
+        if (DEBUG) console.log("[LLM Content] Setting error state to true for pricing data fetch error.");
         SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
@@ -250,6 +253,7 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
         importedShowError(errorMsg);
+        if (DEBUG) console.log("[LLM Content] Setting error state to true for sending request error.");
         SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
@@ -266,6 +270,7 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         importedShowError(errorMsg);
+        if (DEBUG) console.log("[LLM Content] Setting error state to true for background validation error.");
         SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
@@ -286,6 +291,7 @@ function sendRequestToBackground(selectedHtml, requestId) {
         );
         const errorMsg = "Error: Unexpected response from background.";
         importedShowError(errorMsg);
+        if (DEBUG) console.log("[LLM Content] Setting error state to true for unexpected response error.");
         SummaryPopup.updatePopupContent(errorMsg, null, null, true);
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
