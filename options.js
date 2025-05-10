@@ -96,7 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // --- Price Limit Calculation and Display ---
   function calculateKbLimitForSummary() {
     if (!maxRequestPriceInput || !maxKbDisplay) return;
-    
+
     const priceValue = parseFloat(maxRequestPriceInput.value);
     if (isNaN(priceValue) || priceValue <= 0) {
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
@@ -104,31 +104,48 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentSummaryKbLimit = "";
       return;
     }
-    
+
     currentMaxRequestPrice = priceValue;
-    chrome.runtime.sendMessage({
-      action: "getModelPricing",
-      modelId: currentSummaryModelId
-    }, (response) => {
-      if (chrome.runtime.lastError || !response || response.status !== "success") {
-        maxKbDisplay.textContent = "max price: " + currentMaxRequestPrice.toFixed(2) + " max KiB: Pricing unavailable";
-        currentSummaryKbLimit = "";
-        if (DEBUG) console.error("[LLM Options] Error fetching model pricing:", chrome.runtime.lastError || "No response");
-        return;
-      }
-      
-      const pricePerToken = response.pricePerToken || 0;
-      if (pricePerToken === 0) {
-        currentSummaryKbLimit = "Unlimited";
-        maxKbDisplay.textContent = "max price: " + currentMaxRequestPrice.toFixed(2) + " max KiB: Unlimited";
-      } else {
-        const maxTokens = currentMaxRequestPrice / pricePerToken;
-        const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
-        const maxKbNonEnglish = Math.round(maxKb / 2);
-        currentSummaryKbLimit = maxKb.toString();
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: ~${maxKb} (~${maxKbNonEnglish} for non-English)`;
-      }
-    });
+    chrome.runtime.sendMessage(
+      {
+        action: "getModelPricing",
+        modelId: currentSummaryModelId,
+      },
+      (response) => {
+        if (
+          chrome.runtime.lastError ||
+          !response ||
+          response.status !== "success"
+        ) {
+          maxKbDisplay.textContent =
+            "max price: " +
+            currentMaxRequestPrice.toFixed(2) +
+            " max KiB: Pricing unavailable";
+          currentSummaryKbLimit = "";
+          if (DEBUG)
+            console.error(
+              "[LLM Options] Error fetching model pricing:",
+              chrome.runtime.lastError || "No response",
+            );
+          return;
+        }
+
+        const pricePerToken = response.pricePerToken || 0;
+        if (pricePerToken === 0) {
+          currentSummaryKbLimit = "Unlimited";
+          maxKbDisplay.textContent =
+            "max price: " +
+            currentMaxRequestPrice.toFixed(2) +
+            " max KiB: Unlimited";
+        } else {
+          const maxTokens = currentMaxRequestPrice / pricePerToken;
+          const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
+          const maxKbNonEnglish = Math.round(maxKb / 2);
+          currentSummaryKbLimit = maxKb.toString();
+          maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: ~${maxKb} (~${maxKbNonEnglish} for non-English)`;
+        }
+      },
+    );
   }
   function filterLanguages(query) {
     const lowerQuery = query.toLowerCase().trim();
@@ -319,7 +336,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       summaryRadio.disabled = !isModelIdValid;
       summaryRadio.dataset.index = index;
       summaryRadio.addEventListener("change", handleRadioChange);
-      summaryRadio.addEventListener("change", () => calculateKbLimitForSummary());
+      summaryRadio.addEventListener("change", () =>
+        calculateKbLimitForSummary(),
+      );
       const summaryLabel = document.createElement("label");
       summaryLabel.htmlFor = summaryRadio.id;
       summaryLabel.className = "radio-label";
@@ -850,7 +869,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "bulletCount",
         "language_info",
         PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-        STORAGE_KEY_MAX_REQUEST_PRICE
+        STORAGE_KEY_MAX_REQUEST_PRICE,
       ];
       const data = await chrome.storage.sync.get(keysToGet);
 
@@ -942,9 +961,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
 
-      currentMaxRequestPrice = data[STORAGE_KEY_MAX_REQUEST_PRICE] || DEFAULT_MAX_REQUEST_PRICE;
+      currentMaxRequestPrice =
+        data[STORAGE_KEY_MAX_REQUEST_PRICE] || DEFAULT_MAX_REQUEST_PRICE;
       if (maxRequestPriceInput) {
-        maxRequestPriceInput.value = currentMaxRequestPrice > 0 ? currentMaxRequestPrice : "";
+        maxRequestPriceInput.value =
+          currentMaxRequestPrice > 0 ? currentMaxRequestPrice : "";
       }
 
       if (statusMessage) {
@@ -1064,7 +1085,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       [PROMPT_STORAGE_KEY_PREAMBLE]: DEFAULT_PREAMBLE_TEMPLATE,
       [PROMPT_STORAGE_KEY_POSTAMBLE]: DEFAULT_POSTAMBLE_TEXT,
       [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS,
-      [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice
+      [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice,
     };
 
     if (DEBUG)
@@ -1219,7 +1240,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("[LLM Options] Save button not found.");
       }
       if (maxRequestPriceInput) {
-        maxRequestPriceInput.addEventListener("input", () => calculateKbLimitForSummary());
+        maxRequestPriceInput.addEventListener("input", () =>
+          calculateKbLimitForSummary(),
+        );
       } else {
         console.error("[LLM Options] Max Request Price input not found.");
       }
