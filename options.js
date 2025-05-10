@@ -978,7 +978,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   
   /**
-   * Updates model and pricing data for models supporting structured_outputs by fetching from the API.
+   * Updates model and pricing data for all models by fetching from the API.
    */
   function updateKnownModelsAndPricing() {
     if (!pricingNotification || !updatePricingBtn) return;
@@ -994,7 +994,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (DEBUG) console.error("[LLM Options] Error updating model and pricing data:", chrome.runtime.lastError || response?.message);
       } else {
         const updated = response.updated || 0;
-        pricingNotification.textContent = `Updated data for ${updated} compatible model(s).`;
+        pricingNotification.textContent = `Updated data for ${updated} model(s).`;
         if (DEBUG) console.log(`[LLM Options] Updated data for ${updated} models.`);
         // Reload the cache after update
         chrome.storage.local.get(STORAGE_KEY_KNOWN_MODELS_AND_PRICES, (cacheData) => {
@@ -1034,10 +1034,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       hasChanged = true;
     }
     
-    // Check all configured models and warn if some are incompatible
-    const incompatibleModels = currentModels.filter(model => model.id && !validModelIds.includes(model.id));
-    if (incompatibleModels.length > 0) {
-      if (DEBUG) console.log(`[LLM Options] Incompatible models detected:`, incompatibleModels);
+    // Check all configured models and warn if some are not in the known list
+    const unknownModels = currentModels.filter(model => model.id && !validModelIds.includes(model.id));
+    if (unknownModels.length > 0) {
+      if (DEBUG) console.log(`[LLM Options] Unknown models detected:`, unknownModels);
       // Optionally notify user or adjust list
     }
     
