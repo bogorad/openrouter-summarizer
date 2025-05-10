@@ -10,6 +10,8 @@ import {
   DEFAULT_FORMAT_INSTRUCTIONS,
   DEFAULT_MODEL_OPTIONS,
   DEFAULT_MAX_REQUEST_PRICE,
+  STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
+  DEFAULT_CACHE_EXPIRY_DAYS,
 } from "./constants.js";
 import { showError } from "./utils.js";
 
@@ -60,7 +62,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const TOKENS_PER_KB = 227.56; // Approximation based on 4.5 characters per token and 1024 characters per KB
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
   const DEBOUNCE_DELAY = 300; // ms delay for input processing
-  const PRICING_CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
 
   let DEBUG = false;
@@ -71,6 +72,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentSummaryKbLimit = "";
   let debounceTimeoutId = null;
   let modelPricingCache = {}; // Cache for model pricing data { "model/id": { pricePerToken: number, timestamp: number } }
+  let knownModelsAndPrices = {}; // Combined structure for models supporting structured_outputs and their pricing
 
   let language_info = [];
   let allLanguages = []; // For autocomplete suggestions
@@ -933,64 +935,99 @@ document.addEventListener("DOMContentLoaded", async () => {
    * Checks if pricing data is available for all configured models and updates the notification UI.
    * Triggers an automatic update if no pricing data is cached.
    */
-  function checkPricingData() {
+  /**
+   * Checks if model and pricing data is available and updates the notification UI.
+   * Triggers an automatic update if data is missing or expired.
+   */
+  function checkModelAndPricingData() {
     if (!pricingNotification) return;
     
-    const validModelIds = currentModels.filter(m => m.id.trim() !== "").map(m => m.id);
-    if (validModelIds.length === 0) {
-      pricingNotification.textContent = "No models configured for pricing data.";
-      return;
+    const currentTime = Date.now();
+    const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    let isDataExpired = true;
+    
+    if (Object.keys(knownModelsAndPrices).length > 0) {
+      const firstModel = Object.values(knownModelsAndPrices)[0];
+      if (firstModel && firstModel.timestamp) {
+        isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
+      }
     }
     
-    const currentTime = Date.now();
-    const missingModels = validModelIds.filter(modelId => {
-      const cached = modelPricingCache[modelId];
-      return !cached || (currentTime - cached.timestamp) >= PRICING_CACHE_EXPIRY;
-    });
-    
-    if (missingModels.length === validModelIds.length) {
-      pricingNotification.textContent = "No pricing data available. Fetching pricing for all models...";
-      updateAllModelPricing();
-    } else if (missingModels.length > 0) {
-      pricingNotification.textContent = "Pricing data missing for some models. Click 'Update Model Pricing' to refresh.";
+    if (Object.keys(knownModelsAndPrices).length === 0 || isDataExpired) {
+      pricingNotification.textContent = "Model and pricing data missing or expired. Fetching data...";
+      updateKnownModelsAndPricing();
     } else {
-      pricingNotification.textContent = "Pricing data available for all models.";
+      pricingNotification.textContent = "Model and pricing data up to date.";
+      validateCurrentModels();
     }
   }
   
   /**
-   * Updates pricing data for all configured models by fetching from the API.
+   * Updates model and pricing data for models supporting structured_outputs by fetching from the API.
    */
-  function updateAllModelPricing() {
+  function updateKnownModelsAndPricing() {
     if (!pricingNotification || !updatePricingBtn) return;
     
     updatePricingBtn.disabled = true;
-    pricingNotification.textContent = "Fetching pricing data for all models...";
+    pricingNotification.textContent = "Fetching model and pricing data...";
     
     chrome.runtime.sendMessage({
-      action: "updateAllModelPricing"
+      action: "updateKnownModelsAndPricing"
     }, (response) => {
       if (chrome.runtime.lastError || !response || response.status !== "success") {
-        pricingNotification.textContent = `Error updating pricing data: ${chrome.runtime.lastError?.message || response?.message || "Unknown error"}`;
-        if (DEBUG) console.error("[LLM Options] Error updating pricing for all models:", chrome.runtime.lastError || response?.message);
+        pricingNotification.textContent = `Error updating data: ${chrome.runtime.lastError?.message || response?.message || "Unknown error"}`;
+        if (DEBUG) console.error("[LLM Options] Error updating model and pricing data:", chrome.runtime.lastError || response?.message);
       } else {
         const updated = response.updated || 0;
-        const errors = response.errors || 0;
-        if (errors > 0) {
-          pricingNotification.textContent = `Pricing data updated for ${updated} model(s) with ${errors} error(s). Some data may be missing.`;
-        } else {
-          pricingNotification.textContent = `Pricing data updated for all ${updated} model(s).`;
-        }
-        if (DEBUG) console.log(`[LLM Options] Updated pricing for ${updated} models with ${errors} errors.`);
+        pricingNotification.textContent = `Updated data for ${updated} compatible model(s).`;
+        if (DEBUG) console.log(`[LLM Options] Updated data for ${updated} models.`);
         // Reload the cache after update
-        chrome.storage.local.get(STORAGE_KEY_PRICING_CACHE, (cacheData) => {
-          modelPricingCache = cacheData[STORAGE_KEY_PRICING_CACHE] || {};
-          if (DEBUG) console.log("[LLM Options] Reloaded pricing cache:", modelPricingCache);
-          calculateKbLimitForSummary(); // Recalculate KB limit after updating pricing
+        chrome.storage.local.get(STORAGE_KEY_KNOWN_MODELS_AND_PRICES, (cacheData) => {
+          knownModelsAndPrices = cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
+          if (DEBUG) console.log("[LLM Options] Reloaded model and pricing data:", knownModelsAndPrices);
+          calculateKbLimitForSummary(); // Recalculate KB limit after updating data
+          validateCurrentModels(); // Validate models after update
         });
       }
       updatePricingBtn.disabled = false;
     });
+  }
+  
+  /**
+   * Validates current models against known_models_and_prices and updates UI if necessary.
+   */
+  function validateCurrentModels() {
+    if (Object.keys(knownModelsAndPrices).length === 0) return;
+    
+    const validModelIds = Object.keys(knownModelsAndPrices);
+    let hasChanged = false;
+    
+    // Check summary model
+    if (currentSummaryModelId && !validModelIds.includes(currentSummaryModelId)) {
+      const newSummaryModel = validModelIds.length > 0 ? validModelIds[0] : "";
+      if (DEBUG) console.log(`[LLM Options] Summary model ${currentSummaryModelId} not compatible, switching to ${newSummaryModel}`);
+      currentSummaryModelId = newSummaryModel;
+      hasChanged = true;
+    }
+    
+    // Check chat model (optional flexibility)
+    if (currentChatModelId && !validModelIds.includes(currentChatModelId)) {
+      const newChatModel = validModelIds.length > 0 ? validModelIds[0] : "";
+      if (DEBUG) console.log(`[LLM Options] Chat model ${currentChatModelId} not compatible, switching to ${newChatModel}`);
+      currentChatModelId = newChatModel;
+      hasChanged = true;
+    }
+    
+    // Check all configured models and warn if some are incompatible
+    const incompatibleModels = currentModels.filter(model => model.id && !validModelIds.includes(model.id));
+    if (incompatibleModels.length > 0) {
+      if (DEBUG) console.log(`[LLM Options] Incompatible models detected:`, incompatibleModels);
+      // Optionally notify user or adjust list
+    }
+    
+    if (hasChanged) {
+      renderModelOptions();
+    }
   }
 
   // --- Load, Save, Reset (UPDATED - No Labels) ---
@@ -1123,10 +1160,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         data[STORAGE_KEY_MAX_REQUEST_PRICE] || DEFAULT_MAX_REQUEST_PRICE;
       // Handled in calculateKbLimitForSummary
 
-      // Load pricing cache from local storage
-      const cacheData = await chrome.storage.local.get(STORAGE_KEY_PRICING_CACHE);
+      // Load known models and pricing data from local storage
+      const cacheData = await chrome.storage.local.get([STORAGE_KEY_PRICING_CACHE, STORAGE_KEY_KNOWN_MODELS_AND_PRICES]);
       modelPricingCache = cacheData[STORAGE_KEY_PRICING_CACHE] || {};
+      knownModelsAndPrices = cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
       if (DEBUG) console.log("[LLM Options] Loaded pricing cache:", modelPricingCache);
+      if (DEBUG) console.log("[LLM Options] Loaded known models and pricing data:", knownModelsAndPrices);
 
       if (statusMessage) {
         statusMessage.textContent = "Options loaded.";
@@ -1402,7 +1441,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       // Event listeners are added dynamically in calculateKbLimitForSummary
       if (updatePricingBtn) {
-        updatePricingBtn.addEventListener("click", updateAllModelPricing);
+        updatePricingBtn.addEventListener("click", updateKnownModelsAndPricing);
       } else {
         console.error("[LLM Options] Update Model Pricing button not found.");
       }
