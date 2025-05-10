@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.2.10
+# OpenRouter Summarizer v3.2.11
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Corrected Default Price:** Updated the default Max Request Price to $0.001 to match the enforced minimum for finer cost control. (v3.2.11)
 *   **Enforced Minimum Price:** Set a minimum value of $0.001 for Max Request Price to prevent disabling requests with paid models. (v3.2.10)
 *   **Increased Price Precision:** Changed max request price precision to three decimal places, allowing a minimum price of $0.001 for finer cost control. (v3.2.9)
 *   **Fixed Reference Error in Options:** Removed residual reference to `maxRequestPriceInput` in `calculateKbLimitForSummary` to prevent initialization errors. (v3.2.8)
