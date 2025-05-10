@@ -12,7 +12,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.2.9 (Pricing Cache)`);
+console.log(`[LLM Options] Script Start v3.2.10 (Pricing Cache)`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -1422,8 +1422,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     debounceTimeoutId = setTimeout(() => {
       const priceValue = parseFloat(event.target.value);
-      if (!isNaN(priceValue) && priceValue >= 0) {
+      if (!isNaN(priceValue) && priceValue >= 0.001) {
         currentMaxRequestPrice = priceValue;
+      } else if (!isNaN(priceValue) && priceValue < 0.001) {
+        currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+        event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(3);
       }
       calculateKbLimitForSummary();
       debounceTimeoutId = null;
@@ -1435,7 +1438,7 @@ document.addEventListener("DOMContentLoaded", async () => {
    */
   function handleMaxPriceBlur(event) {
     const priceValue = parseFloat(event.target.value);
-    if (isNaN(priceValue) || priceValue < 0) {
+    if (isNaN(priceValue) || priceValue < 0.001) {
       event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(3);
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
       if (debounceTimeoutId) {
