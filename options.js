@@ -128,14 +128,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           <thead>
             <tr>
               <th>Max Price (USD)</th>
-              <th>Max KiB (English)</th>
-              <th>Max KiB (Unicode)</th>
+              <th>Max KiB</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${currentMaxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
-              <td>No model selected</td>
               <td>No model selected</td>
             </tr>
           </tbody>
@@ -153,38 +151,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     if (modelData && currentTime - modelData.timestamp < cacheExpiry) {
       const pricePerToken = modelData.pricePerToken || 0;
-      let kbEnglish = "Calculating...";
-      let kbUnicode = "Calculating...";
+      let kbLimit = "Calculating...";
       if (pricePerToken === 0) {
         currentSummaryKbLimit = "No limit";
-        kbEnglish = "No limit";
-        kbUnicode = "No limit";
+        kbLimit = "No limit";
       } else if (currentMaxRequestPrice === 0) {
         currentSummaryKbLimit = "0";
-        kbEnglish = "0";
-        kbUnicode = "0";
+        kbLimit = "0";
       } else {
         const maxTokens = currentMaxRequestPrice / pricePerToken;
         const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
-        const maxKbNonEnglish = Math.round(maxKb / 2);
         currentSummaryKbLimit = maxKb.toString();
-        kbEnglish = `~${maxKb}`;
-        kbUnicode = `~${maxKbNonEnglish}`;
+        kbLimit = `~${maxKb}`;
       }
       maxKbDisplay.innerHTML = `
         <table class="price-kb-table">
           <thead>
             <tr>
               <th>Max Price (USD)</th>
-              <th>Max KiB (English)</th>
-              <th>Max KiB (Unicode)</th>
+              <th>Max KiB</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${currentMaxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
-              <td>${kbEnglish}</td>
-              <td>${kbUnicode}</td>
+              <td>${kbLimit}</td>
             </tr>
           </tbody>
         </table>
@@ -212,38 +203,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (DEBUG) console.log(`[LLM Options] Updated pricing cache for ${currentSummaryModelId}`);
       });
       
-      let kbEnglish = "Calculating...";
-      let kbUnicode = "Calculating...";
+      let kbLimit = "Calculating...";
       if (pricePerToken === 0) {
         currentSummaryKbLimit = "No limit";
-        kbEnglish = "No limit";
-        kbUnicode = "No limit";
+        kbLimit = "No limit";
       } else if (currentMaxRequestPrice === 0) {
         currentSummaryKbLimit = "0";
-        kbEnglish = "0";
-        kbUnicode = "0";
+        kbLimit = "0";
       } else {
         const maxTokens = currentMaxRequestPrice / pricePerToken;
         const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
-        const maxKbNonEnglish = Math.round(maxKb / 2);
         currentSummaryKbLimit = maxKb.toString();
-        kbEnglish = `~${maxKb}`;
-        kbUnicode = `~${maxKbNonEnglish}`;
+        kbLimit = `~${maxKb}`;
       }
       maxKbDisplay.innerHTML = `
         <table class="price-kb-table">
           <thead>
             <tr>
               <th>Max Price (USD)</th>
-              <th>Max KiB (English)</th>
-              <th>Max KiB (Unicode)</th>
+              <th>Max KiB</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${currentMaxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
-              <td>${kbEnglish}</td>
-              <td>${kbUnicode}</td>
+              <td>${kbLimit}</td>
             </tr>
           </tbody>
         </table>
