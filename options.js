@@ -12,7 +12,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3 (No Labels)`);
+console.log(`[LLM Options] Script Start v3.2.5 (Pricing Cache)`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -41,6 +41,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
   const maxRequestPriceInput = document.getElementById("maxRequestPrice");
   const maxKbDisplay = document.getElementById("maxKbDisplay");
+  const updatePricingBtn = document.getElementById("updatePricingBtn");
+  const pricingNotification = document.getElementById("pricingNotification");
 
   const DEFAULT_BULLET_COUNT = "5";
   const LANGUAGE_FLAG_CLASS = "language-flag";
@@ -59,6 +61,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
   const DEFAULT_MAX_REQUEST_PRICE = 0.01;
   const DEBOUNCE_DELAY = 300; // ms delay for input processing
+  const PRICING_CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
 
   let DEBUG = false;
   let currentModels = []; // Array of objects like { id: "model/id" }
@@ -67,6 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
   let currentSummaryKbLimit = "";
   let debounceTimeoutId = null;
+  let modelPricingCache = {}; // Cache for model pricing data { "model/id": { pricePerToken: number, timestamp: number } }
 
   let language_info = [];
   let allLanguages = []; // For autocomplete suggestions
@@ -96,6 +101,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // --- Price Limit Calculation and Display ---
+  /**
+   * Calculates the KB limit for the current summary model based on cached or fetched pricing data.
+   */
   function calculateKbLimitForSummary() {
     if (!maxRequestPriceInput || !maxKbDisplay) return;
     
@@ -116,6 +124,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     
+    const cachedPricing = modelPricingCache[currentSummaryModelId];
+    const currentTime = Date.now();
+    
+    if (cachedPricing && currentTime - cachedPricing.timestamp < PRICING_CACHE_EXPIRY) {
+      const pricePerToken = cachedPricing.pricePerToken || 0;
+      if (pricePerToken === 0) {
+        currentSummaryKbLimit = "Unlimited";
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Unlimited`;
+      } else {
+        const maxTokens = currentMaxRequestPrice / pricePerToken;
+        const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
+        const maxKbNonEnglish = Math.round(maxKb / 2);
+        currentSummaryKbLimit = maxKb.toString();
+        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: ~${maxKb} (~${maxKbNonEnglish} for non-English)`;
+      }
+      if (DEBUG) console.log(`[LLM Options] Used cached pricing for ${currentSummaryModelId}:`, cachedPricing);
+      return;
+    }
+    
     chrome.runtime.sendMessage({
       action: "getModelPricing",
       modelId: currentSummaryModelId
@@ -128,6 +155,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       
       const pricePerToken = response.pricePerToken || 0;
+      modelPricingCache[currentSummaryModelId] = { pricePerToken, timestamp: currentTime };
+      chrome.storage.local.set({ [STORAGE_KEY_PRICING_CACHE]: modelPricingCache }, () => {
+        if (DEBUG) console.log(`[LLM Options] Updated pricing cache for ${currentSummaryModelId}`);
+      });
+      
       if (pricePerToken === 0) {
         currentSummaryKbLimit = "Unlimited";
         maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Unlimited`;
@@ -505,6 +537,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (newInput) {
         newInput.focus();
       }
+      checkPricingData(); // Check for missing pricing data after adding a new model
       if (DEBUG) console.log("[LLM Options] Added new model row (no label).");
     } else {
       alert(`Maximum limit of ${MAX_MODELS} models reached.`);
@@ -828,6 +861,85 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   // --- End Prompt Preview ---
 
+  // --- Pricing Data Check and Update Functions ---
+  /**
+   * Checks if pricing data is available for all configured models and updates the notification UI.
+   * Triggers an automatic update if no pricing data is cached.
+   */
+  function checkPricingData() {
+    if (!pricingNotification) return;
+    
+    const validModelIds = currentModels.filter(m => m.id.trim() !== "").map(m => m.id);
+    if (validModelIds.length === 0) {
+      pricingNotification.textContent = "No models configured for pricing data.";
+      return;
+    }
+    
+    const currentTime = Date.now();
+    const missingModels = validModelIds.filter(modelId => {
+      const cached = modelPricingCache[modelId];
+      return !cached || (currentTime - cached.timestamp) >= PRICING_CACHE_EXPIRY;
+    });
+    
+    if (missingModels.length === validModelIds.length) {
+      pricingNotification.textContent = "No pricing data available. Fetching pricing for all models...";
+      updateAllModelPricing();
+    } else if (missingModels.length > 0) {
+      pricingNotification.textContent = "Pricing data missing for some models. Click 'Update Model Pricing' to refresh.";
+    } else {
+      pricingNotification.textContent = "Pricing data available for all models.";
+    }
+  }
+  
+  /**
+   * Updates pricing data for all configured models by fetching from the API.
+   */
+  function updateAllModelPricing() {
+    if (!pricingNotification || !updatePricingBtn) return;
+    
+    updatePricingBtn.disabled = true;
+    pricingNotification.textContent = "Fetching pricing data for all models...";
+    
+    const validModelIds = currentModels.filter(m => m.id.trim() !== "").map(m => m.id);
+    if (validModelIds.length === 0) {
+      pricingNotification.textContent = "No models configured to fetch pricing data.";
+      updatePricingBtn.disabled = false;
+      return;
+    }
+    
+    let completed = 0;
+    let errors = 0;
+    const currentTime = Date.now();
+    
+    validModelIds.forEach(modelId => {
+      chrome.runtime.sendMessage({
+        action: "getModelPricing",
+        modelId: modelId
+      }, (response) => {
+        completed++;
+        if (chrome.runtime.lastError || !response || response.status !== "success") {
+          errors++;
+          if (DEBUG) console.error(`[LLM Options] Error fetching pricing for ${modelId}:`, chrome.runtime.lastError || "No response");
+        } else {
+          modelPricingCache[modelId] = { pricePerToken: response.pricePerToken || 0, timestamp: currentTime };
+        }
+        
+        if (completed === validModelIds.length) {
+          chrome.storage.local.set({ [STORAGE_KEY_PRICING_CACHE]: modelPricingCache }, () => {
+            if (DEBUG) console.log(`[LLM Options] Updated pricing cache for all models.`);
+          });
+          if (errors > 0) {
+            pricingNotification.textContent = `Pricing data updated with ${errors} error(s). Some data may be missing.`;
+          } else {
+            pricingNotification.textContent = "Pricing data updated for all models.";
+          }
+          updatePricingBtn.disabled = false;
+          calculateKbLimitForSummary(); // Recalculate KB limit after updating pricing
+        }
+      });
+    });
+  }
+
   // --- Load, Save, Reset (UPDATED - No Labels) ---
   async function loadSettings() {
     try {
@@ -960,6 +1072,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         maxRequestPriceInput.value = currentMaxRequestPrice > 0 ? currentMaxRequestPrice : DEFAULT_MAX_REQUEST_PRICE;
       }
 
+      // Load pricing cache from local storage
+      const cacheData = await chrome.storage.local.get(STORAGE_KEY_PRICING_CACHE);
+      modelPricingCache = cacheData[STORAGE_KEY_PRICING_CACHE] || {};
+      if (DEBUG) console.log("[LLM Options] Loaded pricing cache:", modelPricingCache);
+
       if (statusMessage) {
         statusMessage.textContent = "Options loaded.";
         statusMessage.className = "status-message success";
@@ -1000,6 +1117,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderLanguageOptions();
     updatePromptPreview();
     calculateKbLimitForSummary();
+    checkPricingData(); // Check pricing data on load
   }
 
   // UPDATED Save Settings function (No Labels)
@@ -1253,6 +1371,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
       } else {
         console.error("[LLM Options] Max Request Price input not found.");
+      }
+      if (updatePricingBtn) {
+        updatePricingBtn.addEventListener("click", updateAllModelPricing);
+      } else {
+        console.error("[LLM Options] Update Model Pricing button not found.");
       }
       if (DEBUG) console.log("[LLM Options] Event listeners attached.");
     } catch (error) {
