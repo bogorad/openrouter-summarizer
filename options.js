@@ -15,7 +15,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.3.0`);
+console.log(`[LLM Options] Script Start v3.3.1`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -1480,6 +1480,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         clearTimeout(debounceTimeoutId);
       }
       calculateKbLimitForSummary();
+    }
+  }
+
+  /**
+   * Checks pricing data for all configured models and updates if necessary.
+   */
+  function checkPricingData() {
+    if (!pricingNotification) return;
+    
+    const currentTime = Date.now();
+    const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    let isDataExpired = true;
+    
+    if (Object.keys(knownModelsAndPrices).length > 0) {
+      const firstModel = Object.values(knownModelsAndPrices)[0];
+      if (firstModel && firstModel.timestamp) {
+        isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
+      }
+    }
+    
+    if (Object.keys(knownModelsAndPrices).length === 0 || isDataExpired) {
+      pricingNotification.textContent = "Model and pricing data missing or expired. Fetching data...";
+      updateKnownModelsAndPricing();
+    } else {
+      pricingNotification.textContent = "Model and pricing data up to date.";
     }
   }
 
