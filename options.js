@@ -58,7 +58,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const MAX_LANGUAGES = 5;
   const TOKENS_PER_KB = 227.56; // Approximation based on 4.5 characters per token and 1024 characters per KB
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
-  const DEFAULT_MAX_REQUEST_PRICE = 0.001;
   const DEBOUNCE_DELAY = 300; // ms delay for input processing
   const PRICING_CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";

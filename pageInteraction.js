@@ -141,7 +141,7 @@ async function validateAndSendToLLM(selectedHtml) {
       return;
     }
 
-    const maxRequestPrice = response.maxRequestPrice || 0.001;
+    const maxRequestPrice = response.maxRequestPrice || DEFAULT_MAX_REQUEST_PRICE;
     const summaryModelId = response.summaryModelId || "";
 
     if (!summaryModelId) {
