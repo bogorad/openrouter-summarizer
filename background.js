@@ -285,9 +285,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const cache = cacheData.modelPricingCache || {};
           const cachedEntry = cache[request.modelId];
           const currentTime = Date.now();
-          const cacheExpiry = 60 * 60 * 1000; // 1 hour expiry
+          const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours expiry
 
-          if (cachedEntry && cachedEntry.timestamp + cacheExpiry > currentTime) {
+          if (cachedEntry && currentTime - cachedEntry.timestamp < cacheExpiry) {
             if (DEBUG)
               console.log("[LLM Background] Using cached pricing data for model:", request.modelId, { pricePerToken: cachedEntry.pricePerToken });
             sendResponse({ status: "success", pricePerToken: cachedEntry.pricePerToken });
