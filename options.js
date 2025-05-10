@@ -108,7 +108,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   function calculateKbLimitForSummary() {
     if (!maxKbDisplay) return;
     
-    // No direct reference to maxRequestPriceInput since it's now dynamically created in the table
     maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(3)} max KiB: Calculating...`;
     currentSummaryKbLimit = "";
     
@@ -137,11 +136,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     
-    const cachedPricing = modelPricingCache[currentSummaryModelId];
+    const modelData = knownModelsAndPrices[currentSummaryModelId];
     const currentTime = Date.now();
+    const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
     
-    if (cachedPricing && currentTime - cachedPricing.timestamp < PRICING_CACHE_EXPIRY) {
-      const pricePerToken = cachedPricing.pricePerToken || 0;
+    if (modelData && currentTime - modelData.timestamp < cacheExpiry) {
+      const pricePerToken = modelData.pricePerToken || 0;
       let kbEnglish = "Calculating...";
       let kbUnicode = "Calculating...";
       if (pricePerToken === 0) {
@@ -180,7 +180,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       `;
       document.getElementById("maxPriceInput").addEventListener("input", handleMaxPriceInput);
       document.getElementById("maxPriceInput").addEventListener("blur", handleMaxPriceBlur);
-      if (DEBUG) console.log(`[LLM Options] Used cached pricing for ${currentSummaryModelId}:`, cachedPricing);
+      if (DEBUG) console.log(`[LLM Options] Used cached data for ${currentSummaryModelId}:`, modelData);
       return;
     }
     
