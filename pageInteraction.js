@@ -126,9 +126,9 @@ function processSelectedElement() {
 
 /**
  * Validates the cost of the request against the max price limit before sending to LLM.
- * @param {string} selectedHtml - The HTML content to be summarized.
+ * @param {string} content - The content (HTML or processed Markdown) to be summarized.
  */
-async function validateAndSendToLLM(selectedHtml) {
+async function validateAndSendToLLM(content) {
   if (!SummaryPopup) {
     console.error(
       "[LLM Content] validateAndSendToLLM called before SummaryPopup module loaded!",
@@ -207,14 +207,14 @@ async function validateAndSendToLLM(selectedHtml) {
       return;
     }
 
-    // Estimate token count based on content size
-    const contentSize = selectedHtml.length;
+    // Estimate token count based on content size (using processed Markdown if available)
+    const contentSize = content.length;
     // Approximate tokens per KB (from options.js TOKENS_PER_KB = 227.56)
     const tokensPerChar = 227.56 / 1024;
     const estimatedTokens = Math.ceil(contentSize * tokensPerChar);
     if (DEBUG)
       console.log(
-        `[LLM Content] Estimated tokens for content: ${estimatedTokens} (size: ${contentSize} chars)`,
+        `[LLM Content] Estimated tokens for content: ${estimatedTokens} (size: ${contentSize} chars, type: ${content === lastProcessedMarkdown ? "Markdown" : "HTML"})`,
       );
 
     // Get pricing data for the summary model
@@ -249,7 +249,7 @@ async function validateAndSendToLLM(selectedHtml) {
             console.log(
               `[LLM Content] Free model detected (${summaryModelId}), skipping cost validation.`,
             );
-          sendRequestToBackground(selectedHtml, requestId);
+          sendRequestToBackground(content, requestId);
           return;
         }
 
@@ -275,7 +275,7 @@ async function validateAndSendToLLM(selectedHtml) {
         }
 
         // If cost is within limit, proceed with the request
-        sendRequestToBackground(selectedHtml, requestId);
+        sendRequestToBackground(content, requestId);
       },
     );
   });
@@ -283,10 +283,10 @@ async function validateAndSendToLLM(selectedHtml) {
 
 /**
  * Sends the request to the background script for LLM processing.
- * @param {string} selectedHtml - The HTML content to be summarized.
+ * @param {string} content - The content to be summarized (Markdown or HTML).
  * @param {string} requestId - Unique ID for the request.
  */
-function sendRequestToBackground(selectedHtml, requestId) {
+function sendRequestToBackground(content, requestId) {
   if (DEBUG)
     console.log("[LLM Request] Sending summarization request to background.");
 
@@ -294,7 +294,7 @@ function sendRequestToBackground(selectedHtml, requestId) {
     {
       action: "requestSummary",
       requestId: requestId,
-      selectedHtml: selectedHtml,
+      selectedHtml: content,
     },
     (response) => {
       // This callback handles the *immediate* response from the background listener.
@@ -366,11 +366,11 @@ function sendRequestToBackground(selectedHtml, requestId) {
 }
 
 /**
- * Sends the selected HTML to the background script for LLM processing after validation.
- * @param {string} selectedHtml - The HTML content to be summarized.
+ * Sends the content (processed Markdown or fallback HTML) to the background script for LLM processing after validation.
+ * @param {string} content - The content to be summarized (Markdown or HTML).
  */
-function sendToLLM(selectedHtml) {
-  validateAndSendToLLM(selectedHtml);
+function sendToLLM(content) {
+  validateAndSendToLLM(content);
 }
 
 // --- Callback Functions for Modules ---
