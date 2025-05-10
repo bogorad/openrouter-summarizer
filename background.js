@@ -18,6 +18,7 @@ import {
   STORAGE_KEY_DEBUG,
   STORAGE_KEY_BULLET_COUNT,
   STORAGE_KEY_LANGUAGE_INFO,
+  STORAGE_KEY_MAX_REQUEST_PRICE,
 } from "./constants.js";
 
 console.log(
@@ -102,6 +103,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         STORAGE_KEY_DEBUG,
         STORAGE_KEY_BULLET_COUNT,
         STORAGE_KEY_LANGUAGE_INFO,
+        STORAGE_KEY_MAX_REQUEST_PRICE,
         PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
         PROMPT_STORAGE_KEY_PREAMBLE,
         PROMPT_STORAGE_KEY_POSTAMBLE,
