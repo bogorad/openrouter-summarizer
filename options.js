@@ -12,7 +12,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.2.8 (Pricing Cache)`);
+console.log(`[LLM Options] Script Start v3.2.9 (Pricing Cache)`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -122,7 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           </thead>
           <tbody>
             <tr>
-              <td><input type="number" id="maxPriceInput" step="0.01" min="0" value="${currentMaxRequestPrice.toFixed(2)}" style="width: 80px;"></td>
+              <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${currentMaxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
               <td>No model selected</td>
               <td>No model selected</td>
             </tr>
@@ -169,7 +169,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           </thead>
           <tbody>
             <tr>
-              <td><input type="number" id="maxPriceInput" step="0.01" min="0" value="${currentMaxRequestPrice.toFixed(2)}" style="width: 80px;"></td>
+              <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${currentMaxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
               <td>${kbEnglish}</td>
               <td>${kbUnicode}</td>
             </tr>
@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           </thead>
           <tbody>
             <tr>
-              <td><input type="number" id="maxPriceInput" step="0.01" min="0" value="${currentMaxRequestPrice.toFixed(2)}" style="width: 80px;"></td>
+              <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${currentMaxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
               <td>${kbEnglish}</td>
               <td>${kbUnicode}</td>
             </tr>
@@ -1436,7 +1436,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function handleMaxPriceBlur(event) {
     const priceValue = parseFloat(event.target.value);
     if (isNaN(priceValue) || priceValue < 0) {
-      event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(2);
+      event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(3);
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
       if (debounceTimeoutId) {
         clearTimeout(debounceTimeoutId);
