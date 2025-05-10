@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.2.6
+# OpenRouter Summarizer v3.2.7
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -93,6 +93,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Zero Price Handling for KB Limit:** Updated logic to treat a max request price of zero as valid, setting KB limit to zero for paid models (no budget) and "No limit" for free models. (v3.2.7)
 *   **Extended Pricing Cache Expiry:** Increased the pricing data cache expiration from 24 hours to 7 days for better performance and reduced API calls. (v3.2.6)
 *   **Efficient Model Pricing Update:** Implemented a new mechanism to update pricing data for all configured models using a single API call to `/api/v1/models`, improving performance over individual model requests. (v3.2.5)
 *   **Price Limit for Summary Requests:** Added an advanced option to set a maximum price (in USD) for summary requests, displaying an approximate KB limit based on the selected summary model's pricing. (v3.2.4)
