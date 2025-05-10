@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const MAX_LANGUAGES = 5;
   const TOKENS_PER_KB = 227.56; // Approximation based on 4.5 characters per token and 1024 characters per KB
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
-  const DEFAULT_MAX_REQUEST_PRICE = 0;
+  const DEFAULT_MAX_REQUEST_PRICE = 0.01;
 
   let DEBUG = false;
   let currentModels = []; // Array of objects like { id: "model/id" }
@@ -100,9 +100,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const priceValue = parseFloat(maxRequestPriceInput.value);
     if (isNaN(priceValue) || priceValue <= 0) {
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-      maxKbDisplay.textContent = "max price: - max KiB: - (- for non-English)";
+      maxKbDisplay.textContent = `max price: ${DEFAULT_MAX_REQUEST_PRICE.toFixed(2)} max KiB: Calculating...`;
       currentSummaryKbLimit = "";
-      return;
     }
 
     currentMaxRequestPrice = priceValue;
@@ -996,7 +995,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-      if (maxRequestPriceInput) maxRequestPriceInput.value = "";
+      if (maxRequestPriceInput) maxRequestPriceInput.value = DEFAULT_MAX_REQUEST_PRICE;
       if (DEBUG)
         console.error(
           "[LLM Options] Error loading settings, applied defaults.",
@@ -1187,7 +1186,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-      if (maxRequestPriceInput) maxRequestPriceInput.value = "";
+      if (maxRequestPriceInput) maxRequestPriceInput.value = DEFAULT_MAX_REQUEST_PRICE;
 
       renderModelOptions();
       renderLanguageOptions();
