@@ -1,3 +1,4 @@
+*   **Added "2Slack" Button for Slack Markdown Conversion:** Added a new "2Slack" button to the summary popup next to "Chat", allowing users to convert summary content to Slack-specific markdown format and copy it to the clipboard using the `slackify-markdown` library. (v3.4.5)
 *   **Immediate Save on Model and Bullet Point Selection:** Added immediate saving of options when selecting models for summary or chat, and when changing the number of bullet points, ensuring settings are updated without manual save. (v3.4.3)
 *   **Auto-Save Options After API Key Entry:** Implemented automatic saving of settings after a successful API key entry, ensuring that the configuration is preserved immediately upon validation. (v3.4.2)
 *   **Model Refresh on API Key Input:** Added functionality to trigger a model refresh immediately after the user enters their API key in the options page, ensuring the latest model data is available. (v3.4.1)
