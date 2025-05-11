@@ -20,13 +20,7 @@ export function isDebugMode() {
   return DEBUG;
 }
 
-/**
- * Update debug mode
- * @param {boolean} value - New debug mode value
- */
-export function setDebugMode(value) {
-  DEBUG = !!value;
-}
+// Removed unused function setDebugMode
 
 /**
  * Log message if debug mode is enabled
@@ -75,11 +69,11 @@ export function isTabClosedError(error) {
  */
 export function sanitizeForLogging(obj, apiKeyField = "apiKey") {
   if (!obj || typeof obj !== "object") return obj;
-  
+
   const sanitized = { ...obj };
   if (sanitized[apiKeyField]) {
     sanitized[apiKeyField] = "[API Key Hidden]";
   }
-  
+
   return sanitized;
 }

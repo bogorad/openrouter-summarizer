@@ -5,9 +5,9 @@ import {
   PROMPT_STORAGE_KEY_PREAMBLE,
   PROMPT_STORAGE_KEY_POSTAMBLE
 } from "./constants.js";
-import { initDebugMode, isDebugMode, logDebug, logError } from "./utils/errorHandling.js";
+import { initDebugMode, logDebug, logError } from "./utils/errorHandling.js";
 import { getSettings, getChatContext } from "./services/settingsService.js";
-import { getModelPricing, updateModelPricing, calculateRequestCost } from "./services/modelService.js";
+import { getModelPricing, updateModelPricing } from "./services/modelService.js";
 import { processChatStream, abortChatRequest, storeChatContext } from "./services/chatService.js";
 import { sendChatRequest, sendSummaryRequest } from "./services/apiService.js";
 

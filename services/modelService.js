@@ -126,19 +126,10 @@ export function updateModelPricing() {
  * @param {string} content - Content to estimate tokens for
  * @returns {number} Estimated token count
  */
-export function estimateTokenCount(content) {
+function estimateTokenCount(content) {
   if (!content) return 0;
   // Simple estimation: ~4 characters per token
   return Math.ceil(content.length / 4);
 }
 
-/**
- * Calculate cost for a request
- * @param {string} content - Content to calculate cost for
- * @param {number} pricePerToken - Price per token
- * @returns {number} Estimated cost
- */
-export function calculateRequestCost(content, pricePerToken) {
-  const tokenCount = estimateTokenCount(content);
-  return tokenCount * pricePerToken;
-}
+// Removed unused exported function calculateRequestCost
