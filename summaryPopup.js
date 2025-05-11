@@ -1,7 +1,10 @@
-console.log(`[LLM Popup] Script Loaded (v3.0.16)`); // Updated version
+// @description Manages the summary popup UI for the OpenRouter Summarizer extension, including Slack markdown conversion.
+console.log(`[LLM Popup] Script Loaded (v3.0.17)`); // Updated version
 
 // Import slackify-markdown for Slack conversion
 import slackifyMarkdown from 'slackify-markdown';
+// Import utility to clean unprintable characters
+import { cleanUnprintableChars } from './utils.js';
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -140,10 +143,11 @@ function handleSlackClick(contentDiv, slackBtn) {
     // Convert original Markdown items to Slack format, then add the URL
     let markdownToConvert = currentOriginalMarkdownArray.join("\n");
     let slackMarkdown = slackifyMarkdown(markdownToConvert);
+    slackMarkdown = cleanUnprintableChars(slackMarkdown); // Clean unprintable characters like ZWSP
     slackMarkdown += `\n\nSource: ${currentPageURL}`;
     textToCopy = slackMarkdown;
     if (DEBUG)
-      console.log("[LLM Popup] Converting and copying Slack Markdown:", textToCopy);
+      console.log("[LLM Popup] Converting and copying Slack Markdown (cleaned):", textToCopy);
   } else {
     // Fallback: Use the visible content or currentContent as markdown to convert
     if (DEBUG)
@@ -166,11 +170,13 @@ function handleSlackClick(contentDiv, slackBtn) {
         markdownToConvert = contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
       }
       textToCopy = slackifyMarkdown(markdownToConvert);
+      textToCopy = cleanUnprintableChars(textToCopy); // Clean unprintable characters like ZWSP
     } else if (
       typeof currentContent === "string" &&
       !currentContent.startsWith("<")
     ) {
       textToCopy = slackifyMarkdown(currentContent.trim());
+      textToCopy = cleanUnprintableChars(textToCopy); // Clean unprintable characters like ZWSP
     }
   }
 
