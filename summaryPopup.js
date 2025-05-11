@@ -1,4 +1,7 @@
-console.log(`[LLM Popup] Script Loaded (v3.0.15)`); // Updated version
+console.log(`[LLM Popup] Script Loaded (v3.0.16)`); // Updated version
+
+// Import slackify-markdown for Slack conversion
+import slackifyMarkdown from 'slackify-markdown';
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -8,11 +11,12 @@ const POPUP_BODY_CLASS = "summarizer-body";
 const POPUP_ACTIONS_CLASS = "summarizer-actions";
 const POPUP_BTN_CLASS = "summarizer-btn";
 const POPUP_COPY_BTN_CLASS = "copy-btn";
+const POPUP_SLACK_BTN_CLASS = "slack-btn"; // New class for Slack button
 const POPUP_CHAT_BTN_CLASS = "chat-btn"; // Class for the dynamic chat/options button
 const POPUP_CLOSE_BTN_CLASS = "close-btn";
 
 // --- HTML Template String ---
-// Simplified chat button structure
+// Updated template to include the new "2Slack" button next to "Chat"
 const POPUP_TEMPLATE_HTML = `
 <div class="${POPUP_CLASS}" style="display: none;">
     <div class="${POPUP_HEADER_CONTAINER_CLASS}">
@@ -21,11 +25,10 @@ const POPUP_TEMPLATE_HTML = `
     <div class="${POPUP_BODY_CLASS}"></div>
     <div class="${POPUP_ACTIONS_CLASS}">
         <button class="${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}">Copy</button>
-
+        <button class="${POPUP_BTN_CLASS} ${POPUP_SLACK_BTN_CLASS}">2Slack</button>
         <!-- Single Chat Button -->
         <button class="${POPUP_BTN_CLASS} ${POPUP_CHAT_BTN_CLASS}">Chat</button>
         <!-- End Single Chat Button -->
-
         <button class="${POPUP_BTN_CLASS} ${POPUP_CLOSE_BTN_CLASS}">Close</button>
     </div>
 </div>
@@ -122,6 +125,83 @@ function handleCopyClick(contentDiv, copyBtn) {
   }
 }
 
+// Handles Slack markdown conversion and copy
+function handleSlackClick(contentDiv, slackBtn) {
+  if (!slackBtn) return;
+  if (copyTimeoutId) clearTimeout(copyTimeoutId);
+
+  let textToCopy = "";
+
+  if (
+    currentOriginalMarkdownArray &&
+    currentOriginalMarkdownArray.length > 0 &&
+    currentPageURL
+  ) {
+    // Convert original Markdown items to Slack format, then add the URL
+    let markdownToConvert = currentOriginalMarkdownArray.join("\n");
+    let slackMarkdown = slackifyMarkdown(markdownToConvert);
+    slackMarkdown += `\n\nSource: ${currentPageURL}`;
+    textToCopy = slackMarkdown;
+    if (DEBUG)
+      console.log("[LLM Popup] Converting and copying Slack Markdown:", textToCopy);
+  } else {
+    // Fallback: Use the visible content or currentContent as markdown to convert
+    if (DEBUG)
+      console.log(
+        "[LLM Popup] Fallback: Converting visible content to Slack Markdown.",
+      );
+    if (contentDiv) {
+      const listItems = contentDiv.querySelectorAll("li");
+      let markdownToConvert = "";
+      if (listItems.length > 0) {
+        markdownToConvert = Array.from(listItems)
+          .map((li) => {
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = li.innerHTML;
+            return `* ${tempDiv.textContent.replace(/\u00A0/g, " ").trim()}`;
+          })
+          .filter((text) => text !== "")
+          .join("\n");
+      } else {
+        markdownToConvert = contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
+      }
+      textToCopy = slackifyMarkdown(markdownToConvert);
+    } else if (
+      typeof currentContent === "string" &&
+      !currentContent.startsWith("<")
+    ) {
+      textToCopy = slackifyMarkdown(currentContent.trim());
+    }
+  }
+
+  if (textToCopy) {
+    navigator.clipboard
+      .writeText(textToCopy)
+      .then(() => {
+        slackBtn.textContent = "Copied!";
+        copyTimeoutId = setTimeout(() => {
+          slackBtn.textContent = "2Slack";
+          copyTimeoutId = null;
+        }, 1500);
+      })
+      .catch((err) => {
+        console.error("[LLM Popup] Failed to copy Slack text: ", err);
+        slackBtn.textContent = "Error";
+        copyTimeoutId = setTimeout(() => {
+          slackBtn.textContent = "2Slack";
+          copyTimeoutId = null;
+        }, 1500);
+      });
+  } else {
+    if (DEBUG) console.warn("[LLM Popup] Nothing to convert to Slack format.");
+    slackBtn.textContent = "Empty";
+    copyTimeoutId = setTimeout(() => {
+      slackBtn.textContent = "2Slack";
+      copyTimeoutId = null;
+    }, 1500);
+  }
+}
+
 // --- Public Functions ---
 
 /**
@@ -176,6 +256,7 @@ export function showPopup(
 
     const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
     const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
+    const slackBtn = popup.querySelector(`.${POPUP_SLACK_BTN_CLASS}`); // New Slack button
     const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
     const closeBtn = popup.querySelector(`.${POPUP_CLOSE_BTN_CLASS}`);
 
@@ -205,6 +286,14 @@ export function showPopup(
     } else {
       console.error(
         "[LLM Popup] Could not attach copy listener: Button missing.",
+      );
+    }
+
+    if (slackBtn) {
+      slackBtn.onclick = () => handleSlackClick(contentDiv, slackBtn);
+    } else {
+      console.error(
+        "[LLM Popup] Could not attach Slack listener: Button missing.",
       );
     }
 
