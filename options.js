@@ -49,6 +49,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const DEFAULT_BULLET_COUNT = "5";
   const LANGUAGE_FLAG_CLASS = "language-flag";
   const DEFAULT_DEBUG_MODE = false;
+  const DEFAULT_MAX_PRICE_BEHAVIOR = "fail";
+  const STORAGE_KEY_MAX_PRICE_BEHAVIOR = "maxPriceBehavior";
   const NUM_TO_WORD = {
     3: "three",
     4: "four",
@@ -69,6 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentSummaryModelId = "";
   let currentChatModelId = "";
   let currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+  let currentMaxPriceBehavior = DEFAULT_MAX_PRICE_BEHAVIOR;
   let currentSummaryKbLimit = "";
   let debounceTimeoutId = null;
   let modelPricingCache = {}; // Cache for model pricing data { "model/id": { pricePerToken: number, timestamp: number } }
@@ -1081,6 +1084,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "language_info",
         PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
         STORAGE_KEY_MAX_REQUEST_PRICE,
+        STORAGE_KEY_MAX_PRICE_BEHAVIOR,
       ];
       const data = await chrome.storage.sync.get(keysToGet);
 
@@ -1174,6 +1178,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       currentMaxRequestPrice =
         data[STORAGE_KEY_MAX_REQUEST_PRICE] || DEFAULT_MAX_REQUEST_PRICE;
+      currentMaxPriceBehavior =
+        data[STORAGE_KEY_MAX_PRICE_BEHAVIOR] || DEFAULT_MAX_PRICE_BEHAVIOR;
       // Handled in calculateKbLimitForSummary
 
       // Load known models and pricing data from local storage
@@ -1194,6 +1200,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           statusMessage.className = "status-message";
         }, 1500);
       }
+      // Set the radio button for max price behavior
+      document.querySelector(`input[name="maxPriceBehavior"][value="${currentMaxPriceBehavior}"]`).checked = true;
       if (DEBUG) console.log("[LLM Options] Settings loaded successfully.");
     } catch (error) {
       showError(`Error loading settings: ${error.message}. Using defaults.`);
@@ -1214,6 +1222,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         promptFormatInstructionsTextarea.value =
           currentCustomFormatInstructions;
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+      currentMaxPriceBehavior = DEFAULT_MAX_PRICE_BEHAVIOR;
       // Input field is handled in calculateKbLimitForSummary
       if (DEBUG)
         console.error(
@@ -1305,6 +1314,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       [PROMPT_STORAGE_KEY_POSTAMBLE]: DEFAULT_POSTAMBLE_TEXT,
       [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS,
       [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice,
+      [STORAGE_KEY_MAX_PRICE_BEHAVIOR]: currentMaxPriceBehavior,
     };
 
     if (DEBUG)
@@ -1412,6 +1422,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderLanguageOptions();
       updatePromptPreview();
       calculateKbLimitForSummary();
+      // Reset the radio button for max price behavior
+      document.querySelector(`input[name="maxPriceBehavior"][value="${currentMaxPriceBehavior}"]`).checked = true;
 
       saveSettings();
 
@@ -1464,6 +1476,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         console.error("[LLM Options] Update Model Pricing button not found.");
       }
+      // Add event listener for max price behavior radio buttons
+      document.querySelectorAll('input[name="maxPriceBehavior"]').forEach(radio => {
+        radio.addEventListener("change", () => {
+          currentMaxPriceBehavior = radio.value;
+        });
+      });
       if (DEBUG) console.log("[LLM Options] Event listeners attached.");
     } catch (error) {
       console.error("[LLM Options] Error during initialization:", error);
