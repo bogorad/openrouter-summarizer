@@ -1,3 +1,4 @@
+*   **Auto-Save Options After API Key Entry:** Implemented automatic saving of settings after a successful API key entry, ensuring that the configuration is preserved immediately upon validation. (v3.4.2)
 *   **Model Refresh on API Key Input:** Added functionality to trigger a model refresh immediately after the user enters their API key in the options page, ensuring the latest model data is available. (v3.4.1)
 *   **Markdown Normalization for Summaries:** Added normalization of markdown syntax in LLM responses to ensure consistent rendering of bold text in summaries, handling both valid and malformed JSON. (v3.3.8)
 *   **Fallback for Malformed JSON:** Added a fallback mechanism to extract summary points from malformed JSON responses, ensuring content is preserved even with formatting errors. (v3.3.7)
