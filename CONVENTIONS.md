@@ -24,7 +24,8 @@ Assume the role of a Front-End Developer and an Expert in ReactJS, NextJS, TypeS
 - After each code change, update manifest.json, update README.md in the "Technical updates" section, remind the user to update "whatsnew".
 - If you think there might not be a correct answer, you say so.
 - If you do not know the answer, say so, instead of guessing.
-- When making changes to actual files, request changes from LLM for each file separately, one LLM cal per file.
+- When making changes to actual files, execute step by step, announce each step at start, announce completion of each step and the next step.
+- Work on one file at a time.
 
 ### Coding Environment
 

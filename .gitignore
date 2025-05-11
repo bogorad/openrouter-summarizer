@@ -8,3 +8,4 @@ chat_history/
 node_modules/
 flake.lock
 package-lock.json
+.direnv/
