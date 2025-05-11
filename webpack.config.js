@@ -11,15 +11,24 @@ module.exports = {
     filename: "[name].bundle.js",
   },
   resolve: {
-    // If Turndown is not resolving correctly, you might need an alias
-    // alias: {
-    //   'turndown': path.resolve(__dirname, 'node_modules/turndown/lib/turndown.es.js') // Or wherever the ES module entry is
-    // }
+    fallback: {
+      "fs": false,
+      "path": false,
+      "os": false
+    }
   },
   module: {
     rules: [
-      // You might need babel-loader if you use very modern JS features
-      // not supported by your target Chrome version
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env']
+          }
+        }
+      }
     ],
   },
 };
