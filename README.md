@@ -94,6 +94,7 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Technical updates
 
+*   **Markdown Normalization for Summaries:** Added normalization of markdown syntax in LLM responses to ensure consistent rendering of bold text in summaries, handling both valid and malformed JSON. (v3.3.8)
 *   **Fallback for Malformed JSON:** Added a fallback mechanism to extract summary points from malformed JSON responses, ensuring content is preserved even with formatting errors. (v3.3.7)
 *   **Relocated Request Price Limit and Added Behavior Options:** Moved the Request Price Limit section to Model Selection and added radio buttons for behavior when max price is reached (Fail and Report or Truncate Output). (v3.3.6)
 *   **Text Extraction with Turndown.js:** Added functionality to convert selected HTML to Markdown using Turndown.js before sending to the LLM, reducing token usage and improving summary quality. (v3.3.4)
