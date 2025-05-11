@@ -1454,6 +1454,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         console.error("[LLM Options] Add Model button not found.");
       }
+      
+      if (apiKeyInput) {
+        apiKeyInput.addEventListener("blur", handleApiKeyBlur);
+      } else {
+        console.error("[LLM Options] API Key input field not found.");
+      }
       if (addLangBtn) {
         addLangBtn.addEventListener("click", addLanguage);
       } else {
@@ -1521,6 +1527,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         clearTimeout(debounceTimeoutId);
       }
       calculateKbLimitForSummary();
+    }
+  }
+
+  /**
+   * Handles the blur event on the API key input field to trigger model refresh.
+   */
+  function handleApiKeyBlur() {
+    const apiKey = apiKeyInput.value.trim();
+    if (apiKey) {
+      if (DEBUG) console.log("[LLM Options] API key entered, triggering model refresh.");
+      updateKnownModelsAndPricing();
+    } else {
+      if (DEBUG) console.log("[LLM Options] API key is empty, skipping model refresh.");
     }
   }
 
