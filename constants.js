@@ -32,9 +32,8 @@ export const PROMPT_STORAGE_KEY_DEFAULT_FORMAT =
 
 // --- Default Prompt Templates ---
 export const DEFAULT_PREAMBLE_TEMPLATE = `
-Treat input is raw HTML.
-First, using only the web page content in input, and ignoring any information inside html tags,
-determine the language the input is written in.
+Treat input as Markdown text.
+First, determine the language the input is written in.
 Second, prepare a summary of input containing no more than \${bulletWord} points
 in the language you determined.
 Third, use a JSON array of strings to return the summary.
@@ -64,7 +63,7 @@ Be concise and factual. We no longer need bullet points.
 Format responses using Markdown where appropriate. Do not use any HTML.
 Do NOT include any text, comments, or other content before or after your message. Do not output your deliberations.
 IMPORTANT CONTEXT HANDLING:
-Your first message in this chat contains an AI-generated summary of the provided HTML snippet.
+Your first message in this chat contains an AI-generated summary of the provided Markdown snippet.
 This summary is a derivative interpretation and should *not* be considered the primary source of truth for answering questions *about the original article content*.
 When the user asks about the article, base your answers primarily on the provided 'Context - Original HTML Snippet'.
 Only refer to or discuss the initial summary if the user explicitly asks about the summary itself,

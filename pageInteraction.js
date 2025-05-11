@@ -1,30 +1,36 @@
-console.log(`[LLM Content] Script Start (v3.0.22)`); // Updated version
+// pageInteraction.js
 
-/* Module References (will be populated after dynamic import) */
-let Highlighter = null;
-let FloatingIcon = null;
-let SummaryPopup = null;
-let constants = null;
-let TurndownService = null; // Will be assigned from dynamic import
-let importedShowError = null; // Will be assigned from dynamic import
-let renderTextAsHtml = null; // Will be assigned from dynamic import
-// REMOVED: Direct import of showError and renderTextAsHtml
-// import { showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml and showError
-// ...
+console.log(`[LLM Content] Script Start (v3.0.22)`);
+
+// --- Static Imports ---
+// Webpack will bundle these and their dependencies.
+import TurndownService from "turndown";
+import {
+  showError as importedShowError,
+  renderTextAsHtml as importedRenderTextAsHtml,
+} from "./utils.js";
+import * as Highlighter from "./highlighter.js";
+import * as FloatingIcon from "./floatingIcon.js";
+import * as SummaryPopup from "./summaryPopup.js";
+import * as constants from "./constants.js"; // Assuming constants.js exports values
+
+// --- Module-level variables (assignments will happen in initialize) ---
+// These are assigned from the static imports for convenience if you prefer this pattern,
+// or you can use utils.showError, constants.DEFAULT_MAX_REQUEST_PRICE directly.
+let showError = importedShowError; // Directly use the imported function
+let renderTextAsHtml = importedRenderTextAsHtml; // Directly use the imported function
 
 // --- Global State ---
-let DEBUG = false; // Debug logging state
-let lastSummary = ""; // Raw or Cleaned/Combined summary string for chat context
-let lastModelUsed = ""; // Model used for the last summary
-let lastSelectedDomSnippet = null; // New state variable to store the original HTML snippet
-let lastProcessedMarkdown = null; // New state variable to store the processed Markdown content
+let DEBUG = false;
+let lastSummary = "";
+let lastModelUsed = "";
+let lastSelectedDomSnippet = null;
+let lastProcessedMarkdown = null;
 
-// Queue for messages received before modules are fully initialized
 let messageQueue = [];
-let modulesInitialized = false; // Flag to indicate when modules are ready
-// ...
+let modulesInitialized = false; // This flag is still useful to queue messages if initialization is async (e.g., fetching settings)
 
-// --- Prompt Assembly Function (Needs constants) ---
+// --- Prompt Assembly Function (Placeholder - ensure constants is loaded if used here) ---
 const numToWord = {
   3: "three",
   4: "four",
@@ -35,16 +41,25 @@ const numToWord = {
 };
 
 // --- Core Processing Function ---
-/**
- * Processes the currently selected element: gets its HTML, converts it to Markdown using Turndown.js, and sends it to the LLM.
- */
 function processSelectedElement() {
-  // Check if required modules are loaded
-  if (!Highlighter || !SummaryPopup || !importedShowError || !TurndownService) {
-    console.error(
-      "[LLM Content] processSelectedElement called before modules loaded!",
-    );
-    importedShowError("Error: Core components not loaded.");
+  // Modules are available due to static imports, check if they are defined (Webpack should ensure this)
+  if (
+    !Highlighter ||
+    !Highlighter.getSelectedElement ||
+    !SummaryPopup ||
+    !SummaryPopup.showPopup || // Check for a key function
+    !showError ||
+    !TurndownService
+  ) {
+    const errorMsg =
+      "Error: Core components (static imports) not properly loaded for processing.";
+    console.error("[LLM Content]", errorMsg, {
+      Highlighter,
+      SummaryPopup,
+      showError,
+      TurndownService,
+    });
+    (showError || console.error)(errorMsg); // Use the showError from import
     return;
   }
 
@@ -54,11 +69,10 @@ function processSelectedElement() {
       console.warn(
         "[LLM Content] processSelectedElement called but no element is selected.",
       );
-    importedShowError("Error: No element selected to process.");
+    showError("Error: No element selected to process.");
     return;
   }
 
-  // Store the selected element's outerHTML for chat context
   lastSelectedDomSnippet = selectedElement.outerHTML;
   if (DEBUG)
     console.log(
@@ -67,31 +81,26 @@ function processSelectedElement() {
         (lastSelectedDomSnippet.length > 200 ? "..." : ""),
     );
 
-  // Remove the highlight immediately after getting the snippet
-  Highlighter.removeSelectionHighlight(); // This also triggers handleElementDeselected
+  Highlighter.removeSelectionHighlight();
 
-  // Get the HTML content of the selected element
   const selectedHtml = selectedElement.outerHTML;
-
   if (!selectedHtml || selectedHtml.trim() === "") {
     if (DEBUG)
       console.warn(
         "[LLM Content] Selected element has no HTML content to summarize.",
       );
-    importedShowError("Error: Selected element has no content.");
+    showError("Error: Selected element has no content.");
     return;
   }
 
-  // Convert HTML to Markdown using Turndown.js
   let processedMarkdown;
   try {
     const turndown = new TurndownService({
-      headingStyle: 'atx',
-      codeBlockStyle: 'fenced',
-      bulletListMarker: '-'
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+      bulletListMarker: "-",
     });
-    // Customize Turndown.js to ignore certain elements if needed
-    turndown.remove(['script', 'style', 'nav']);
+    turndown.remove(["script", "style", "nav"]);
     processedMarkdown = turndown.turndown(selectedHtml);
     if (DEBUG)
       console.log(
@@ -101,37 +110,36 @@ function processSelectedElement() {
       );
   } catch (error) {
     console.error("[LLM Content] Error converting HTML to Markdown:", error);
-    importedShowError("Error processing content for summarization.");
+    showError("Error processing content for summarization.");
     return;
   }
 
-  // Store the processed Markdown for chat context or fallback
   lastProcessedMarkdown = processedMarkdown;
 
-  // Fallback to raw HTML if Markdown conversion results in empty or very short output
-  const minMarkdownLength = 50; // Arbitrary threshold for meaningful content
+  // Use constants directly from import if they are exported, e.g. constants.MIN_MARKDOWN_LENGTH
+  const minMarkdownLength = constants.MIN_MARKDOWN_LENGTH || 50; // Assuming MIN_MARKDOWN_LENGTH is exported from constants.js
   if (!processedMarkdown || processedMarkdown.length < minMarkdownLength) {
     if (DEBUG)
       console.warn(
         "[LLM Content] Markdown output is empty or too short, falling back to raw HTML.",
         `Markdown length: ${processedMarkdown?.length || 0}`,
       );
-    importedShowError("Warning: Content processing incomplete, using raw data.");
+    showError(
+      "Warning: Content processing incomplete, using raw data.",
+      false,
+      3000,
+    ); // Example: non-fatal, timed
     sendToLLM(selectedHtml);
   } else {
-    // Send the processed Markdown to the background script for LLM processing
     sendToLLM(processedMarkdown);
   }
 }
 
-/**
- * Validates the cost of the request against the max price limit before sending to LLM.
- * @param {string} content - The content (HTML or processed Markdown) to be summarized.
- */
+// --- Validate and Send to LLM ---
 async function validateAndSendToLLM(content) {
-  if (!SummaryPopup) {
+  if (!SummaryPopup || !FloatingIcon || !Highlighter || !showError) {
     console.error(
-      "[LLM Content] validateAndSendToLLM called before SummaryPopup module loaded!",
+      "[LLM Content] validateAndSendToLLM called before essential modules loaded!",
     );
     return;
   }
@@ -143,13 +151,11 @@ async function validateAndSendToLLM(content) {
   const requestId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   lastSummary = "Thinking...";
 
-  // Await the popup to be fully ready before proceeding
   try {
-    // Pass null for originalMarkdownArray and pageURL initially
     await SummaryPopup.showPopup(
       "Thinking...",
       {
-        onCopy: () => {}, // Provide a no-op function instead of null
+        onCopy: () => {},
         onChat: handlePopupChat,
         onClose: handlePopupClose,
         onOptions: handlePopupOptions,
@@ -161,25 +167,20 @@ async function validateAndSendToLLM(content) {
     if (DEBUG) console.log("[LLM Content] Summary popup is now ready.");
   } catch (error) {
     console.error("[LLM Content] Error showing summary popup:", error);
-    importedShowError("Error displaying summary popup.");
+    showError("Error displaying summary popup.");
     FloatingIcon.removeFloatingIcon();
     Highlighter.removeSelectionHighlight();
     lastSummary = "";
     lastSelectedDomSnippet = null;
-    return; // Stop if popup failed to show
+    return;
   }
 
   SummaryPopup.enableChatButton(false);
 
-  // Get settings including max request price and summary model
   chrome.runtime.sendMessage({ action: "getSettings" }, (response) => {
     if (chrome.runtime.lastError || !response) {
       const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
-      importedShowError(errorMsg);
-      if (DEBUG)
-        console.log(
-          "[LLM Content] Setting error state to true for settings retrieval error.",
-        );
+      showError(errorMsg);
       SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
@@ -189,16 +190,12 @@ async function validateAndSendToLLM(content) {
     }
 
     const maxRequestPrice =
-      response.maxRequestPrice || DEFAULT_MAX_REQUEST_PRICE;
+      response.maxRequestPrice || constants.DEFAULT_MAX_REQUEST_PRICE || 0.01;
     const summaryModelId = response.summaryModelId || "";
 
     if (!summaryModelId) {
       const errorMsg = "Error: No summary model selected.";
-      importedShowError(errorMsg);
-      if (DEBUG)
-        console.log(
-          "[LLM Content] Setting error state to true for no summary model selected.",
-        );
+      showError(errorMsg);
       SummaryPopup.updatePopupContent(errorMsg, null, null, true);
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
@@ -207,22 +204,16 @@ async function validateAndSendToLLM(content) {
       return;
     }
 
-    // Estimate token count based on content size (using processed Markdown if available)
     const contentSize = content.length;
-    // Approximate tokens per KB (from options.js TOKENS_PER_KB = 227.56)
-    const tokensPerChar = 227.56 / 1024;
+    const tokensPerChar = constants.TOKENS_PER_CHAR || 227.56 / 1024;
     const estimatedTokens = Math.ceil(contentSize * tokensPerChar);
     if (DEBUG)
       console.log(
-        `[LLM Content] Estimated tokens for content: ${estimatedTokens} (size: ${contentSize} chars, type: ${content === lastProcessedMarkdown ? "Markdown" : "HTML"})`,
+        `[LLM Content] Estimated tokens for content: ${estimatedTokens}`,
       );
 
-    // Get pricing data for the summary model
     chrome.runtime.sendMessage(
-      {
-        action: "getModelPricing",
-        modelId: summaryModelId,
-      },
+      { action: "getModelPricing", modelId: summaryModelId },
       (priceResponse) => {
         if (
           chrome.runtime.lastError ||
@@ -230,11 +221,7 @@ async function validateAndSendToLLM(content) {
           priceResponse.status !== "success"
         ) {
           const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
-          importedShowError(errorMsg);
-          if (DEBUG)
-            console.log(
-              "[LLM Content] Setting error state to true for pricing data fetch error.",
-            );
+          showError(errorMsg);
           SummaryPopup.updatePopupContent(errorMsg, null, null, true);
           FloatingIcon.removeFloatingIcon();
           Highlighter.removeSelectionHighlight();
@@ -260,12 +247,8 @@ async function validateAndSendToLLM(content) {
           );
 
         if (estimatedCost > maxRequestPrice) {
-          const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}. Reduce selection or increase limit in Options.`;
-          importedShowError(errorMsg);
-          if (DEBUG)
-            console.log(
-              "[LLM Content] Setting error state to true for max price exceeded.",
-            );
+          const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}.`;
+          showError(errorMsg);
           SummaryPopup.updatePopupContent(errorMsg, null, null, true);
           FloatingIcon.removeFloatingIcon();
           Highlighter.removeSelectionHighlight();
@@ -273,91 +256,51 @@ async function validateAndSendToLLM(content) {
           lastSelectedDomSnippet = null;
           return;
         }
-
-        // If cost is within limit, proceed with the request
         sendRequestToBackground(content, requestId);
       },
     );
   });
 }
 
-/**
- * Sends the request to the background script for LLM processing.
- * @param {string} content - The content to be summarized (Markdown or HTML).
- * @param {string} requestId - Unique ID for the request.
- */
+// --- Send Request to Background ---
 function sendRequestToBackground(content, requestId) {
   if (DEBUG)
     console.log("[LLM Request] Sending summarization request to background.");
-
   chrome.runtime.sendMessage(
-    {
-      action: "requestSummary",
-      requestId: requestId,
-      selectedHtml: content,
-    },
+    { action: "requestSummary", requestId: requestId, selectedHtml: content },
     (response) => {
-      // This callback handles the *immediate* response from the background listener.
-      // It's primarily used for initial validation errors from the background script.
       if (chrome.runtime.lastError) {
-        // Error sending the initial request message
-        console.error(
-          "[LLM Content] Error sending summary request to background:",
-          chrome.runtime.lastError,
-        );
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
-        importedShowError(errorMsg);
-        if (DEBUG)
-          console.log(
-            "[LLM Content] Setting error state to true for sending request error.",
-          );
-        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
-        FloatingIcon.removeFloatingIcon();
-        Highlighter.removeSelectionHighlight();
+        showError(errorMsg);
+        if (SummaryPopup)
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+        if (FloatingIcon) FloatingIcon.removeFloatingIcon();
+        if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
         lastSelectedDomSnippet = null;
         return;
       }
-
       if (response && response.status === "error") {
-        // Background validation failed before starting async fetch
-        console.error(
-          "[LLM Content] Received immediate error from background:",
-          response.message,
-        );
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
-        importedShowError(errorMsg);
-        if (DEBUG)
-          console.log(
-            "[LLM Content] Setting error state to true for background validation error.",
-          );
-        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
-        FloatingIcon.removeFloatingIcon();
-        Highlighter.removeSelectionHighlight();
+        showError(errorMsg);
+        if (SummaryPopup)
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+        if (FloatingIcon) FloatingIcon.removeFloatingIcon();
+        if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
         lastSelectedDomSnippet = null;
       } else if (response && response.status === "processing") {
-        // Correct path: Background acknowledged the request and will send result later via tabs.sendMessage
         if (DEBUG)
           console.log(
             "[LLM Content] Background acknowledged summary request processing.",
           );
-        // No need for a timeout here, the summaryResult listener will handle the async response or lack thereof.
       } else {
-        // Incorrect path: Background listener returned something unexpected immediately
-        console.error(
-          "[LLM Content] Unexpected immediate response from background:",
-          response,
-        );
         const errorMsg = "Error: Unexpected response from background.";
-        importedShowError(errorMsg);
-        if (DEBUG)
-          console.log(
-            "[LLM Content] Setting error state to true for unexpected response error.",
-          );
-        SummaryPopup.updatePopupContent(errorMsg, null, null, true);
-        FloatingIcon.removeFloatingIcon();
-        Highlighter.removeSelectionHighlight();
+        showError(errorMsg);
+        if (SummaryPopup)
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+        if (FloatingIcon) FloatingIcon.removeFloatingIcon();
+        if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
         lastSelectedDomSnippet = null;
       }
@@ -365,21 +308,15 @@ function sendRequestToBackground(content, requestId) {
   );
 }
 
-/**
- * Sends the content (processed Markdown or fallback HTML) to the background script for LLM processing after validation.
- * @param {string} content - The content to be summarized (Markdown or HTML).
- */
 function sendToLLM(content) {
   validateAndSendToLLM(content);
 }
 
 // --- Callback Functions for Modules ---
-
 function handleElementSelected(element, clickX, clickY) {
-  if (!FloatingIcon) return; // Check if module is loaded
+  if (!FloatingIcon || !FloatingIcon.createFloatingIcon) return;
   if (DEBUG)
     console.log("[LLM Content] handleElementSelected called for:", element);
-  // When an element is selected by the highlighter, create the floating icon.
   FloatingIcon.createFloatingIcon(
     clickX,
     clickY,
@@ -389,53 +326,32 @@ function handleElementSelected(element, clickX, clickY) {
 }
 
 function handleElementDeselected() {
-  if (!SummaryPopup) return; // Check if module is loaded
+  if (!SummaryPopup || !SummaryPopup.hidePopup) return;
   if (DEBUG) console.log("[LLM Content] handleElementDeselected called.");
-  // When deselection occurs (via highlighter), hide the popup.
   SummaryPopup.hidePopup();
-  // Clear state variables
   lastSummary = "";
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
-  lastProcessedMarkdown = null; // Clear processed Markdown on deselect
-  // FloatingIcon.removeFloatingIcon(); // Removed - handled in handleIconClick/handleIconDismiss
+  lastProcessedMarkdown = null;
 }
 
 function handleIconClick() {
-  // Check if modules are loaded
   if (!Highlighter || !FloatingIcon || !SummaryPopup || !constants) return;
-
   if (DEBUG) console.log("[LLM Content] handleIconClick called.");
-
-  // Remove the icon immediately as the action is initiated
   FloatingIcon.removeFloatingIcon();
-
-  // Reset highlighter state (including altKeyDown)
   Highlighter.resetHighlightState();
-
-  // Proceed with processing the selected element
-  // The selection highlight will be removed *inside* processSelectedElement
   processSelectedElement();
 }
 
 function handleIconDismiss() {
-  if (!Highlighter || !FloatingIcon || !SummaryPopup) return; // Check if modules are loaded
-  if (DEBUG)
-    console.log(
-      "[LLM Content] handleIconDismiss called (Escape pressed on icon).",
-    );
-  // When the icon is dismissed (e.g., Escape key), deselect the element.
-  // This will trigger handleElementDeselected which hides the popup and removes the icon.
-  // We also need to reset the alt state here in case the user pressed Alt+Escape.
-  Highlighter.resetHighlightState(); // Reset alt state
-  Highlighter.removeSelectionHighlight(); // This triggers handleElementDeselected
-  // FloatingIcon.removeFloatingIcon(); // This is now handled by handleElementDeselected
-  // SummaryPopup.hidePopup(); // This is now handled by handleElementDeselected
-  // Clear state variables
+  if (!Highlighter || !FloatingIcon || !SummaryPopup) return;
+  if (DEBUG) console.log("[LLM Content] handleIconDismiss called.");
+  Highlighter.resetHighlightState();
+  Highlighter.removeSelectionHighlight();
   lastSummary = "";
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
-  lastProcessedMarkdown = null; // Clear processed Markdown on dismiss
+  lastProcessedMarkdown = null;
 }
 
 function handlePopupChat(targetLang = null) {
@@ -443,23 +359,19 @@ function handlePopupChat(targetLang = null) {
     console.log(
       `[LLM Content] handlePopupChat called. Target Language: ${targetLang}`,
     );
-  // When the Chat button (or a flag) is clicked in the popup, open the chat context.
-  // We no longer need to check for selectedElement here, as we'll use the stored snippet.
-  openChatWithContext(targetLang); // Assume modules are loaded if popup exists
+  openChatWithContext(targetLang);
 }
 
 function handlePopupClose() {
-  if (!SummaryPopup || !Highlighter || !FloatingIcon) return; // Check if modules are loaded
+  if (!SummaryPopup || !Highlighter || !FloatingIcon) return;
   if (DEBUG) console.log("[LLM Content] handlePopupClose called.");
-  // When the Close button is clicked, hide the popup.
   SummaryPopup.hidePopup();
-  Highlighter.removeSelectionHighlight(); // This will trigger handleElementDeselected
-  FloatingIcon.removeFloatingIcon(); // Ensure icon is removed too
-  // Clear state variables
+  Highlighter.removeSelectionHighlight();
+  FloatingIcon.removeFloatingIcon();
   lastSummary = "";
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
-  lastProcessedMarkdown = null; // Clear processed Markdown on close
+  lastProcessedMarkdown = null;
 }
 
 function handlePopupOptions() {
@@ -470,57 +382,49 @@ function handlePopupOptions() {
         "[LLM Content] Error opening options page:",
         chrome.runtime.lastError,
       );
-      importedShowError("Error opening options page.");
+      showError("Error opening options page.");
     }
   });
-  SummaryPopup.hidePopup();
-  Highlighter.removeSelectionHighlight();
-  FloatingIcon.removeFloatingIcon();
+  if (SummaryPopup) SummaryPopup.hidePopup();
+  if (Highlighter) Highlighter.removeSelectionHighlight();
+  if (FloatingIcon) FloatingIcon.removeFloatingIcon();
   lastSummary = "";
   lastSelectedDomSnippet = null;
 }
 
 // --- Chat Context Handling ---
 function openChatWithContext(targetLang = "") {
-  // Assume modules are loaded if popup was shown
-  // Use the stored domSnippet and processed Markdown
   const domSnippet = lastSelectedDomSnippet;
-  const processedMarkdown = lastProcessedMarkdown;
+  const processedMarkdownContent = lastProcessedMarkdown;
 
-  // Check if we have content to send
   if (!domSnippet || domSnippet.trim() === "") {
-    importedShowError("Cannot open chat: No element content available.");
+    showError("Cannot open chat: No element content available.");
     if (DEBUG)
       console.warn(
         "[LLM Chat Context] Chat attempt failed: lastSelectedDomSnippet is null or empty.",
       );
     return;
   }
-
-  // Check if lastSummary is valid (not empty, not "Thinking...", not an error)
   if (
     !lastSummary ||
     lastSummary === "Thinking..." ||
     lastSummary.startsWith("Error:") ||
     lastSummary === "Error: Could not parse summary response."
   ) {
-    importedShowError("Cannot open chat: No valid summary available.");
+    showError("Cannot open chat: No valid summary available.");
     if (DEBUG)
       console.warn(
         "[LLM Chat Context] Chat attempt failed: No valid summary found in lastSummary.",
-        `lastSummary was: "${lastSummary}"`,
       );
     return;
   }
 
-  const summaryForChat = lastSummary;
-
   const contextPayload = {
-    domSnippet: domSnippet, // Original HTML for reference
-    summary: summaryForChat,
+    domSnippet: domSnippet,
+    summary: lastSummary,
     chatTargetLanguage: targetLang,
     modelUsedForSummary: lastModelUsed,
-    processedMarkdown: processedMarkdown || "" // Include processed Markdown if available
+    processedMarkdown: processedMarkdownContent || "",
   };
 
   if (DEBUG)
@@ -531,16 +435,13 @@ function openChatWithContext(targetLang = "") {
 
   chrome.runtime.sendMessage(
     { action: "setChatContext", ...contextPayload },
-    function (response) {
+    (response) => {
       if (chrome.runtime.lastError) {
         console.error(
           "[LLM Chat Context] Error sending context:",
           chrome.runtime.lastError,
         );
-        importedShowError(
-          // Use importedShowError
-          `Error preparing chat: ${chrome.runtime.lastError.message}`,
-        );
+        showError(`Error preparing chat: ${chrome.runtime.lastError.message}`);
         return;
       }
       if (response && response.status === "ok") {
@@ -562,13 +463,11 @@ function openChatWithContext(targetLang = "") {
                   "[LLM Chat Context] Background ack openChatTab:",
                   openResponse,
                 );
-              // Successfully opened chat, now clean up the page interaction state
               if (SummaryPopup) SummaryPopup.hidePopup();
-              // Highlight and icon removal are handled in handleIconClick/handlePopupClose
               lastSummary = "";
               lastModelUsed = "";
               lastSelectedDomSnippet = null;
-              lastProcessedMarkdown = null; // Clear processed Markdown after successful chat open
+              lastProcessedMarkdown = null;
             }
           },
         );
@@ -577,20 +476,21 @@ function openChatWithContext(targetLang = "") {
           "[LLM Chat Context] Background did not confirm context storage:",
           response,
         );
-        importedShowError("Failed to prepare chat context."); // Use importedShowError
+        showError("Failed to prepare chat context.");
       }
     },
   );
 }
 
 // --- Core Message Handling Logic ---
-// Extracted from the listener to be reusable for queued messages
 function handleMessage(req, sender, sendResponse) {
   if (DEBUG) console.log("[LLM Content] Handling message:", req.action);
 
   if (req.action === "processSelection") {
     if (DEBUG) console.log("[LLM Content] Received processSelection command.");
-    const currentSelectedElement = Highlighter.getSelectedElement();
+    const currentSelectedElement = Highlighter
+      ? Highlighter.getSelectedElement()
+      : null;
     if (currentSelectedElement) {
       processSelectedElement();
       sendResponse({ status: "processing started" });
@@ -599,101 +499,75 @@ function handleMessage(req, sender, sendResponse) {
       console.warn(
         "[LLM Content] Received processSelection but no element is selected.",
       );
-      importedShowError("Error: No element selected. Use Alt+Click first."); // Use importedShowError
-      // No need to await here, just show the error popup
-      SummaryPopup.showPopup(
-        "Error: No element selected. Use Alt+Click first.",
-        { onCopy: () => {}, onChat: () => {}, onClose: SummaryPopup.hidePopup }, // Provide no-op for onCopy
-        null,
-        null, // Pass null for new params
-      );
-      SummaryPopup.enableChatButton(false);
-      setTimeout(SummaryPopup.hidePopup, 3000);
+      showError("Error: No element selected. Use Alt+Click first.");
+      if (SummaryPopup) {
+        SummaryPopup.showPopup(
+          "Error: No element selected. Use Alt+Click first.",
+          {
+            onCopy: () => {},
+            onChat: () => {},
+            onClose: SummaryPopup.hidePopup,
+          },
+          null,
+          null,
+        );
+        SummaryPopup.enableChatButton(false);
+        setTimeout(SummaryPopup.hidePopup, 3000);
+      }
       sendResponse({ status: "no element selected" });
       return false;
     }
   } else if (req.action === "summaryResult") {
-    // This part handles the async response correctly
     if (DEBUG)
       console.log(
         "[LLM Content] Received summary result from background:",
         req.requestId,
         "Raw Summary:",
         req.summary,
-        "Full Response:",
-        req.fullResponse,
       );
 
-    lastModelUsed = req.model || "Unknown"; // Store model regardless of success/error
-    const pageURL = window.location.href; // Get current page URL
+    lastModelUsed = req.model || "Unknown";
+    const pageURL = window.location.href;
+
+    if (!SummaryPopup || !renderTextAsHtml) {
+      console.error(
+        "[LLM Content] SummaryPopup or renderTextAsHtml not available for summaryResult",
+      );
+      lastSummary = `Error: UI components not ready.`;
+      return true;
+    }
 
     if (req.error) {
-      // Handle async error from background (e.g., fetch failed, or background validation)
-      lastSummary = `Error: ${req.error}`; // Store error state
-      importedShowError(`Error: ${req.error}`); // Use importedShowError
-      SummaryPopup.updatePopupContent(`Error: ${req.error}`, null, pageURL); // Pass pageURL for potential copy of error + URL
+      lastSummary = `Error: ${req.error}`;
+      showError(`Error: ${req.error}`);
+      SummaryPopup.updatePopupContent(
+        `Error: ${req.error}`,
+        null,
+        pageURL,
+        true,
+      );
       SummaryPopup.enableChatButton(false);
     } else if (req.summary && typeof req.summary === "string") {
-      // Handle successful async summary response string
-      const rawSummaryString = req.summary; // Keep original for potential raw display
+      const rawSummaryString = req.summary;
       let combinedSummaryArray = [];
       let summaryHtml = "";
 
       try {
-        const jsonArrayRegex = /\[.*?\]/gs;
-        const matches = rawSummaryString.match(jsonArrayRegex);
-        if (matches && matches.length > 0) {
-          if (DEBUG)
-            console.log(
-              "[LLM Content] Found potential JSON array matches:",
-              matches,
-            );
-          matches.forEach((match) => {
-            try {
-              const parsedArray = JSON.parse(match);
-              if (Array.isArray(parsedArray)) {
-                const stringArray = parsedArray.map((item) => String(item));
-                combinedSummaryArray = combinedSummaryArray.concat(stringArray);
-              } else {
-                if (DEBUG)
-                  console.warn(
-                    "[LLM Content] Parsed match is not an array:",
-                    parsedArray,
-                  );
-              }
-            } catch (innerError) {
-              if (DEBUG)
-                console.warn(
-                  "[LLM Content] Failed to parse individual JSON array match:",
-                  match,
-                  innerError,
-                );
-            }
-          });
+        const parsed = JSON.parse(rawSummaryString);
+        if (Array.isArray(parsed)) {
+          combinedSummaryArray = parsed.map(String);
         } else {
-          if (DEBUG)
-            console.warn(
-              "[LLM Content] No JSON array patterns found, attempting direct parse.",
-            );
-          const directParsed = JSON.parse(rawSummaryString);
-          if (Array.isArray(directParsed)) {
-            combinedSummaryArray = directParsed.map((item) => String(item));
-          } else {
-            throw new Error("Direct parse did not result in an array.");
-          }
+          throw new Error("Parsed summary is not an array.");
         }
 
         if (combinedSummaryArray.length > 0) {
           summaryHtml =
             "<ul>" +
             combinedSummaryArray
-              .map((item) => {
-                const itemHtml = renderTextAsHtml(item);
-                return `<li>${itemHtml}</li>`;
-              })
+              .map((item) => `<li>${renderTextAsHtml(item)}</li>`)
               .join("") +
             "</ul>";
-          lastSummary = JSON.stringify(combinedSummaryArray); // Store the structured data for chat
+          lastSummary = JSON.stringify(combinedSummaryArray);
           SummaryPopup.updatePopupContent(
             summaryHtml,
             combinedSummaryArray,
@@ -712,59 +586,50 @@ function handleMessage(req, sender, sendResponse) {
         }
       } catch (e) {
         console.error(
-          `[LLM Content] Error processing summary string: ${e.message}`,
+          `[LLM Content] Error processing summary string: ${e.message}. Raw: ${rawSummaryString.substring(0, 100)}`,
         );
-        importedShowError(`Error processing summary: ${e.message}`);
-        summaryHtml = rawSummaryString;
+        showError(`Error processing summary: ${e.message}`);
+        summaryHtml = renderTextAsHtml(rawSummaryString);
         SummaryPopup.updatePopupContent(
           summaryHtml +
             "<br><small>(Raw response shown due to parsing error)</small>",
-          null, // No valid markdown array
-          pageURL, // Still pass URL for potential copy
+          null,
+          pageURL,
+          true,
         );
         lastSummary = "Error: Could not parse summary response.";
         SummaryPopup.enableChatButton(false);
       }
     } else {
       lastSummary = "Error: No summary data received or invalid format.";
-      importedShowError("Error: No summary data received or invalid format.");
+      showError("Error: No summary data received or invalid format.");
       SummaryPopup.updatePopupContent(
         "Error: No summary data received or invalid format.",
-        null, // No valid markdown array
-        pageURL, // Still pass URL
+        null,
+        pageURL,
+        true,
       );
       SummaryPopup.enableChatButton(false);
     }
-
-    return true; // Indicate message handled
+    return true;
   }
-  return false; // Indicate message not handled by this listener
+  return false;
 }
 
 // --- Message Listener from Background ---
-// Handles messages from the background script. Queues messages if modules are not ready.
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
-  // FIX: Check for importedShowError and renderTextAsHtml being loaded
-  if (
-    !modulesInitialized ||
-    !SummaryPopup ||
-    !importedShowError || // Check if importedShowError is loaded
-    !Highlighter ||
-    !renderTextAsHtml || // Check if renderTextAsHtml is loaded
-    !TurndownService // Check if Turndown.js is loaded
-  ) {
-    if (DEBUG) {
+  if (!modulesInitialized) {
+    // Check if core modules are ready from initialize()
+    if (DEBUG)
       console.warn(
-        "[LLM Content] Message received before modules loaded, queuing:",
+        "[LLM Content] Message received before modules initialized, queuing:",
         req.action,
         "Queue size:",
         messageQueue.length + 1,
       );
-    }
     messageQueue.push({ req, sender, sendResponse });
     return true;
   }
-
   return handleMessage(req, sender, sendResponse);
 });
 
@@ -775,54 +640,82 @@ async function initialize() {
     DEBUG = !!result.debug;
     if (DEBUG) console.log("[LLM Content] Initial Debug mode:", DEBUG);
 
-    let utilsModule;
-    try {
-      utilsModule = await import(chrome.runtime.getURL("./utils.js"));
-      if (DEBUG) console.log("[LLM Content] utils.js loaded dynamically.");
-    } catch (error) {
-      console.error("[LLM Content] Failed to load utils.js:", error);
-      const errorMsg =
-        "Error loading utility functions. Some features may not work.";
-      console.error(errorMsg, error);
-      console.error(errorMsg);
-    }
-    const {
-      showError: importedShowErrorFn,
-      renderTextAsHtml: importedRenderTextAsHtmlFn,
-    } = utilsModule || {};
-    importedShowError = importedShowErrorFn || console.error;
-    renderTextAsHtml = importedRenderTextAsHtmlFn;
+    // showError and renderTextAsHtml are available from static imports at the top.
+    // No need to dynamically import utils.js here.
 
+    // Handle marked.min.js (assuming it's loaded via manifest <script> tag)
     try {
-      await import(chrome.runtime.getURL("./marked.min.js"));
-      if (DEBUG) console.log("[LLM Content] marked.min.js loaded dynamically.");
+      if (DEBUG)
+        console.log(
+          "[LLM Content] Checking for global 'marked' (should be pre-loaded via manifest).",
+        );
       if (typeof marked === "undefined") {
         console.warn(
-          "[LLM Content] marked.min.js loaded, but 'marked' is not defined globally.",
+          "[LLM Content] Global 'marked' is not defined. Markdown rendering might be affected if utils.js relies on it solely.",
         );
+        // If showError is available and marked is critical for renderTextAsHtml's primary path:
+        if (
+          showError &&
+          renderTextAsHtml.toString().includes('typeof marked !== "undefined"')
+        ) {
+          // Heuristic check
+          showError(
+            "Warning: Markdown library (marked.js) not fully loaded. Some formatting may be basic.",
+            false,
+            7000,
+          );
+        }
+      } else {
+        if (DEBUG) console.log("[LLM Content] Global 'marked' is available.");
       }
     } catch (error) {
-      console.error("[LLM Content] Failed to load marked.min.js:", error);
-      if (importedShowError) {
-        importedShowError(
-          "Error loading Markdown library. Markdown formatting may not work.",
+      console.error("[LLM Content] Error during marked.min.js check:", error);
+      if (showError)
+        showError(
+          "Error with Markdown library. Formatting may not work.",
+          false,
+          7000,
         );
-      } else {
-        console.error(
-          "Error loading Markdown library. Markdown formatting may not work.",
-        );
-      }
     }
 
-    [Highlighter, FloatingIcon, SummaryPopup, constants, TurndownService] = await Promise.all([
-      import(chrome.runtime.getURL("./highlighter.js")),
-      import(chrome.runtime.getURL("./floatingIcon.js")),
-      import(chrome.runtime.getURL("./summaryPopup.js")),
-      import(chrome.runtime.getURL("./constants.js")),
-      import(chrome.runtime.getURL("./turndown.js"))
-    ]);
-    if (DEBUG) console.log("[LLM Content] All modules loaded dynamically including Turndown.js.");
+    // TurndownService, Highlighter, FloatingIcon, SummaryPopup, constants are available from static imports.
+    // No need for Promise.all([...]) to dynamically load them.
 
+    // Perform checks to ensure static imports were successful (Webpack should handle this)
+    if (typeof TurndownService === "undefined")
+      throw new Error("TurndownService (static import) is undefined.");
+    if (!Highlighter || typeof Highlighter.initializeHighlighter !== "function")
+      throw new Error(
+        "Highlighter module not correctly imported or initializeHighlighter is missing.",
+      );
+    if (
+      !FloatingIcon ||
+      typeof FloatingIcon.initializeFloatingIcon !== "function"
+    )
+      throw new Error(
+        "FloatingIcon module not correctly imported or initializeFloatingIcon is missing.",
+      );
+    if (
+      !SummaryPopup ||
+      typeof SummaryPopup.initializePopupManager !== "function"
+    )
+      throw new Error(
+        "SummaryPopup module not correctly imported or initializePopupManager is missing.",
+      );
+    if (!constants) throw new Error("constants module not correctly imported.");
+    if (typeof showError !== "function")
+      throw new Error("showError function not correctly imported from utils.");
+    if (typeof renderTextAsHtml !== "function")
+      throw new Error(
+        "renderTextAsHtml function not correctly imported from utils.",
+      );
+
+    if (DEBUG)
+      console.log(
+        "[LLM Content] Statically imported modules appear to be available.",
+      );
+
+    // Initialize your modules
     Highlighter.initializeHighlighter({
       onElementSelected: handleElementSelected,
       onElementDeselected: handleElementDeselected,
@@ -831,10 +724,11 @@ async function initialize() {
     FloatingIcon.initializeFloatingIcon({ initialDebugState: DEBUG });
     SummaryPopup.initializePopupManager({ initialDebugState: DEBUG });
 
-    modulesInitialized = true;
+    modulesInitialized = true; // Set after all essential initializations
     if (DEBUG)
       console.log("[LLM Content] Modules initialized flag set to true.");
 
+    // Process message queue if any
     if (messageQueue.length > 0) {
       if (DEBUG)
         console.log(
@@ -855,13 +749,17 @@ async function initialize() {
     console.log(`[LLM Content] Script Initialized. Modules ready.`);
   } catch (err) {
     console.error(
-      "[LLM Content] CRITICAL: Failed to load modules dynamically or initialize.",
+      "[LLM Content] CRITICAL: Failed to load/initialize components.",
       err,
     );
-    importedShowError(
+    // Use the showError from static import if available, otherwise console.error
+    const logError = showError || console.error;
+    logError(
       `Error: OpenRouter Summarizer failed to load components (${err.message}). Please try reloading the page or reinstalling the extension.`,
     );
+    modulesInitialized = false; // Ensure this is false on critical failure
   }
 }
 
+// --- Start Initialization ---
 initialize();

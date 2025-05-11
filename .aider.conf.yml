@@ -27,8 +27,8 @@ file:
   # - ./options.js
   - ./pageInteraction.css
   - ./pageInteraction.js
-  - ./summaryPopup.js
-  - ./utils.js
+  # - ./summaryPopup.js
+  # - ./utils.js
 read:
   - ./CONVENTIONS.md
   # - ./marked.min.js

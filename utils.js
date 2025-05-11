@@ -3,6 +3,7 @@
 console.log(`[LLM Utils] Loaded`);
 
 // utils.js: Provides shared utility functions for the extension. Reduces duplication by centralizing common logic. Called from: pageInteraction.js, chat.js, options.js, background.js.
+//import { marked } from "marked"; // Try this first
 
 let errorTimeoutId = null; // Keep track of the timeout for temporary errors - FIX: Declared with 'let'
 
