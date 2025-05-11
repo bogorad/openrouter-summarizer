@@ -11,6 +11,9 @@ module.exports = {
     filename: "[name].bundle.js",
   },
   resolve: {
+    alias: {
+      '@': path.resolve(__dirname), // Alias for root directory to ensure correct module resolution
+    },
     fallback: {
       "fs": false,
       "path": false,
