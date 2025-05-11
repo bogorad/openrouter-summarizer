@@ -982,6 +982,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   /**
    * Updates model and pricing data for all models by fetching from the API.
+   * Saves settings if the API key is valid and refresh is successful.
    */
   function updateKnownModelsAndPricing() {
     if (!pricingNotification || !updatePricingBtn) return;
@@ -997,7 +998,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (DEBUG) console.error("[LLM Options] Error updating model and pricing data:", chrome.runtime.lastError || response?.message);
       } else {
         const updated = response.updated || 0;
-        pricingNotification.textContent = `Updated data for ${updated} model(s).`;
+        pricingNotification.textContent = `Updated data for ${updated} model(s). Settings saved.`;
         if (DEBUG) console.log(`[LLM Options] Updated data for ${updated} models.`);
         // Reload the cache after update
         chrome.storage.local.get(STORAGE_KEY_KNOWN_MODELS_AND_PRICES, (cacheData) => {
@@ -1007,6 +1008,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           validateCurrentModels(); // Validate models after update
           updateAllModelsList(); // Update autocomplete list after data refresh
         });
+        // Save settings after successful refresh to confirm API key validity
+        if (apiKeyInput && apiKeyInput.value.trim()) {
+          if (DEBUG) console.log("[LLM Options] API key validated, saving settings automatically.");
+          saveSettings();
+        } else {
+          if (DEBUG) console.log("[LLM Options] API key is empty, skipping automatic save.");
+        }
       }
       updatePricingBtn.disabled = false;
     });
