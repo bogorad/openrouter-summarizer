@@ -15,7 +15,7 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.4.3`);
+console.log(`[LLM Options] Script Start v3.4.4`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -500,7 +500,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     calculateKbLimitForSummary();
   }
 
-  // Handler for Summary/Chat radio changes (Unchanged)
+  // Handler for Summary/Chat radio changes (Updated for immediate save)
   function handleRadioChange(event) {
     if (!event.target.checked) return;
     const modelId = event.target.value;
@@ -517,6 +517,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (DEBUG)
         console.log(`[LLM Options] New Chat Default: ${currentChatModelId}`);
     }
+    saveSettings(); // Save settings immediately after selection
   }
 
   // UPDATED Handler for Model ID text changes (No Label Logic)
@@ -1374,7 +1375,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           setTimeout(() => {
             statusMessage.textContent = "";
             statusMessage.className = "status-message";
-          }, 1500);
+          }, 1000); // Reduced timeout for immediate saves to be less intrusive
         }
       }
     });
@@ -1468,6 +1469,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         console.error("[LLM Options] API Key input field not found.");
       }
+
+      // Add event listeners for bullet count radios to save immediately
+      bulletCountRadios.forEach(radio => {
+        radio.addEventListener("change", () => {
+          if (DEBUG)
+            console.log(`[LLM Options] Bullet Count changed to: ${radio.value}`);
+          saveSettings(); // Save settings immediately after selection
+          updatePromptPreview(); // Update preview to reflect the change
+        });
+      });
       if (addLangBtn) {
         addLangBtn.addEventListener("click", addLanguage);
       } else {

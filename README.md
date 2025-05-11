@@ -7,11 +7,11 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New
 
+*   **Immediate Save on Model and Bullet Point Selection:** Options are now saved immediately when selecting models for summary or chat, and when changing the number of bullet points.
 *   **Auto-Save Options After API Key Entry:** Settings are now automatically saved after a successful API key entry.
 *   **Separate default prompts for popup/chat:** by popular demand, check options!
 *   **Optimized COPY button for sharing:** now it returns proper Markdown and the current URL at the end.
 *   **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
-*   **Disabled `Chutes` provider**: it doesn't respect JSON schema requests.
 
 ---
 

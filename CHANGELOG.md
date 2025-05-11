@@ -1,3 +1,4 @@
+*   **Immediate Save on Model and Bullet Point Selection:** Added immediate saving of options when selecting models for summary or chat, and when changing the number of bullet points, ensuring settings are updated without manual save. (v3.4.3)
 *   **Auto-Save Options After API Key Entry:** Implemented automatic saving of settings after a successful API key entry, ensuring that the configuration is preserved immediately upon validation. (v3.4.2)
 *   **Model Refresh on API Key Input:** Added functionality to trigger a model refresh immediately after the user enters their API key in the options page, ensuring the latest model data is available. (v3.4.1)
 *   **Markdown Normalization for Summaries:** Added normalization of markdown syntax in LLM responses to ensure consistent rendering of bold text in summaries, handling both valid and malformed JSON. (v3.3.8)
