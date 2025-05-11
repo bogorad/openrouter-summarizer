@@ -141,3 +141,7 @@ export const ERROR_CONTENT_FILTERED = "Content filtered by API provider.";
 export const ERROR_BAD_REQUEST = "Bad request. Check model ID and parameters."; // 400
 export const ERROR_SERVER_ERROR =
   "OpenRouter server error. Please try again later."; // 500+
+
+// --- Additional Constants for pageInteraction.js ---
+export const MIN_MARKDOWN_LENGTH = 50; // Minimum length for markdown content
+export const TOKENS_PER_CHAR = 227.56 / 1024; // Approximation for token estimation based on characters
