@@ -23,7 +23,7 @@ import {
 } from "./constants.js";
 
 console.log(
-  `[LLM Background] Service Worker Start (v3.4.3 - Direct Markdown Chat)`,
+  `[LLM Background] Service Worker Start (v3.4.4 - Direct Markdown Chat)`,
 ); // Updated version
 
 let DEBUG = false;
