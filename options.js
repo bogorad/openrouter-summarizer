@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const DEFAULT_BULLET_COUNT = "5";
   const LANGUAGE_FLAG_CLASS = "language-flag";
   const DEFAULT_DEBUG_MODE = false;
-  const DEFAULT_MAX_PRICE_BEHAVIOR = "fail";
+  const DEFAULT_MAX_PRICE_BEHAVIOR = "truncate";
   const STORAGE_KEY_MAX_PRICE_BEHAVIOR = "maxPriceBehavior";
   const NUM_TO_WORD = {
     3: "three",
