@@ -21,6 +21,22 @@
       <p class="note">Your key is stored locally in your browser and only sent directly to OpenRouter.</p>
     </div>
 
+    <!-- Summary Options Section -->
+    <div class="section">
+      <h2>Summary Options</h2>
+      <div class="option-group">
+        <label>Number of Bullet Points:</label>
+        <div class="radio-group"> <!-- Note: This is a different .radio-group -->
+          <label><input type="radio" name="bulletCount" value="3"> 3</label>
+          <label><input type="radio" name="bulletCount" value="4"> 4</label>
+          <label><input type="radio" name="bulletCount" value="5" checked> 5</label>
+          <label><input type="radio" name="bulletCount" value="6"> 6</label>
+          <label><input type="radio" name="bulletCount" value="7"> 7</label>
+          <label><input type="radio" name="bulletCount" value="8"> 8</label>
+        </div>
+      </div>
+    </div>
+
     <!-- Model Selection Section -->
     <div class="section">
       <h2>Model Selection</h2>
@@ -37,6 +53,11 @@
         </svg>
         Add Another Model
       </button>
+      <p class="note">Use valid model strings <a
+          href="https://openrouter.ai/models?fmt=cards&supported_parameters=structured_outputs" target="_blank">from
+          OpenRouter</a> (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>). You can use
+        <code>:nitro</code> for the fastest model or <code>:auto</code>.
+      </p>
       <!-- Request Price Limit -->
       <h3 style="margin-top: 25px;">Request Price Limit</h3>
       <p>Set a maximum cost in USD for summary requests to control expenses.</p>
@@ -53,29 +74,8 @@
       <div class="option-group">
         <label>Behavior when max price is reached:</label>
         <div class="radio-group">
-          <label><input type="radio" name="maxPriceBehavior" value="fail" checked> Fail and Report</label>
-          <label><input type="radio" name="maxPriceBehavior" value="truncate"> Truncate Output</label>
-        </div>
-      </div>
-      <p class="note">Use valid model strings <a
-          href="https://openrouter.ai/models?fmt=cards&supported_parameters=structured_outputs" target="_blank">from
-          OpenRouter</a> (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>). You can use
-        <code>:nitro</code> for the fastest model or <code>:auto</code>.
-      </p>
-    </div>
-
-    <!-- Summary Options Section -->
-    <div class="section">
-      <h2>Summary Options</h2>
-      <div class="option-group">
-        <label>Number of Bullet Points:</label>
-        <div class="radio-group"> <!-- Note: This is a different .radio-group -->
-          <label><input type="radio" name="bulletCount" value="3"> 3</label>
-          <label><input type="radio" name="bulletCount" value="4"> 4</label>
-          <label><input type="radio" name="bulletCount" value="5" checked> 5</label>
-          <label><input type="radio" name="bulletCount" value="6"> 6</label>
-          <label><input type="radio" name="bulletCount" value="7"> 7</label>
-          <label><input type="radio" name="bulletCount" value="8"> 8</label>
+          <label><input type="radio" name="maxPriceBehavior" value="fail"> Fail and Report</label>
+          <label><input type="radio" name="maxPriceBehavior" value="truncate" checked> Truncate Output</label>
         </div>
       </div>
     </div>
