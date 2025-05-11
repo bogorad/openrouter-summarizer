@@ -46,10 +46,10 @@
         "constants.js",
         "country-flags/languages.json",
         "country-flags/svg/*.svg",
-        "highlighter.js",
-        "floatingIcon.js",
-        "summaryPopup.js",
-        "utils.js",
+        "utils/highlighter.js",
+        "utils/floatingIcon.js",
+        "utils/summaryPopup.js",
+        "utils/generalUtils.js",
         "marked.min.js"
       ],
       "matches": [

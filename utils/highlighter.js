@@ -1,4 +1,4 @@
-// highlighter.js
+// utils/highlighter.js
 
 console.log(`[LLM Highlighter] Script Loaded (v3.0.3)`); // Updated version
 

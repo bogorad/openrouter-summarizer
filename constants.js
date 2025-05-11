@@ -10,6 +10,16 @@
 
 console.log(`[LLM Constants] Loaded`);
 
+// Helper for converting numbers to words
+export const numToWord = {
+  3: "three",
+  4: "four",
+  5: "five",
+  6: "six",
+  7: "seven",
+  8: "eight",
+};
+
 // --- Storage Keys (DEFINED AND EXPORTED HERE) ---
 export const STORAGE_KEY_API_KEY = "apiKey";
 export const STORAGE_KEY_MODELS = "models";

@@ -8,10 +8,10 @@ import TurndownService from "turndown";
 import {
   showError as importedShowError,
   renderTextAsHtml as importedRenderTextAsHtml,
-} from "./utils.js";
-import * as Highlighter from "./highlighter.js";
-import * as FloatingIcon from "./floatingIcon.js";
-import * as SummaryPopup from "./summaryPopup.js";
+} from "./utils/generalUtils.js";
+import * as Highlighter from "./utils/highlighter.js";
+import * as FloatingIcon from "./utils/floatingIcon.js";
+import * as SummaryPopup from "./utils/summaryPopup.js";
 import * as constants from "./constants.js"; // Assuming constants.js exports values
 
 // --- Module-level variables (assignments will happen in initialize) ---

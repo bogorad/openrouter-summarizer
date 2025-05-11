@@ -1,4 +1,4 @@
-// utils.js
+// utils/generalUtils.js
 
 console.log(`[LLM Utils] Loaded`);
 

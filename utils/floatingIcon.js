@@ -1,4 +1,4 @@
-// floatingIcon.js
+// utils/floatingIcon.js
 
 console.log(`[LLM FloatingIcon] Script Loaded (v2.40.10)`);
 

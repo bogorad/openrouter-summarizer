@@ -1,3 +1,5 @@
+// utils/summaryPopup.js
+
 console.log(`[LLM Popup] Script Loaded (v3.0.15)`); // Updated version
 
 // --- Constants ---
