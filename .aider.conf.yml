@@ -13,6 +13,7 @@ model-settings-file: .aider.model.settings.yml
 # model: openrouter/google/gemini-2.5-flash-preview
 model: xai/grok-3-fast-beta
 file:
+  - ./CHANGELOG.md
   - ./README.md
   - ./background.js
   # - ./chat.css
