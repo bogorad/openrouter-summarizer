@@ -896,14 +896,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               }
 
               let summaryContent = modelOutput;
+              let processedStrings = [];
               // Attempt to parse as JSON, if it fails, extract strings manually
               try {
                 const parsedJson = JSON.parse(modelOutput);
                 if (Array.isArray(parsedJson)) {
-                  summaryContent = modelOutput; // Valid JSON array, use as is
+                  processedStrings = normalizeMarkdownInStrings(parsedJson);
+                  summaryContent = JSON.stringify(processedStrings); // Use normalized strings
                   if (DEBUG)
                     console.log(
-                      "[LLM Background] Response is valid JSON array.",
+                      "[LLM Background] Response is valid JSON array, normalized markdown.",
+                      processedStrings
                     );
                 } else {
                   throw new Error("Response is not an array.");
@@ -917,18 +920,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 // Fallback: Extract strings from malformed JSON
                 const extractedStrings = extractStringsFromMalformedJson(modelOutput);
                 if (extractedStrings.length > 0) {
-                  summaryContent = JSON.stringify(extractedStrings);
+                  processedStrings = normalizeMarkdownInStrings(extractedStrings);
+                  summaryContent = JSON.stringify(processedStrings);
                   if (DEBUG)
                     console.log(
-                      "[LLM Background] Extracted strings from malformed JSON:",
-                      extractedStrings,
+                      "[LLM Background] Extracted strings from malformed JSON, normalized markdown:",
+                      processedStrings,
                     );
                 } else {
                   if (DEBUG)
                     console.log(
                       "[LLM Background] No strings extracted, using raw output as fallback.",
                     );
-                  summaryContent = JSON.stringify([modelOutput]); // Wrap raw output as a single-item array
+                  processedStrings = normalizeMarkdownInStrings([modelOutput]);
+                  summaryContent = JSON.stringify(processedStrings); // Wrap raw output as a single-item array
                 }
               }
 
@@ -1068,8 +1073,8 @@ function extractStringsFromMalformedJson(rawText) {
   const extracted = [];
 
   for (let line of lines) {
-    // Look for lines that start with a quote and contain content
-    if (line.startsWith('"') || line.startsWith('**')) {
+    // Look for lines that start with a quote or potential bullet marker
+    if (line.startsWith('"') || line.startsWith('*') || line.startsWith('-') || line.startsWith('**')) {
       // Remove leading/trailing quotes and commas
       line = line.replace(/^"|"$/g, '').replace(/,$/, '').trim();
       if (line.length > 0) {
@@ -1083,6 +1088,58 @@ function extractStringsFromMalformedJson(rawText) {
     console.log("[LLM Background] No valid strings extracted from response.");
   }
   return extracted;
+}
+
+// --- Function to Normalize Markdown in Strings ---
+function normalizeMarkdownInStrings(strings) {
+  // Spec: Normalizes markdown syntax in an array of strings to ensure consistent rendering.
+  // Arguments: strings (Array<string>) - Array of strings from JSON or extracted content.
+  // Returns: Array<string> - Array of strings with normalized markdown.
+  // Called from: requestSummary handler in background.js after JSON parsing or extraction.
+  // Dependencies: None.
+  // State changes: None.
+  // Error handling: Returns unchanged strings if no normalization needed.
+  // Side effects: Logs normalization changes if DEBUG is enabled.
+
+  if (!Array.isArray(strings)) {
+    if (DEBUG) console.log("[LLM Background] Invalid input for markdown normalization, returning empty array.");
+    return [];
+  }
+
+  const normalized = strings.map((str, index) => {
+    if (typeof str !== 'string' || str.trim() === '') {
+      return str; // Skip non-string or empty entries
+    }
+
+    let normalizedStr = str.trim();
+    
+    // Normalize bold markdown at the start of bullet points or around common headers
+    // Replace single or triple asterisks with double asterisks for bold
+    // Target patterns like "*Text:*" or "***Text:**" at the start or within common bullet structures
+    if (normalizedStr.match(/^(\*|\*{3})([A-Za-z\s][^:]*:)/)) {
+      normalizedStr = normalizedStr.replace(/^(\*|\*{3})/, '**');
+      if (DEBUG) console.log(`[LLM Background] Normalized markdown bold at start for string ${index}: "${normalizedStr.substring(0, 50)}..."`);
+    } else if (normalizedStr.match(/^(\*|\*{3})(Summarizer\s+Insight:)/i)) {
+      normalizedStr = normalizedStr.replace(/^(\*|\*{3})/, '**');
+      if (DEBUG) console.log(`[LLM Background] Normalized markdown bold for Summarizer Insight in string ${index}: "${normalizedStr.substring(0, 50)}..."`);
+    }
+
+    // If no bold markdown is detected at the start, and it looks like a bullet point without proper formatting,
+    // consider adding a default bold prefix if appropriate
+    if (!normalizedStr.startsWith('**') && !normalizedStr.startsWith('- ') && !normalizedStr.startsWith('* ')) {
+      if (normalizedStr.includes(':')) {
+        const parts = normalizedStr.split(':', 2);
+        if (parts[0].trim().length > 0 && parts[0].trim().length < 50) { // Reasonable length for a header
+          normalizedStr = `**${parts[0].trim()}:** ${parts[1].trim()}`;
+          if (DEBUG) console.log(`[LLM Background] Added default bold markdown for header in string ${index}: "${normalizedStr.substring(0, 50)}..."`);
+        }
+      }
+    }
+
+    return normalizedStr;
+  });
+
+  return normalized; // Return the array of normalized strings
 }
 
 // --- Prompt Assembly Function (Unchanged) ---
