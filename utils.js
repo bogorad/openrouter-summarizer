@@ -147,3 +147,26 @@ export function renderTextAsHtml(text) {
     return text.replace(/\n/g, "<br>");
   }
 }
+
+/**
+ * Cleans unprintable characters from a string.
+ * @param {string} text - The text to clean.
+ * @returns {string} - The cleaned text.
+ */
+export function cleanUnprintableChars(text) {
+  // Spec: Removes unprintable characters like ZWSP from text.
+  // Arguments: text (string) - The input text to clean.
+  // Called from: summaryPopup.js for Slack markdown output.
+  // Returns: string - The text with unprintable characters removed.
+  // Dependencies: None.
+  // State changes: None.
+  // Error handling: Returns empty string if input is not a string.
+  // Side effects: None.
+
+  if (typeof text !== 'string') {
+    console.warn("[LLM Utils] cleanUnprintableChars received non-string input:", text);
+    return "";
+  }
+  // Remove unprintable characters, including Zero-Width Space (ZWSP)
+  return text.replace(/[\u200B-\u200D\uFEFF]/g, '');
+}
