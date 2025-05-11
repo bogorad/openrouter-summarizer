@@ -895,10 +895,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 throw new Error("No response content received from LLM.");
               }
 
+              let summaryContent = modelOutput;
+              // Attempt to parse as JSON, if it fails, extract strings manually
+              try {
+                const parsedJson = JSON.parse(modelOutput);
+                if (Array.isArray(parsedJson)) {
+                  summaryContent = modelOutput; // Valid JSON array, use as is
+                  if (DEBUG)
+                    console.log(
+                      "[LLM Background] Response is valid JSON array.",
+                    );
+                } else {
+                  throw new Error("Response is not an array.");
+                }
+              } catch (parseError) {
+                if (DEBUG)
+                  console.log(
+                    "[LLM Background] JSON parse failed, attempting manual extraction:",
+                    parseError.message,
+                  );
+                // Fallback: Extract strings from malformed JSON
+                const extractedStrings = extractStringsFromMalformedJson(modelOutput);
+                if (extractedStrings.length > 0) {
+                  summaryContent = JSON.stringify(extractedStrings);
+                  if (DEBUG)
+                    console.log(
+                      "[LLM Background] Extracted strings from malformed JSON:",
+                      extractedStrings,
+                    );
+                } else {
+                  if (DEBUG)
+                    console.log(
+                      "[LLM Background] No strings extracted, using raw output as fallback.",
+                    );
+                  summaryContent = JSON.stringify([modelOutput]); // Wrap raw output as a single-item array
+                }
+              }
+
               const completeResponse = {
                 action: "summaryResult",
                 requestId: request.requestId,
-                summary: modelOutput,
+                summary: summaryContent,
                 model: data.model || data.model_id || summaryModelId,
                 language_info: language_info,
                 fullResponse: DEBUG ? data : "[Debug data omitted for brevity]",
@@ -1009,6 +1046,44 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }); // End storage.sync.get for DEBUG check
   return true; // Keep message listener active for async responses
 }); // End chrome.runtime.onMessage.addListener
+
+// --- Function to Extract Strings from Malformed JSON ---
+function extractStringsFromMalformedJson(rawText) {
+  // Spec: Extracts strings from a potentially malformed JSON response.
+  // Arguments: rawText (string) - The raw response text from the LLM.
+  // Returns: Array<string> - An array of extracted strings representing bullet points.
+  // Called from: requestSummary handler in background.js when JSON parsing fails.
+  // Dependencies: None.
+  // State changes: None.
+  // Error handling: Returns empty array if no strings are found.
+  // Side effects: Logs extraction attempts if DEBUG is enabled.
+
+  if (!rawText || typeof rawText !== 'string') {
+    if (DEBUG) console.log("[LLM Background] Invalid input for extraction, returning empty array.");
+    return [];
+  }
+
+  // Split the text into lines and filter out empty or irrelevant lines
+  const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  const extracted = [];
+
+  for (let line of lines) {
+    // Look for lines that start with a quote and contain content
+    if (line.startsWith('"') || line.startsWith('**')) {
+      // Remove leading/trailing quotes and commas
+      line = line.replace(/^"|"$/g, '').replace(/,$/, '').trim();
+      if (line.length > 0) {
+        // Only add if there's actual content after cleaning
+        extracted.push(line);
+      }
+    }
+  }
+
+  if (DEBUG && extracted.length === 0) {
+    console.log("[LLM Background] No valid strings extracted from response.");
+  }
+  return extracted;
+}
 
 // --- Prompt Assembly Function (Unchanged) ---
 function getSystemPrompt(
