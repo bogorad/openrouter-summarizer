@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.3.1
+# OpenRouter Summarizer v3.4
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -8,10 +8,10 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 ## ✨ What's New
 
 *   **Separate default prompts for popup/chat:** by popular demand, check options!
-*   **Removed toolbar icon action:** use the floating icon (💡) instead.
 *   **Optimized COPY button for sharing:** now it returns proper Markdown and the current URL at the end.
 *   **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
 *   **Disabled `Chutes` provider**: it doesn't respect JSON schema requests.
+*   **Now save money by converting HTML to Markdown:** added bonus - the LLM doesn't get confused.
 
 ---
 

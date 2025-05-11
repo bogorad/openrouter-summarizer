@@ -108,6 +108,15 @@ function processSelectedElement() {
         processedMarkdown.substring(0, 200) +
           (processedMarkdown.length > 200 ? "..." : ""),
       );
+    if (DEBUG) {
+      console.log(
+        "[LLM Content] Conversion Details - HTML Length: " +
+          selectedHtml.length +
+          ", Markdown Length: " +
+          processedMarkdown.length,
+      );
+      //console.log("[LLM Content] Full Markdown Content:", processedMarkdown);
+    }
   } catch (error) {
     console.error("[LLM Content] Error converting HTML to Markdown:", error);
     showError("Error processing content for summarization.");
