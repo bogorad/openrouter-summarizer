@@ -1,0 +1,31 @@
+{
+  "name": "openrouter-summarizer",
+  "version": "1.0.0",
+  "description": "**Summarize any web page content and chat with the context using OpenRouter.ai APIs** _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_",
+  "main": "background.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bogorad/openrouter-summarizer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bogorad/openrouter-summarizer/issues"
+  },
+  "homepage": "https://github.com/bogorad/openrouter-summarizer#readme",
+  "devDependencies": {
+    "webpack": "^5.99.8",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "marked": "^15.0.11",
+    "turndown": "^7.2.0"
+  }
+}
