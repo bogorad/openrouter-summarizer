@@ -1456,7 +1456,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       
       if (apiKeyInput) {
-        apiKeyInput.addEventListener("blur", handleApiKeyBlur);
+        apiKeyInput.addEventListener("input", handleApiKeyInput);
       } else {
         console.error("[LLM Options] API Key input field not found.");
       }
@@ -1531,16 +1531,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /**
-   * Handles the blur event on the API key input field to trigger model refresh.
+   * Handles input changes for the API key field with debouncing to prevent frequent updates.
    */
-  function handleApiKeyBlur() {
-    const apiKey = apiKeyInput.value.trim();
-    if (apiKey) {
-      if (DEBUG) console.log("[LLM Options] API key entered, triggering model refresh.");
-      updateKnownModelsAndPricing();
-    } else {
-      if (DEBUG) console.log("[LLM Options] API key is empty, skipping model refresh.");
+  function handleApiKeyInput() {
+    if (debounceTimeoutId) {
+      clearTimeout(debounceTimeoutId);
     }
+    debounceTimeoutId = setTimeout(() => {
+      const apiKey = apiKeyInput.value.trim();
+      if (apiKey) {
+        if (DEBUG) console.log("[LLM Options] API key entered, triggering model refresh after debounce.");
+        updateKnownModelsAndPricing();
+      } else {
+        if (DEBUG) console.log("[LLM Options] API key is empty, skipping model refresh.");
+      }
+      debounceTimeoutId = null;
+    }, DEBOUNCE_DELAY);
   }
 
   /**
