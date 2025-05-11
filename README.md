@@ -12,6 +12,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 *   **Separate default prompts for popup/chat:** by popular demand, check options!
 *   **Optimized COPY button for sharing:** now it returns proper Markdown and the current URL at the end.
 *   **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
+*   **Added 2Slack button:** Slack is notorioulsy non-compliant with standard Mardkown, so this button is now available.
 
 ---
 
