@@ -48,6 +48,10 @@ After providing bullet points for article summary,
 add a bonus bullet point - your insights, assessment and comments,
 and what should a mindful reader notice about this.
 Call it **Summarizer Insight:**
+
+Do not use phrases "The article discusses", just exlain.
+Do not comment on authors' attitudes! Just relay the summaries.
+Do not editorialize!
 `;
 
 export const DEFAULT_POSTAMBLE_TEXT = `
