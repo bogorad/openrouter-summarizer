@@ -162,7 +162,15 @@
 .summarizer-btn.chat-btn:hover:not(:disabled) { background-color: #218838; }
 .summarizer-btn.close-btn { background-color: #e53935; color: #ffffff; padding: 8px 20px; }
 .summarizer-btn.close-btn:hover:not(:disabled) { background-color: #d32f2f; }
+/* New style for the NewsBlur button */
+.summarizer-btn.newsblur-btn { background-color: #8B4513; color: #ffffff; padding: 8px 20px; } /* SaddleBrown */
+.summarizer-btn.newsblur-btn:hover:not(:disabled) { background-color: #652a0d; } /* Darker shade for hover */
 
+/* REMOVED: Style for the NewsBlur symbol */
+/* .newsblur-symbol {
+  font-size: 1.2em;
+  margin-right: 0.25em;
+} */
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 780px) {
@@ -224,6 +232,7 @@
   width: 24px;
   height: 24px;
   display: block;
+  max-width: 100%;
 }
 .llm-fallback-icon {
   font-size: 22px;

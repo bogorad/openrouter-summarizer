@@ -21,6 +21,7 @@ export const STORAGE_KEY_LANGUAGE_INFO = "language_info";
 export const STORAGE_KEY_SUMMARY_HISTORY = "summaryHistory"; // Keep if used elsewhere
 export const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
 export const STORAGE_KEY_KNOWN_MODELS_AND_PRICES = "knownModelsAndPrices";
+export const STORAGE_KEY_NEWSBLUR_TOKEN = "newsblurToken"; // New: NewsBlur API Token
 
 // --- Prompt Storage Keys ---
 export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT =

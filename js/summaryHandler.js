@@ -28,6 +28,8 @@ export function handleRequestSummary(request, sender, sendResponse, DEBUG = fals
     console.log(
       "[LLM Summary Handler] Handling requestSummary for ID:",
       request.requestId,
+      "with hasNewsblurToken:",
+      request.hasNewsblurToken, // Log the received token status
     );
   }
   chrome.storage.sync.get(
@@ -73,6 +75,9 @@ export function handleRequestSummary(request, sender, sendResponse, DEBUG = fals
       }
       const modelIds = models.map((m) => m.id);
 
+      // Extract hasNewsblurToken from the request (passed by pageInteraction.js)
+      const hasNewsblurTokenStatus = request.hasNewsblurToken || false;
+
       if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
         console.error(
           "[LLM Summary Handler] API key is missing or invalid for summary request.",
@@ -87,6 +92,8 @@ export function handleRequestSummary(request, sender, sendResponse, DEBUG = fals
               action: "summaryResult",
               requestId: request.requestId,
               error: errorMsg,
+              language_info: language_info,
+              hasNewsblurToken: hasNewsblurTokenStatus, // Pass NewsBlur token status on error
             },
             () => {
               if (
@@ -122,6 +129,8 @@ export function handleRequestSummary(request, sender, sendResponse, DEBUG = fals
               action: "summaryResult",
               requestId: request.requestId,
               error: errorMsg,
+              language_info: language_info,
+              hasNewsblurToken: hasNewsblurTokenStatus, // Pass NewsBlur token status on error
             },
             () => {
               if (
@@ -228,6 +237,7 @@ export function handleRequestSummary(request, sender, sendResponse, DEBUG = fals
                   requestId: request.requestId,
                   error: errorMsg,
                   language_info: language_info,
+                  hasNewsblurToken: hasNewsblurTokenStatus, // Pass NewsBlur token status on API error
                 },
                 () => {
                   if (
@@ -300,6 +310,7 @@ export function handleRequestSummary(request, sender, sendResponse, DEBUG = fals
             summary: summaryContent,
             model: responseData.model || responseData.model_id || summaryModelId,
             language_info: language_info,
+            hasNewsblurToken: hasNewsblurTokenStatus, // Pass NewsBlur token status on success
             fullResponse: DEBUG ? responseData : "[Debug data omitted for brevity]",
           };
           if (DEBUG) {
@@ -347,6 +358,7 @@ export function handleRequestSummary(request, sender, sendResponse, DEBUG = fals
             requestId: request.requestId,
             error: error.message,
             language_info: language_info,
+            hasNewsblurToken: hasNewsblurTokenStatus, // Pass Newsblur token status on error
             fullResponse: DEBUG
               ? { error: error.message }
               : "[Debug data omitted for brevity]",

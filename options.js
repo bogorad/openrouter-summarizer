@@ -12,6 +12,7 @@ import {
   DEFAULT_MAX_REQUEST_PRICE,
   STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
   DEFAULT_CACHE_EXPIRY_DAYS,
+  STORAGE_KEY_NEWSBLUR_TOKEN, // New: Import NewsBlur token storage key
 } from "./constants.js";
 import { showError } from "./utils.js";
 
@@ -19,6 +20,7 @@ console.log(`[LLM Options] Script Start v3.4.4`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
+  const newsblurTokenInput = document.getElementById("newsblurToken"); // New: NewsBlur Token Input
   const modelSelectionArea = document.getElementById("modelSelectionArea");
   const addModelBtn = document.getElementById("addModelBtn");
   const languageSelectionArea = document.getElementById(
@@ -380,7 +382,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   // --- End Autocomplete Functions ---
-
   // --- Model Selection Rendering and Handlers (UPDATED - No Labels) ---
   function renderModelOptions() {
     if (!modelSelectionArea) return;
@@ -1094,6 +1095,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
         STORAGE_KEY_MAX_REQUEST_PRICE,
         STORAGE_KEY_MAX_PRICE_BEHAVIOR,
+        STORAGE_KEY_NEWSBLUR_TOKEN, // New: NewsBlur API Token
       ];
       const data = await chrome.storage.sync.get(keysToGet);
 
@@ -1103,6 +1105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       DEBUG = data.debug ?? DEFAULT_DEBUG_MODE;
       if (apiKeyInput) apiKeyInput.value = data.apiKey || "";
+      if (newsblurTokenInput) newsblurTokenInput.value = data[STORAGE_KEY_NEWSBLUR_TOKEN] || ""; // New: Populate NewsBlur Token Input
       if (debugCheckbox) debugCheckbox.checked = DEBUG;
 
       let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
@@ -1324,6 +1327,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS,
       [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice,
       [STORAGE_KEY_MAX_PRICE_BEHAVIOR]: currentMaxPriceBehavior,
+      [STORAGE_KEY_NEWSBLUR_TOKEN]: newsblurTokenInput ? newsblurTokenInput.value.trim() : "", // New: Save NewsBlur Token
     };
 
     if (DEBUG)
@@ -1458,6 +1462,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       setupCollapsible();
       await loadSettings(); // Load settings, render happens inside
 
+      // New: Add event listener for NewsBlur token input
+      if (newsblurTokenInput) {
+        newsblurTokenInput.addEventListener("input", handleNewsblurTokenInput); // Changed to new handler
+        newsblurTokenInput.addEventListener("blur", handleNewsblurTokenInput);  // Changed to new handler
+      } else {
+        console.error("[LLM Options] NewsBlur Token input field not found.");
+      }
+
       if (addModelBtn) {
         addModelBtn.addEventListener("click", addModel);
       } else {
@@ -1547,6 +1559,45 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       calculateKbLimitForSummary();
     }
+  }
+
+  /**
+   * Handles input changes for the API key field with debouncing to prevent frequent updates.
+   */
+  /**
+   * Extracts the NewsBlur token from a given URL string, if the pattern matches a NewsBlur API URL.
+   * Returns the extracted token or the original string if no match is found.
+   * @param {string} inputString - The string to check for a NewsBlur token URL.
+   * @returns {string} The extracted token or the original input string.
+   */
+  function extractNewsblurTokenFromUrl(inputString) {
+    const newsblurUrlPattern = /https:\/\/[^\/]+\/api\/add_site_load_script\/([a-zA-Z0-9]+)\?url=.*/;
+    const match = inputString.match(newsblurUrlPattern);
+    if (match && match[1]) {
+      if (DEBUG) console.log("[LLM Options] Extracted NewsBlur token from URL:", match[1]);
+      return match[1];
+    }
+    return inputString;
+  }
+
+  /**
+   * Handles input and blur changes for the NewsBlur token field, extracting the token if a URL is pasted.
+   */
+  function handleNewsblurTokenInput() {
+    if (debounceTimeoutId) {
+      clearTimeout(debounceTimeoutId);
+    }
+    debounceTimeoutId = setTimeout(() => {
+      let inputValue = newsblurTokenInput.value.trim();
+      const extractedToken = extractNewsblurTokenFromUrl(inputValue);
+
+      if (inputValue !== extractedToken) {
+        newsblurTokenInput.value = extractedToken; // Update the input field with the extracted token
+        if (DEBUG) console.log("[LLM Options] NewsBlur token input updated to extracted value.");
+      }
+      saveSettings(); // Save the (potentially updated) token to storage
+      debounceTimeoutId = null;
+    }, DEBOUNCE_DELAY);
   }
 
   /**

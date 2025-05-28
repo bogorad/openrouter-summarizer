@@ -168,10 +168,12 @@ async function validateAndSendToLLM(content) {
         onChat: handlePopupChat,
         onClose: handlePopupClose,
         onOptions: handlePopupOptions,
+        onNewsblur: handlePopupNewsblur, // New: Add NewsBlur callback
       },
-      null,
-      null,
-      false,
+      null, // parsedSummary - this will be set when updatePopupContent is called
+      null, // pageURL - this will be set when updatePopupContent is called
+      false, // errorState - not an error yet
+      false // hasNewsblurToken - assume false until settings are retrieved later on updatePopupContent
     );
     if (DEBUG) console.log("[LLM Content] Summary popup is now ready.");
   } catch (error) {
@@ -188,9 +190,12 @@ async function validateAndSendToLLM(content) {
 
   chrome.runtime.sendMessage({ action: "getSettings" }, (response) => {
     if (chrome.runtime.lastError || !response) {
+      if (DEBUG) {
+        console.error("[LLM Content] getSettings message response error:", chrome.runtime.lastError, response);
+      }
       const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
       showError(errorMsg);
-      SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+      SummaryPopup.updatePopupContent(errorMsg, null, null, true, false); // Pass false for hasNewsblurToken on settings error
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
@@ -198,14 +203,22 @@ async function validateAndSendToLLM(content) {
       return;
     }
 
+    if (DEBUG) {
+      console.log("[LLM Content] getSettings response received:", response);
+    }
     const maxRequestPrice =
       response.maxRequestPrice || constants.DEFAULT_MAX_REQUEST_PRICE || 0.01;
     const summaryModelId = response.summaryModelId || "";
+    // Retrieve NewsBlur token status from settings to pass to updatePopupContent
+    const hasNewsblurToken = !!response.newsblurToken;
 
     if (!summaryModelId) {
       const errorMsg = "Error: No summary model selected.";
       showError(errorMsg);
-      SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+      if (DEBUG) {
+        console.error("[LLM Content] Critical: summaryModelId is empty after getSettings");
+      }
+      SummaryPopup.updatePopupContent(errorMsg, null, null, true, false); // For no model, token is irrelevant to current error, but NewsBlur button should be disabled
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
@@ -231,7 +244,7 @@ async function validateAndSendToLLM(content) {
         ) {
           const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
           showError(errorMsg);
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurToken); // Pass actual token status for pricing error
           FloatingIcon.removeFloatingIcon();
           Highlighter.removeSelectionHighlight();
           lastSummary = "";
@@ -245,7 +258,7 @@ async function validateAndSendToLLM(content) {
             console.log(
               `[LLM Content] Free model detected (${summaryModelId}), skipping cost validation.`,
             );
-          sendRequestToBackground(content, requestId);
+          sendRequestToBackground(content, requestId, hasNewsblurToken);
           return;
         }
 
@@ -258,31 +271,31 @@ async function validateAndSendToLLM(content) {
         if (estimatedCost > maxRequestPrice) {
           const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}.`;
           showError(errorMsg);
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurToken); // Pass actual token status for cost error
           FloatingIcon.removeFloatingIcon();
           Highlighter.removeSelectionHighlight();
           lastSummary = "";
           lastSelectedDomSnippet = null;
           return;
         }
-        sendRequestToBackground(content, requestId);
+        sendRequestToBackground(content, requestId, hasNewsblurToken);
       },
     );
   });
 }
 
 // --- Send Request to Background ---
-function sendRequestToBackground(content, requestId) {
+function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) { // Added hasNewsblurTokenStatus parameter
   if (DEBUG)
     console.log("[LLM Request] Sending summarization request to background.");
   chrome.runtime.sendMessage(
-    { action: "requestSummary", requestId: requestId, selectedHtml: content },
+    { action: "requestSummary", requestId: requestId, selectedHtml: content, hasNewsblurToken: hasNewsblurTokenStatus }, // Pass the token status
     (response) => {
       if (chrome.runtime.lastError) {
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
         showError(errorMsg);
         if (SummaryPopup)
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurTokenStatus); // Pass token status
         if (FloatingIcon) FloatingIcon.removeFloatingIcon();
         if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -293,7 +306,7 @@ function sendRequestToBackground(content, requestId) {
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         showError(errorMsg);
         if (SummaryPopup)
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurTokenStatus); // Pass token status
         if (FloatingIcon) FloatingIcon.removeFloatingIcon();
         if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -307,7 +320,7 @@ function sendRequestToBackground(content, requestId) {
         const errorMsg = "Error: Unexpected response from background.";
         showError(errorMsg);
         if (SummaryPopup)
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true);
+          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurTokenStatus); // Pass token status
         if (FloatingIcon) FloatingIcon.removeFloatingIcon();
         if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -375,8 +388,6 @@ function handlePopupClose() {
   if (!SummaryPopup || !Highlighter || !FloatingIcon) return;
   if (DEBUG) console.log("[LLM Content] handlePopupClose called.");
   SummaryPopup.hidePopup();
-  Highlighter.removeSelectionHighlight();
-  FloatingIcon.removeFloatingIcon();
   lastSummary = "";
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
@@ -516,11 +527,14 @@ function handleMessage(req, sender, sendResponse) {
             onCopy: () => {},
             onChat: () => {},
             onClose: SummaryPopup.hidePopup,
+            onNewsblur: handlePopupNewsblur, // Use the new handler even for error state
           },
-          null,
-          null,
+          null, // parsedSummary
+          null, // pageURL
+          true, // errorState true
+          false // hasNewsblurToken: False in this specific error UI state
         );
-        SummaryPopup.enableChatButton(false);
+        SummaryPopup.enableChatButton(false); // Chat button is always disabled in error state
         setTimeout(SummaryPopup.hidePopup, 3000);
       }
       sendResponse({ status: "no element selected" });
@@ -537,6 +551,8 @@ function handleMessage(req, sender, sendResponse) {
 
     lastModelUsed = req.model || "Unknown";
     const pageURL = window.location.href;
+    // Get NewsBlur token status passed from background script
+    const hasNewsblurTokenFromBackground = req.hasNewsblurToken || false; 
 
     if (!SummaryPopup || !renderTextAsHtml) {
       console.error(
@@ -554,6 +570,7 @@ function handleMessage(req, sender, sendResponse) {
         null,
         pageURL,
         true,
+        hasNewsblurTokenFromBackground, // Pass along the actual token status with the error
       );
       SummaryPopup.enableChatButton(false);
     } else if (req.summary && typeof req.summary === "string") {
@@ -566,7 +583,7 @@ function handleMessage(req, sender, sendResponse) {
         if (Array.isArray(parsed)) {
           combinedSummaryArray = parsed.map(String);
         } else {
-          throw new Error("Parsed summary is not an array.");
+          throw new Error("Response is not an array.");
         }
 
         if (combinedSummaryArray.length > 0) {
@@ -581,6 +598,8 @@ function handleMessage(req, sender, sendResponse) {
             summaryHtml,
             combinedSummaryArray,
             pageURL,
+            false, // errorState false
+            hasNewsblurTokenFromBackground // Pass token status on success
           );
           SummaryPopup.enableChatButton(true);
           if (DEBUG)
@@ -602,12 +621,13 @@ function handleMessage(req, sender, sendResponse) {
         SummaryPopup.updatePopupContent(
           summaryHtml +
             "<br><small>(Raw response shown due to parsing error)</small>",
-          null,
+          null, // parsedSummary
           pageURL,
-          true,
+          true, // errorState true
+          hasNewsblurTokenFromBackground // Pass token status if parsing failed, as NewsBlur might still be usable
         );
-        lastSummary = "Error: Could not parse summary response.";
-        SummaryPopup.enableChatButton(false);
+        lastSummary = "Error: Could not parse summary response."; // Store explicit error for chat context
+        SummaryPopup.enableChatButton(false); // Chat button is disabled in error state
       }
     } else {
       lastSummary = "Error: No summary data received or invalid format.";
@@ -617,6 +637,7 @@ function handleMessage(req, sender, sendResponse) {
         null,
         pageURL,
         true,
+        hasNewsblurTokenFromBackground // Pass token status for general error state
       );
       SummaryPopup.enableChatButton(false);
     }
@@ -641,6 +662,93 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
   return handleMessage(req, sender, sendResponse);
 });
+
+// Helper to remove highlight classes from HTML string
+function cleanHtmlForNewsblur(htmlString) {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlString;
+  tempDiv.querySelectorAll('.llm-highlight, .llm-highlight-preview').forEach(el => {
+    el.classList.remove('llm-highlight', 'llm-highlight-preview');
+  });
+  return tempDiv.innerHTML;
+}
+
+// --- Callback Functions for NewsBlur ---
+function handlePopupNewsblur(hasNewsblurToken) {
+  if (DEBUG) console.log("[LLM Content] handlePopupNewsblur called.");
+  // Placeholder for NewsBlur action
+  if (!hasNewsblurToken) {
+    const msg = "NewsBlur token is missing. Please set it in the options.";
+    console.error("[LLM Content] NewsBlur share failed: " + msg); // Non-debug log for critical error
+    showError(msg);
+    return;
+  }
+
+  if (!lastSummary || lastSummary === "Thinking..." || lastSummary.startsWith("Error:")) {
+    const msg = "No valid summary available to share with NewsBlur.";
+    console.error("[LLM Content] NewsBlur share failed: " + msg); // Non-debug log
+    showError(msg);
+    return;
+  }
+  
+  if (!lastSelectedDomSnippet) {
+    const msg = "No original content selected to share with NewsBlur.";
+    console.error("[LLM Content] NewsBlur share failed: " + msg); // Non-debug log
+    showError(msg);
+    return;
+  }
+
+  // Retrieve the original parsed summary array
+  let parsedSummary = [];
+  try {
+    parsedSummary = JSON.parse(lastSummary);
+    if (!Array.isArray(parsedSummary)) {
+      throw new Error("Last summary is not a valid JSON array.");
+    }
+  } catch (e) {
+    console.error("[LLM Content] Error parsing lastSummary for NewsBlur:", e); // Non-debug log
+    showError("Failed to prepare summary for NewsBlur sharing.");
+    return;
+  }
+
+  // Constructing the content for NewsBlur
+  const title = document.title;
+  const story_url = window.location.href;
+  const comments = "Summary: <ul>" + parsedSummary.map(item => `<li>${renderTextAsHtml(item)}</li>`).join('') + "</ul>"; // HTML-formatted comments
+  const cleanedHtmlContent = cleanHtmlForNewsblur(lastSelectedDomSnippet); // Clean HTML before sending
+
+
+  chrome.runtime.sendMessage({
+    action: "shareToNewsblur",
+    options: {
+      title: title,
+      story_url: story_url,
+      content: cleanedHtmlContent, // Now explicitly cleaned HTML
+      comments: comments // Now explicitly HTML (<ul><li>...</ul>)
+    }
+  }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error("[LLM Content] Error sending shareToNewsblur message:", chrome.runtime.lastError); // Non-debug log
+      showError("Error sharing to NewsBlur: " + chrome.runtime.lastError.message);
+      return;
+    }
+    if (response.status === "success") {
+      console.log("[LLM Content] Successfully sent NewsBlur share request:", response.result); // Non-debug log for success
+      showError("Shared to NewsBlur successfully!", false, 3000);
+    } else {
+      showError(`Failed to share to NewsBlur: ${response.message || "Unknown error"}`);
+      if (DEBUG) console.error("[LLM Content] Failed to share to NewsBlur:", response);
+    }
+  });
+
+  SummaryPopup.hidePopup();
+  Highlighter.removeSelectionHighlight();
+  FloatingIcon.removeFloatingIcon();
+  lastSummary = "";
+  lastModelUsed = "";
+  lastSelectedDomSnippet = null;
+  lastProcessedMarkdown = null;
+}
 
 // --- Initialization Function ---
 async function initialize() {
