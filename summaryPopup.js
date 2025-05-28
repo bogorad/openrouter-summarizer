@@ -1,10 +1,6 @@
-// @description Manages the summary popup UI for the OpenRouter Summarizer extension, including Slack markdown conversion.
+// @description Manages the summary popup UI for the OpenRouter Summarizer extension, including rich text copying.
+import { marked } from "marked"; // Import marked library
 console.log(`[LLM Popup] Script Loaded (v3.0.17)`); // Updated version
-
-// Import slackify-markdown for Slack conversion
-import slackifyMarkdown from 'slackify-markdown';
-// Import utility to clean unprintable characters
-import { cleanUnprintableChars } from './utils.js';
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -13,13 +9,12 @@ const POPUP_HEADER_CLASS = "summarizer-header";
 const POPUP_BODY_CLASS = "summarizer-body";
 const POPUP_ACTIONS_CLASS = "summarizer-actions";
 const POPUP_BTN_CLASS = "summarizer-btn";
-const POPUP_COPY_BTN_CLASS = "copy-btn";
-const POPUP_SLACK_BTN_CLASS = "slack-btn"; // New class for Slack button
+const POPUP_COPY_BTN_CLASS = "copy-btn"; // This class will be used for the new single COPY button
 const POPUP_CHAT_BTN_CLASS = "chat-btn"; // Class for the dynamic chat/options button
 const POPUP_CLOSE_BTN_CLASS = "close-btn";
 
 // --- HTML Template String ---
-// Updated template to include the new "2Slack" button next to "Chat"
+// Updated template for a single "COPY" button
 const POPUP_TEMPLATE_HTML = `
 <div class="${POPUP_CLASS}" style="display: none;">
     <div class="${POPUP_HEADER_CONTAINER_CLASS}">
@@ -27,8 +22,7 @@ const POPUP_TEMPLATE_HTML = `
     </div>
     <div class="${POPUP_BODY_CLASS}"></div>
     <div class="${POPUP_ACTIONS_CLASS}">
-        <button class="${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}">Copy</button>
-        <button class="${POPUP_BTN_CLASS} ${POPUP_SLACK_BTN_CLASS}">2Slack</button>
+        <button class="${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}">COPY</button>
         <!-- Single Chat Button -->
         <button class="${POPUP_BTN_CLASS} ${POPUP_CHAT_BTN_CLASS}">Chat</button>
         <!-- End Single Chat Button -->
@@ -48,164 +42,102 @@ let currentOriginalMarkdownArray = null; // To store the array of original Markd
 let currentPageURL = null; // To store the page URL
 let isErrorState = false; // To track if the popup is in an error state
 
-// Handles copy logic
-function handleCopyClick(contentDiv, copyBtn) {
+// Helper function to escape HTML special characters
+function escapeHTML(str) {
+  if (typeof str !== 'string') return '';
+  // A robust way to escape HTML: create a text node and get its HTML representation.
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+// Handles rich text copy logic
+async function handleRichTextCopyClick(contentDiv, copyBtn) {
   if (!copyBtn) return;
   if (copyTimeoutId) clearTimeout(copyTimeoutId);
 
+  let htmlToCopy = "";
   let textToCopy = "";
 
   if (
     currentOriginalMarkdownArray &&
-    currentOriginalMarkdownArray.length > 0 &&
-    currentPageURL
+    currentOriginalMarkdownArray.length > 0
   ) {
-    // New logic: Copy original Markdown items as a list, then the URL
-    let markdownToCopy = "";
+    // Construct HTML list from original markdown items
+    htmlToCopy = "<ul>"; // Use literal tags
     currentOriginalMarkdownArray.forEach((item) => {
-      markdownToCopy += `* ${item}\n`; // Prepend Markdown list item indicator
+      // Convert Markdown item to HTML using marked, then add to list
+      // Use parseInline to avoid wrapping in <p> tags if item is simple
+      htmlToCopy += `<li>${marked.parseInline(item)}</li>`;
     });
-    markdownToCopy += `\n\n${currentPageURL}`; // Add two newlines before URL for a new paragraph
-    textToCopy = markdownToCopy;
+    htmlToCopy += "</ul>"; // Use literal tags
+
+    // Construct plain text list
+    textToCopy = currentOriginalMarkdownArray
+      .map((item) => `* ${item}`)
+      .join("\n");
+
+    if (currentPageURL) {
+      htmlToCopy += `<p>Source: <a href="${escapeHTML(currentPageURL)}">${escapeHTML(currentPageURL)}</a></p>`; // Use literal tags, escape URL content
+      textToCopy += `\n\nSource: ${currentPageURL}`;
+    }
     if (DEBUG)
-      console.log("[LLM Popup] Copying constructed Markdown:", textToCopy);
-  } else {
-    // Fallback logic: Copy plain text of what's visible in the popup
-    if (DEBUG)
-      console.log(
-        "[LLM Popup] Fallback: Copying visible plain text from popup.",
-      );
-    if (contentDiv) {
-      const listItems = contentDiv.querySelectorAll("li");
-      if (listItems.length > 0) {
+      console.log("[LLM Popup] Preparing rich text and plain text from original markdown array.");
+  } else if (contentDiv && contentDiv.innerHTML.trim() !== "") {
+    // Fallback: Use the innerHTML of the contentDiv for rich text
+    // and textContent for plain text
+    htmlToCopy = contentDiv.innerHTML;
+    textToCopy = contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
+
+    const listItems = contentDiv.querySelectorAll("li");
+    if (listItems.length > 0 && !textToCopy.includes('\n')) {
         textToCopy = Array.from(listItems)
-          .map((li) => {
-            const tempDiv = document.createElement("div");
-            tempDiv.innerHTML = li.innerHTML;
-            return tempDiv.textContent.replace(/\u00A0/g, " ").trim();
-          })
-          .filter((text) => text !== "")
-          .map((text, idx) => `${idx + 1}. ${text}`)
-          .join("\n");
-      } else {
-        textToCopy =
-          contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
-      }
-    } else if (
-      typeof currentContent === "string" &&
-      !currentContent.startsWith("<")
-    ) {
-      // If contentDiv isn't available but currentContent is simple text (e.g. "Thinking...")
-      textToCopy = currentContent.trim();
+            .map(li => `* ${li.textContent.replace(/\u00A0/g, " ").trim()}`)
+            .join("\n");
     }
+
+    if (DEBUG)
+      console.log("[LLM Popup] Fallback: Preparing rich/plain text from visible popup content.");
+  } else if (typeof currentContent === "string" && !currentContent.startsWith("<")) {
+    // Fallback for simple text like "Thinking..."
+    htmlToCopy = `<p>${escapeHTML(currentContent.trim())}</p>`; // Use literal tags
+    textToCopy = currentContent.trim();
+    if (DEBUG)
+      console.log("[LLM Popup] Fallback: Preparing rich/plain text from currentContent string.");
   }
 
-  if (textToCopy) {
-    navigator.clipboard
-      .writeText(textToCopy)
-      .then(() => {
-        copyBtn.textContent = "Copied!";
-        copyTimeoutId = setTimeout(() => {
-          copyBtn.textContent = "Copy";
-          copyTimeoutId = null;
-        }, 1500);
-      })
-      .catch((err) => {
-        console.error("[LLM Popup] Failed to copy text: ", err);
+
+  if (htmlToCopy && textToCopy) {
+    try {
+      const htmlBlob = new Blob([htmlToCopy], { type: "text/html" });
+      const textBlob = new Blob([textToCopy], { type: "text/plain" });
+      const clipboardItem = new ClipboardItem({
+        "text/html": htmlBlob,
+        "text/plain": textBlob,
+      });
+      await navigator.clipboard.write([clipboardItem]);
+      copyBtn.textContent = "Copied!";
+      if (DEBUG) console.log("[LLM Popup] Rich text copied successfully.");
+    } catch (err) {
+      console.error("[LLM Popup] Failed to copy rich text: ", err);
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        copyBtn.textContent = "Copied (Text)!";
+        if (DEBUG) console.log("[LLM Popup] Rich text failed, plain text copied as fallback.");
+      } catch (textErr) {
+        console.error("[LLM Popup] Failed to copy plain text as fallback: ", textErr);
         copyBtn.textContent = "Error";
-        copyTimeoutId = setTimeout(() => {
-          copyBtn.textContent = "Copy";
-          copyTimeoutId = null;
-        }, 1500);
-      });
-  } else {
-    if (DEBUG) console.warn("[LLM Popup] Nothing to copy.");
-    copyBtn.textContent = "Empty";
-    copyTimeoutId = setTimeout(() => {
-      copyBtn.textContent = "Copy";
-      copyTimeoutId = null;
-    }, 1500);
-  }
-}
-
-// Handles Slack markdown conversion and copy
-function handleSlackClick(contentDiv, slackBtn) {
-  if (!slackBtn) return;
-  if (copyTimeoutId) clearTimeout(copyTimeoutId);
-
-  let textToCopy = "";
-
-  if (
-    currentOriginalMarkdownArray &&
-    currentOriginalMarkdownArray.length > 0 &&
-    currentPageURL
-  ) {
-    // Convert original Markdown items to Slack format, then add the URL
-    let markdownToConvert = currentOriginalMarkdownArray.join("\n");
-    let slackMarkdown = slackifyMarkdown(markdownToConvert);
-    slackMarkdown = cleanUnprintableChars(slackMarkdown); // Clean unprintable characters like ZWSP
-    slackMarkdown += `\n\nSource: ${currentPageURL}`;
-    textToCopy = slackMarkdown;
-    if (DEBUG)
-      console.log("[LLM Popup] Converting and copying Slack Markdown (cleaned):", textToCopy);
-  } else {
-    // Fallback: Use the visible content or currentContent as markdown to convert
-    if (DEBUG)
-      console.log(
-        "[LLM Popup] Fallback: Converting visible content to Slack Markdown.",
-      );
-    if (contentDiv) {
-      const listItems = contentDiv.querySelectorAll("li");
-      let markdownToConvert = "";
-      if (listItems.length > 0) {
-        markdownToConvert = Array.from(listItems)
-          .map((li) => {
-            const tempDiv = document.createElement("div");
-            tempDiv.innerHTML = li.innerHTML;
-            return `* ${tempDiv.textContent.replace(/\u00A0/g, " ").trim()}`;
-          })
-          .filter((text) => text !== "")
-          .join("\n");
-      } else {
-        markdownToConvert = contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
       }
-      textToCopy = slackifyMarkdown(markdownToConvert);
-      textToCopy = cleanUnprintableChars(textToCopy); // Clean unprintable characters like ZWSP
-    } else if (
-      typeof currentContent === "string" &&
-      !currentContent.startsWith("<")
-    ) {
-      textToCopy = slackifyMarkdown(currentContent.trim());
-      textToCopy = cleanUnprintableChars(textToCopy); // Clean unprintable characters like ZWSP
     }
+  } else {
+    if (DEBUG) console.warn("[LLM Popup] Nothing to copy (HTML or Text).");
+    copyBtn.textContent = "Empty";
   }
 
-  if (textToCopy) {
-    navigator.clipboard
-      .writeText(textToCopy)
-      .then(() => {
-        slackBtn.textContent = "Copied!";
-        copyTimeoutId = setTimeout(() => {
-          slackBtn.textContent = "2Slack";
-          copyTimeoutId = null;
-        }, 1500);
-      })
-      .catch((err) => {
-        console.error("[LLM Popup] Failed to copy Slack text: ", err);
-        slackBtn.textContent = "Error";
-        copyTimeoutId = setTimeout(() => {
-          slackBtn.textContent = "2Slack";
-          copyTimeoutId = null;
-        }, 1500);
-      });
-  } else {
-    if (DEBUG) console.warn("[LLM Popup] Nothing to convert to Slack format.");
-    slackBtn.textContent = "Empty";
-    copyTimeoutId = setTimeout(() => {
-      slackBtn.textContent = "2Slack";
-      copyTimeoutId = null;
-    }, 1500);
-  }
+  copyTimeoutId = setTimeout(() => {
+    copyBtn.textContent = "COPY"; // Button text is now "COPY"
+    copyTimeoutId = null;
+  }, 1500);
 }
 
 // --- Public Functions ---
@@ -217,7 +149,7 @@ function handleSlackClick(contentDiv, slackBtn) {
  * @param {object} callbacks - Object containing onCopy, onChat, onClose, and onOptions callbacks.
  * @param {string[] | null} [originalMarkdownArray=null] - Optional array of original Markdown strings.
  * @param {string | null} [pageURL=null] - Optional page URL.
- * @param {boolean} [errorState=false] - Indicates if the popup is in an error state (e.g., max price exceeded or config issues).
+ * @param {boolean} [errorState=false] - Indicates if the popup is in an error state.
  * @returns {Promise<void>} A Promise that resolves when the popup is ready.
  */
 export function showPopup(
@@ -228,11 +160,11 @@ export function showPopup(
   errorState = false,
 ) {
   return new Promise((resolve) => {
-    hidePopup(); // Clears previous state including markdown array and URL
+    hidePopup(); // Clears previous state
 
     if (
       !callbacks ||
-      typeof callbacks.onCopy !== "function" ||
+      typeof callbacks.onCopy !== "function" || // onCopy is still expected by the caller, though not used by the button directly
       typeof callbacks.onChat !== "function" ||
       typeof callbacks.onClose !== "function" ||
       typeof callbacks.onOptions !== "function"
@@ -262,13 +194,12 @@ export function showPopup(
 
     const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
     const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
-    const slackBtn = popup.querySelector(`.${POPUP_SLACK_BTN_CLASS}`); // New Slack button
     const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
     const closeBtn = popup.querySelector(`.${POPUP_CLOSE_BTN_CLASS}`);
 
     if (contentDiv) {
       if (typeof content === "string") {
-        if (content.startsWith("<ul>")) {
+        if (content.startsWith("<ul>")) { // Check for HTML list
           contentDiv.innerHTML = content;
         } else {
           contentDiv.textContent = content;
@@ -287,19 +218,11 @@ export function showPopup(
     }
 
     if (copyBtn) {
-      // Pass contentDiv for fallback logic
-      copyBtn.onclick = () => handleCopyClick(contentDiv, copyBtn);
+      // Attach the new rich text copy handler
+      copyBtn.onclick = () => handleRichTextCopyClick(contentDiv, copyBtn);
     } else {
       console.error(
         "[LLM Popup] Could not attach copy listener: Button missing.",
-      );
-    }
-
-    if (slackBtn) {
-      slackBtn.onclick = () => handleSlackClick(contentDiv, slackBtn);
-    } else {
-      console.error(
-        "[LLM Popup] Could not attach Slack listener: Button missing.",
       );
     }
 
@@ -314,7 +237,7 @@ export function showPopup(
         chatBtn.textContent = "Chat";
         chatBtn.title = "Open chat with summary context";
         chatBtn.onclick = () => popupCallbacks.onChat(null);
-        chatBtn.disabled = true;
+        chatBtn.disabled = true; // Keep disabled until content is ready
         if (DEBUG) console.log("[LLM Popup] Button set to 'Chat' for normal state.");
       }
     } else {
@@ -342,7 +265,7 @@ export function showPopup(
           console.log("[LLM Popup] Popup visibility transition started.");
         resolve();
       } else {
-        resolve();
+        resolve(); // Should not happen if parsing was successful
       }
     });
   });
@@ -355,12 +278,15 @@ export function hidePopup() {
   if (popup) {
     const popupElement = popup;
     popup = null;
-    popupCallbacks = { onCopy: null, onChat: null, onClose: null };
+    // Reset callbacks and state
+    popupCallbacks = { onCopy: null, onChat: null, onClose: null, onOptions: null };
     currentContent = "";
-    currentOriginalMarkdownArray = null; // Reset stored markdown
-    currentPageURL = null; // Reset stored URL
+    currentOriginalMarkdownArray = null;
+    currentPageURL = null;
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
+    isErrorState = false;
+
     popupElement.classList.remove("visible");
     const computedStyle = window.getComputedStyle(popupElement);
     const transitionDuration =
@@ -382,7 +308,7 @@ export function hidePopup() {
  * @param {string} newContent - The new HTML or text content to display.
  * @param {string[] | null} [originalMarkdownArray=null] - Optional array of original Markdown strings.
  * @param {string | null} [pageURL=null] - Optional page URL.
- * @param {boolean} [errorState=false] - Indicates if the popup is in an error state (e.g., max price exceeded or config issues).
+ * @param {boolean} [errorState=false] - Indicates if the popup is in an error state.
  */
 export function updatePopupContent(
   newContent,
@@ -406,7 +332,7 @@ export function updatePopupContent(
   const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
   if (contentDiv) {
     if (typeof newContent === "string") {
-      if (newContent.startsWith("<ul>")) {
+      if (newContent.startsWith("<ul>")) { // Check for HTML list
         contentDiv.innerHTML = newContent;
       } else {
         contentDiv.textContent = newContent;
@@ -436,7 +362,8 @@ export function updatePopupContent(
       chatBtn.textContent = "Chat";
       chatBtn.title = "Open chat with summary context";
       chatBtn.onclick = () => popupCallbacks.onChat(null);
-      chatBtn.disabled = true;
+      // Chat button should be enabled/disabled by enableChatButton based on summary generation status
+      // chatBtn.disabled = true; // Re-evaluate: keep existing logic from enableChatButton
       if (DEBUG) console.log("[LLM Popup] Button updated to 'Chat' for normal state in updatePopupContent.");
     }
   }
@@ -450,11 +377,16 @@ export function enableChatButton(enable) {
   const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
 
   if (chatBtn) {
-    chatBtn.disabled = !enable;
+    // Only enable if not in an error state where it should show "Options"
+    if (isErrorState && chatBtn.textContent === "Options") {
+        // Don't change disabled state if it's an "Options" button
+    } else {
+        chatBtn.disabled = !enable;
+    }
   }
 
   if (DEBUG)
-    console.log(`[LLM Popup] Chat button ${enable ? "enabled" : "disabled"}.`);
+    console.log(`[LLM Popup] Chat button ${enable ? "enabled" : "disabled (or kept as Options)"}.`);
 }
 
 /**
