@@ -199,7 +199,7 @@ async function handleAsyncMessage(request, sender, sendResponse) {
           const tokenResult = await chrome.storage.sync.get(
             constants.STORAGE_KEY_NEWSBLUR_TOKEN,
           );
-          const token = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN] || "";
+          const token = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN];
           sendResponse({ status: "success", token: token });
         } catch (e) {
           console.error("[LLM Background] Error getting NewsBlur token:", e);
@@ -276,7 +276,7 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
     const tokenResult = await chrome.storage.sync.get(
       constants.STORAGE_KEY_NEWSBLUR_TOKEN,
     );
-    token = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN] || ""; // Fallback to hardcoded if not in storage
+    token = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN];
   }
   const domain = options.domain || "www.newsblur.com";
   const apiUrl = `https://${domain}/api/share_story/${token}`;
