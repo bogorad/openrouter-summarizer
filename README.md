@@ -57,7 +57,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     - The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (`json ... `) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
     - **Click the "Chat" button to open the chat tab.**
     - Use **Copy** or **Close**.
-    - Use **![NewsBlur](https://www.newsblur.com/)** to share the summary and the selected HTML snippet.
+    - Use **[NewsBlur](https://www.newsblur.com/)** to share the summary and the selected HTML snippet.
 5.  **Chat (Optional):**
     - Click **Chat** on the summary popup to chat about the summary.
     - A new browser tab opens. An info banner confirms context is available.
