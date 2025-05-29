@@ -7,13 +7,9 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New
 
-- **Immediate Save on Model and Bullet Point Selection:** Options are now saved immediately when selecting models for summary or chat, and when changing the number of bullet points.
-- **Auto-Save Options After API Key Entry:** Settings are now automatically saved after a successful API key entry.
-- **Separate default prompts for popup/chat:** by popular demand, check options!
-- **Optimized COPY button for sharing:** now it returns proper Markdown and the current URL at the end.
+- **Optimized `Copy` button for sharing:** now it returns proper rich-text and the current URL at the end.
 - **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
 - **Added NewsBlur sharing:** See options, you'll need your NewsBlur Token.
-- **Copy from the main popup:** Now copies rich-text, fomratting is preserve when copy-pasting into other apps.
 
 ---
 
@@ -21,7 +17,6 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
-- **Rich Formatting:** Markdown FTW!
 - **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
 - **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the last message.
 - **Languages can now be reordered** by dragging them in the Options list.
@@ -30,7 +25,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 - **Keyboard Shortcuts:** Use `Ctrl/Cmd+Enter` to send messages in the chat window.
 - **Instant Results:** Summaries appear in a clean popup; chat happens in a dedicated tab.
 - **Secure & Private:** Your API key and options are stored locally in your browser storage. Chat context is stored temporarily in session storage. Nothing is sent anywhere except OpenRouter.ai when you request a summary or chat response.
-- **Debug-Friendly:** Enable debug mode in Options for detailed console logging. The API key is filtered from the debug console messages.
+- **Debug-Friendly:** Enable debug mode in `Options` for detailed console logging. The API key is filtered from the debug console messages.
 
 ---
 
@@ -57,17 +52,18 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     - <kbd>ALT</kbd>+Click an element to select it (red solid outline). A floating icon (💡) appears.
 3.  **Summarize:**
     - Click the floating icon (💡), _or_ right-click and choose "Send to LLM".
-    - The extension sends the element's HTML and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model. The prompt now instructs the LLM to determine the language of the input text and summarize in that language.
+    - The extension extracts the selected element's HTML, converts it to Markdown to save money and improve LLM's job, then sends it and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model for summarization.
 4.  **Review Summary:**
     - The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (`json ... `) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
     - **Click the "Chat" button to open the chat tab.**
     - Use **Copy** or **Close**.
+    - Use **![NewsBlur](https://www.newsblur.com/)** to share the summary and the selected HTML snippet.
 5.  **Chat (Optional):**
     - Click **Chat** on the summary popup to chat about the summary.
     - A new browser tab opens. An info banner confirms context is available.
     - The original HTML snippet and the raw/processed JSON string are stored. For _every_ message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
     - **Language flags are now available in the chat interface.** Click a flag to request a translation of the _last assistant message_ into that language. **While the LLM is processing a request, these flags will be visually dimmed and show a "busy" tooltip.**
-    - Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send.
+    - Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send using any of the configured models.
     - LLM responses are rendered with via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
     - Use **Copy MD**, **Download MD**, or **Download JSON** to save the chat.
 
