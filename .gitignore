@@ -1,10 +1,5 @@
 .env
 .envrc
-.aider/
-.aider.tags.cache.v4/
-.aider.chat.history.md
-.aider.input.history
-chat_history/
 node_modules/
 flake.lock
 package-lock.json
