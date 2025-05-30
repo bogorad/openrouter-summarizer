@@ -87,7 +87,7 @@ export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Translate the following text t
 // --- Default Models (Labels Removed) ---
 export const DEFAULT_MODEL_OPTIONS = [
   { id: "google/gemini-2.0-flash-lite-001" },
-  { id: "anthropic/claude-3.7-sonnet" },
+  { id: "anthropic/claude-sonnet-4" },
   { id: "deepseek/deepseek-r1" },
   { id: "openai/gpt-4.1-nano" },
   { id: "x-ai/grok-3-mini-beta" },

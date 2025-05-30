@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.6
+# OpenRouter Summarizer v3.6.1
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -10,6 +10,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 - **Optimized `Copy` button for sharing:** now it returns proper rich-text and the current URL at the end.
 - **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
 - **Added NewsBlur sharing:** See options, you'll need your NewsBlur Token.
+- **Chagned Claude Sonnet model:** from 3.7 to 4.
 
 ---
 
