@@ -24,6 +24,9 @@ import {
   // PRICING_RETRY_DELAY_MS,
 } from "./constants.js";
 import * as constants from "./constants.js"; // Import all constants as an object to resolve potential redeclaration issues
+const JOPLIN_API_BASE_URL = constants.JOPLIN_API_BASE_URL;
+const JOPLIN_API_FOLDERS_ENDPOINT = constants.JOPLIN_API_FOLDERS_ENDPOINT;
+const JOPLIN_API_NOTES_ENDPOINT = constants.JOPLIN_API_NOTES_ENDPOINT;
 
 import {
   isTabClosedError,
@@ -64,7 +67,6 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "sendToLLM",
     title: "Send to LLM",
-    contexts: ["all"],
   });
   // On install/update, set initial default values if not already set
   chrome.storage.sync.get(
@@ -194,6 +196,33 @@ async function handleAsyncMessage(request, sender, sendResponse) {
       },
       requestSummary: async () =>
         handleRequestSummary(request, sender, sendResponse, DEBUG),
+      fetchJoplinNotebooks: async () => {
+        if (DEBUG) console.log("[LLM Background] Received fetchJoplinNotebooks request.");
+        try {
+          const folders = await fetchJoplinFoldersAPI(request.joplinToken, DEBUG);
+          sendResponse({ status: "success", folders: folders });
+        } catch (error) {
+          console.error("[LLM Background] fetchJoplinNotebooks handler caught an error:", error);
+          sendResponse({ status: "error", message: error.message });
+        }
+      },
+      createJoplinNote: async () => {
+        if (DEBUG) console.log("[LLM Background] Received createJoplinNote request.", request);
+        try {
+          const result = await createJoplinNoteAPI(
+            request.joplinToken,
+            request.title,
+            request.source_url,
+            request.body_html, // Now only expecting body_html
+            request.parent_id,
+            DEBUG
+          );
+          sendResponse({ status: "success", result: result });
+        } catch (error) {
+          console.error("[LLM Background] createJoplinNote handler caught an error:", error);
+          sendResponse({ status: "error", message: error.message });
+        }
+      },
       getNewsblurToken: async () => {
         try {
           const tokenResult = await chrome.storage.sync.get(
@@ -372,6 +401,84 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
       error,
     ); // Changed to console.error
     return { code: -1, message: error.message };
+  }
+}
+
+/**
+ * Fetches the list of folders from the Joplin API.
+ * @param {string} joplinToken - The Joplin API token.
+ * @param {boolean} DEBUG_API - Debug flag for API calls.
+ * @returns {Promise<Array>} A promise that resolves to an array of Joplin folders.
+ */
+async function fetchJoplinFoldersAPI(joplinToken, DEBUG_API) {
+  if (!joplinToken) {
+    throw new Error("Joplin API token is missing.");
+  }
+  const apiUrl = `${JOPLIN_API_BASE_URL}${JOPLIN_API_FOLDERS_ENDPOINT}?token=${joplinToken}`;
+
+  try {
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[LLM Joplin API] Error fetching folders:", response.status, errorText);
+      throw new Error(`Failed to fetch Joplin notebooks: ${response.statusText} - ${errorText}`);
+    }
+    const data = await response.json();
+    if (!data || !Array.isArray(data.items)) {
+      throw new Error("Invalid response format from Joplin API.");
+    }
+    if (DEBUG_API) console.log("[LLM Joplin API] Fetched folders:", data.items);
+    return data.items;
+  } catch (error) {
+    console.error("[LLM Joplin API] Network error during folder fetch:", error);
+    throw new Error(`Network error or invalid Joplin API URL. Ensure Joplin is running and API is enabled: ${error.message}`);
+  }
+}
+
+/**
+ * Creates a new note in Joplin.
+ * @param {string} joplinToken - The Joplin API token.
+ * @param {string} title - The title of the note.
+ * @param {string} source_url - The URL of the source.
+ * @param {string} body_html - The HTML body of the note.
+ * @param {string} parent_id - The ID of the parent folder (notebook).
+ * @param {boolean} DEBUG_API - Debug flag for API calls.
+ * @returns {Promise<object>} A promise that resolves to the Joplin API response for the created note.
+ */
+async function createJoplinNoteAPI(joplinToken, title, source_url, body_html, parent_id, DEBUG_API) {
+  if (!joplinToken || !title || !body_html || !parent_id) { // Simplified validation, now always requires body_html
+    throw new Error("Missing required parameters for creating Joplin note (token, title, HTML content, or parentId).");
+  }
+  const apiUrl = `${JOPLIN_API_BASE_URL}${JOPLIN_API_NOTES_ENDPOINT}?token=${joplinToken}`;
+
+  const noteData = {
+    title: title,
+    source_url: source_url,
+    parent_id: parent_id,
+    body_html: body_html, // Always send as body_html
+  };
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(noteData),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[LLM Joplin API] Error creating note:", response.status, errorText);
+      throw new Error(`Failed to create Joplin note: ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    if (DEBUG_API) console.log("[LLM Joplin API] Note created:", result);
+    return result;
+  } catch (error) {
+    console.error("[LLM Joplin API] Network error during note creation:", error);
+    throw new Error(`Network error or invalid Joplin API URL. Ensure Joplin is running and API is enabled: ${error.message}`);
   }
 }
 

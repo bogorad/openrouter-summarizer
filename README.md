@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.6.1
+# OpenRouter Summarizer v3.7
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -15,6 +15,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 ---
 
 ## 🚀 Features
+- **Joplin support:** Save to Joplin instead of summarizing.
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.

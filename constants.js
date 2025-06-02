@@ -24,6 +24,11 @@ export const STORAGE_KEY_KNOWN_MODELS_AND_PRICES = "knownModelsAndPrices";
 export const STORAGE_KEY_NEWSBLUR_TOKEN = "newsblurToken";
 export const STORAGE_KEY_JOPLIN_TOKEN = "joplinToken"; // New: Joplin Token
 
+// --- Joplin API ---
+export const JOPLIN_API_BASE_URL = "http://localhost:41184";
+export const JOPLIN_API_FOLDERS_ENDPOINT = "/folders";
+export const JOPLIN_API_NOTES_ENDPOINT = "/notes";
+
 // --- Prompt Storage Keys ---
 export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT =
   "prompt_custom_format_instructions";

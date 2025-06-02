@@ -238,3 +238,157 @@
   font-size: 22px;
   line-height: 1;
 }
+
+/* Styling for Joplin Notebook Selection Popup */
+.joplin-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border: 1px solid #ccc;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 10000; /* Ensure it's on top of most elements */
+    width: 300px;
+    font-family: inherit; /* Inherit font from the page */
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.joplin-popup.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+}
+
+/* Styling for Joplin Notebook Selection Popup Header (similar to summarizer-popup header) */
+.joplin-popup-header-container {
+    padding: 14px 20px;
+    background-color: #2196F3;
+    color: #ffffff;
+    flex-shrink: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 8px 8px 0 0; /* Match popup border-radius */
+}
+
+.joplin-popup-header {
+    font-size: 1.1em; /* Adjusted for consistency */
+    font-weight: 600; /* Adjusted for consistency */
+    margin: 0;
+    text-align: center;
+    color: #ffffff; /* Ensure text is white against blue background */
+}
+
+.joplin-popup-body {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    min-height: 80px; /* Ensure some height for loading text */
+}
+
+.joplin-popup-body.placeholder-content {
+    /* Style for loading/error messages if needed */
+    color: #888;
+    font-style: italic;
+}
+
+.joplin-popup-body p {
+    margin: 0;
+    color: #555;
+}
+
+.joplin-notebook-search-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    margin-top: 10px;
+    box-sizing: border-box; /* Include padding in width */
+}
+
+.joplin-popup-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.joplin-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+}
+
+.joplin-save-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.joplin-save-btn:hover:not(:disabled) {
+    background-color: #45a049;
+}
+
+.joplin-cancel-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.joplin-cancel-btn:hover:not(:disabled) {
+    background-color: #da190b;
+}
+
+.joplin-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Autocomplete dropdown styles for Joplin popup */
+.joplin-autocomplete-dropdown {
+    position: absolute;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10001; /* Above Joplin popup */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.joplin-autocomplete-item {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 0.95em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid #eee;
+}
+
+.joplin-autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.joplin-autocomplete-item:hover,
+.joplin-autocomplete-item.selected {
+    background-color: #f0f0f0;
+}

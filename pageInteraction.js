@@ -12,6 +12,7 @@ import {
 import * as Highlighter from "./highlighter.js";
 import * as FloatingIcon from "./floatingIcon.js";
 import * as SummaryPopup from "./summaryPopup.js";
+import * as JoplinManager from "./joplinManager.js"; // New: Import JoplinManager
 import * as constants from "./constants.js"; // Assuming constants.js exports values
 
 // --- Module-level variables (assignments will happen in initialize) ---
@@ -26,6 +27,7 @@ let lastSummary = "";
 let lastModelUsed = "";
 let lastSelectedDomSnippet = null;
 let lastProcessedMarkdown = null;
+let joplinToken = null; // Store the actual Joplin token, not just its boolean presence
 
 let messageQueue = [];
 let modulesInitialized = false; // This flag is still useful to queue messages if initialization is async (e.g., fetching settings)
@@ -344,6 +346,8 @@ function handleElementSelected(element, clickX, clickY) {
     clickY,
     handleIconClick,
     handleIconDismiss,
+    handleJoplinIconClick, // New: Pass a handler for the Joplin icon
+    !!joplinToken      // New: Pass the boolean indicating if Joplin token is set
   );
 }
 
@@ -374,6 +378,38 @@ function handleIconDismiss() {
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
   lastProcessedMarkdown = null;
+}
+
+// New handler function for the Joplin icon click
+async function handleJoplinIconClick() {
+  if (DEBUG) console.log("[LLM Content] handleJoplinIconClick called.");
+  
+  // Remove floating icon immediately
+  FloatingIcon.removeFloatingIcon();
+
+  // Ensure the token is available
+  if (!joplinToken) {
+    showError("Joplin API token is not set. Please go to extension options to set it.", true, 5000);
+    if (DEBUG) console.error("[LLM Content] Joplin token is missing, cannot proceed.");
+    return;
+  }
+
+  // For Joplin, always send the raw HTML snippet.
+  const contentToSend = Highlighter.getSelectedElement()?.outerHTML || lastSelectedDomSnippet;
+  // Unconditionally set isHtmlContent to true for Joplin.
+  const isHtmlContent = true;
+  
+  if (!contentToSend || contentToSend.trim() === "") {
+    showError("No content available to send to Joplin.", true, 3000);
+    if (DEBUG) console.error("[LLM Content] No content (HTML) to send to Joplin.");
+    return;
+  }
+
+  const pageURL = window.location.href; // Get current page URL
+  if (DEBUG) console.log("[LLM Content] Initiating Joplin note creation with HTML content and URL:", contentToSend.substring(0, 100), pageURL);
+  
+  // Use JoplinManager to handle the notebook selection and note creation
+  await JoplinManager.fetchAndShowNotebookSelection(joplinToken, contentToSend, pageURL, isHtmlContent);
 }
 
 function handlePopupChat(targetLang = null) {
@@ -551,8 +587,11 @@ function handleMessage(req, sender, sendResponse) {
 
     lastModelUsed = req.model || "Unknown";
     const pageURL = window.location.href;
-    // Get NewsBlur token status passed from background script
-    const hasNewsblurTokenFromBackground = req.hasNewsblurToken || false; 
+    // Get NewsBlur and Joplin token status passed from background script,
+    // assuming it comes from getSettings message prior to summary request.
+    // However, for simplicity here, we assume if the flag is true at module level,
+    // the value is available via joplinToken variable.
+    const hasNewsblurTokenFromBackground = req.hasNewsblurToken || false;
 
     if (!SummaryPopup || !renderTextAsHtml) {
       console.error(
@@ -753,9 +792,10 @@ function handlePopupNewsblur(hasNewsblurToken) {
 // --- Initialization Function ---
 async function initialize() {
   try {
-    const result = await chrome.storage.sync.get(["debug"]);
+    const result = await chrome.storage.sync.get(["debug", "joplinToken"]); // Retrieve joplinToken
     DEBUG = !!result.debug;
-    if (DEBUG) console.log("[LLM Content] Initial Debug mode:", DEBUG);
+    joplinToken = result.joplinToken || null; // Set actual Joplin token
+    if (DEBUG) console.log("[LLM Content] Initial Debug mode:", DEBUG, "Joplin Token Loaded:", (joplinToken ? "Yes" : "No"));
 
     // showError and renderTextAsHtml are available from static imports at the top.
     // No need to dynamically import utils.js here.
@@ -840,6 +880,7 @@ async function initialize() {
     });
     FloatingIcon.initializeFloatingIcon({ initialDebugState: DEBUG });
     SummaryPopup.initializePopupManager({ initialDebugState: DEBUG });
+    JoplinManager.initializeJoplinManager({ initialDebugState: DEBUG }); // New: Initialize JoplinManager
 
     modulesInitialized = true; // Set after all essential initializations
     if (DEBUG)
