@@ -1110,8 +1110,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (apiKeyInput) apiKeyInput.value = data.apiKey || "";
       if (newsblurTokenInput) newsblurTokenInput.value = data[STORAGE_KEY_NEWSBLUR_TOKEN] || "";
       if (joplinTokenInput) joplinTokenInput.value = data[STORAGE_KEY_JOPLIN_TOKEN] || ""; // New: Populate Joplin Token Input
-      if (debugCheckbox) debugCheckbox.checked = true; // Set to true to always enable debug logging
-      DEBUG = true; // Ensure the internal DEBUG flag is set to true immediately
+      if (debugCheckbox) debugCheckbox.checked = DEBUG;
 
       let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
       bulletCountRadios.forEach(
@@ -1643,15 +1642,15 @@ document.addEventListener("DOMContentLoaded", async () => {
    });
 
    // Set initial active tab
-   // Check local storage for last active tab, otherwise default to 'api-keys-tokens-tab'
+   // Check local storage for last active tab, otherwise default to 'summary-tab'
    chrome.storage.local.get('lastActiveTab', (result) => {
-       const lastActiveTab = result.lastActiveTab || 'api-keys-tokens-tab'; // Updated default
+       const lastActiveTab = result.lastActiveTab || 'summary-tab'; // New default is 'summary-tab'
        const initialTabButton = document.querySelector(`.tab-button[data-tab="${lastActiveTab}"]`);
        if (initialTabButton) {
            initialTabButton.click(); // Simulate click to activate tab and its content
        } else {
-           // Fallback to the new default tab if stored tab doesn't exist
-           document.querySelector(`.tab-button[data-tab="api-keys-tokens-tab"]`).click();
+           // Fallback to the new default tab if stored tab doesn't exist (e.g., if 'api-keys-tokens-tab' was stored)
+           document.querySelector(`.tab-button[data-tab="summary-tab"]`).click();
        }
    });
 
