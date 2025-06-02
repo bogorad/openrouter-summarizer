@@ -14,12 +14,12 @@
     <h1>OpenRouter Summarizer<br>Options</h1>
 
     <div class="tab-navigation" role="tablist">
-      <button class="tab-button active" id="summary-tab-btn" role="tab" aria-selected="true" aria-controls="summary-tab" data-tab="summary-tab">Summary</button>
+      <button class="tab-button" id="summary-tab-btn" role="tab" aria-selected="false" aria-controls="summary-tab" data-tab="summary-tab">Summary</button>
       <button class="tab-button" id="api-tab-btn" role="tab" aria-selected="false" aria-controls="api-tab" data-tab="api-tab">API</button>
       <button class="tab-button" id="advanced-tab-btn" role="tab" aria-selected="false" aria-controls="advanced-tab" data-tab="advanced-tab">Advanced</button>
     </div>
 
-    <div class="tab-content active" id="summary-tab" role="tabpanel" aria-labelledby="summary-tab-btn">
+    <div class="tab-content" id="summary-tab" role="tabpanel" aria-labelledby="summary-tab-btn">
       <!-- Summary Options Section -->
       <div class="section">
         <h2>Summary Options</h2>
@@ -142,10 +142,10 @@
     <div class="tab-content" id="advanced-tab" role="tabpanel" aria-labelledby="advanced-tab-btn">
       <!-- Advanced Options / Prompt Customization Section -->
       <div class="section">
-        <h2 class="collapsible-header" id="advancedOptionsToggle" role="button" tabindex="0" aria-expanded="false">
-          Advanced Options <span class="toggle-indicator">►</span>
+        <h2>
+          Advanced Options
         </h2>
-        <div class="collapsible-content" id="advancedOptionsContent">
+        <div id="advancedOptionsContent">
           <!-- Content moved inside here -->
           <h3>Prompt Customization</h3>
           <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle

@@ -341,45 +341,6 @@ img.language-flag {
 /* --- Checkbox Group (Debug) --- */
 .checkbox-group { gap: 5px; }
 
-/* --- Collapsible Advanced Options --- */
-.collapsible-header {
-    cursor: pointer;
-    user-select: none; /* Prevent text selection on click */
-    display: flex; /* Align indicator */
-    justify-content: space-between; /* Push indicator to the right */
-    align-items: center;
-    margin-bottom: 10px; /* Space before hidden content */
-    border-bottom-color: #ccc; /* Less prominent border when closed */
-}
-.collapsible-header:hover {
-    color: #3498db; /* Highlight on hover */
-}
-.collapsible-header .toggle-indicator {
-    display: inline-block;
-    margin-left: 10px;
-    font-size: 0.8em;
-    transition: transform 0.2s ease-in-out;
-}
-.collapsible-header[aria-expanded="true"] {
-     border-bottom-color: #3498db; /* Restore prominent border when open */
-     /* margin-bottom is handled by the content area */
-}
-.collapsible-header[aria-expanded="true"] .toggle-indicator {
-    transform: rotate(90deg);
-}
-
-.collapsible-content {
-    display: none; /* Hidden by default */
-    padding-left: 10px; /* Slight indent */
-    border-left: 2px solid #eee; /* Visual cue */
-    margin-left: 5px;
-    overflow: hidden; /* Needed for smooth transition if added */
-    padding-bottom: 15px; /* Add padding at the bottom */
-}
-.collapsible-content.active {
-    display: block; /* Show when active */
-}
-/* --- End Collapsible --- */
 
 
 /* --- Prompt Customization Area --- */

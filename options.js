@@ -40,12 +40,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     "promptFormatInstructions",
   );
   const promptPostambleDiv = document.getElementById("promptPostamble");
-  const advancedOptionsToggle = document.getElementById(
-    "advancedOptionsToggle",
-  );
-  const advancedOptionsContent = document.getElementById(
-    "advancedOptionsContent",
-  );
   const maxKbDisplay = document.getElementById("maxKbDisplay");
   const updatePricingBtn = document.getElementById("updatePricingBtn");
   const pricingNotification = document.getElementById("pricingNotification");
@@ -388,14 +382,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderModelOptions() {
     if (!modelSelectionArea) return;
     modelSelectionArea.innerHTML = "";
-
+ 
     if (!currentModels || currentModels.length === 0) {
       modelSelectionArea.innerHTML =
         "<p>No models configured. Add one below or save to use defaults.</p>";
       if (addModelBtn) addModelBtn.disabled = true;
       return;
     }
-
+ 
     if (addModelBtn) {
       addModelBtn.disabled = currentModels.length >= MAX_MODELS;
       addModelBtn.title =
@@ -403,7 +397,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? `Maximum limit of ${MAX_MODELS} models reached.`
           : `Add another model (max ${MAX_MODELS}).`;
     }
-
+ 
     const validModelIds = currentModels
       .filter((m) => m.id.trim() !== "")
       .map((m) => m.id);
@@ -413,18 +407,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!validModelIds.includes(currentChatModelId)) {
       currentChatModelId = validModelIds.length > 0 ? validModelIds[0] : "";
     }
-
+ 
     currentModels.forEach((model, index) => {
       const modelIdTrimmed = model.id.trim();
       const isModelIdValid = modelIdTrimmed !== "";
-
+ 
       const group = document.createElement("div");
       group.className = "option-group model-option";
-
+ 
       // --- Model Info (ID Input ONLY) ---
       const modelInfo = document.createElement("div");
       modelInfo.className = "model-info"; // Wrapper div
-
+ 
       const textInput = document.createElement("input"); // Model ID Input
       textInput.type = "text";
       textInput.id = `modelText_${index}`;
@@ -432,15 +426,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       textInput.placeholder = "Enter OpenRouter Model ID";
       textInput.dataset.index = index;
       textInput.addEventListener("input", handleModelTextChange);
-
+ 
       modelInfo.appendChild(textInput); // Only append ID input
       group.appendChild(modelInfo);
       setupAutocomplete(textInput, 'model'); // Setup autocomplete for model input
-
+ 
       // --- Radios Container (Summary + Chat) ---
       const modelRadios = document.createElement("div");
       modelRadios.className = "model-radios";
-
+ 
       // -- Summary Radio Group --
       const summaryGroup = document.createElement("div");
       summaryGroup.className = "radio-group";
@@ -464,7 +458,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       summaryGroup.appendChild(summaryRadio);
       summaryGroup.appendChild(summaryLabel);
       modelRadios.appendChild(summaryGroup);
-
+ 
       // -- Chat Radio Group --
       const chatGroup = document.createElement("div");
       chatGroup.className = "radio-group";
@@ -485,9 +479,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       chatGroup.appendChild(chatRadio);
       chatGroup.appendChild(chatLabel);
       modelRadios.appendChild(chatGroup);
-
+ 
       group.appendChild(modelRadios);
-
+ 
       // --- Remove Button ---
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
@@ -497,18 +491,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       removeBtn.dataset.index = index;
       removeBtn.addEventListener("click", handleModelRemoveClick);
       group.appendChild(removeBtn);
-
+ 
       modelSelectionArea.appendChild(group);
     });
     calculateKbLimitForSummary();
   }
-
+ 
   // Handler for Summary/Chat radio changes (Updated for immediate save)
   function handleRadioChange(event) {
     if (!event.target.checked) return;
     const modelId = event.target.value;
     const type = event.target.name === "summary-default" ? "summary" : "chat";
-
+ 
     if (type === "summary") {
       currentSummaryModelId = modelId;
       if (DEBUG)
@@ -522,24 +516,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     saveSettings(); // Save settings immediately after selection
   }
-
+ 
   // UPDATED Handler for Model ID text changes (No Label Logic)
   function handleModelTextChange(event) {
     const idx = parseInt(event.target.dataset.index, 10);
     if (idx < 0 || idx >= currentModels.length) return; // Add boundary check
-
+ 
     const oldModelId = currentModels[idx].id.trim();
     const newModelId = event.target.value.trim();
     const isNewIdValid = newModelId !== "";
-
+ 
     currentModels[idx].id = newModelId;
-
+ 
     // Update the corresponding radio buttons' values and disabled state
     const summaryRadio = document.getElementById(`summary-radio-${idx}`);
     const chatRadio = document.getElementById(`chat-radio-${idx}`);
-
+ 
     let needsReRender = false; // Flag if defaults need recalculation
-
+ 
     if (summaryRadio) {
       summaryRadio.value = newModelId;
       summaryRadio.disabled = !isNewIdValid;
@@ -564,7 +558,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         needsReRender = true;
       }
     }
-
+ 
     // Re-render if defaults were potentially invalidated and reset
     if (needsReRender) {
       if (DEBUG)
@@ -574,7 +568,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderModelOptions();
       return; // Exit early as render handles the rest
     }
-
+ 
     // Update default selections if the changed model *was* the default
     if (oldModelId === currentSummaryModelId && isNewIdValid) {
       currentSummaryModelId = newModelId;
@@ -583,23 +577,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentChatModelId = newModelId;
     }
   }
-
+ 
   // REMOVED handleModelLabelChange function entirely
-
+ 
   // Handler for Model Removal (Unchanged logic, state already lacks labels)
   function handleModelRemoveClick(event) {
     const index = parseInt(event.target.dataset.index, 10);
     if (index < 0 || index >= currentModels.length) return;
-
+ 
     const removedModelId = currentModels[index].id.trim();
     currentModels.splice(index, 1);
-
+ 
     const remainingValidIds = currentModels
       .filter((m) => m.id.trim() !== "")
       .map((m) => m.id.trim());
     const newDefaultId =
       remainingValidIds.length > 0 ? remainingValidIds[0] : "";
-
+ 
     let changedDefaults = false;
     if (removedModelId !== "" && removedModelId === currentSummaryModelId) {
       currentSummaryModelId = newDefaultId;
@@ -617,10 +611,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           `[LLM Options] Chat default removed, new default: ${currentChatModelId || "None"}`,
         );
     }
-
+ 
     renderModelOptions();
   }
-
+ 
   // UPDATED Function to add a new model row (No Label)
   function addModel() {
     if (currentModels.length < MAX_MODELS) {
@@ -640,7 +634,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   // --- End Model Selection ---
-
+ 
   // --- Language Selection Rendering and Handlers (Unchanged) ---
   function renderLanguageOptions() {
     if (!languageSelectionArea) return;
@@ -698,7 +692,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       languageSelectionArea.appendChild(group);
       setupAutocomplete(textInput);
     });
-
+ 
     if (addLangBtn) {
       addLangBtn.disabled = language_info.length >= MAX_LANGUAGES;
       addLangBtn.title =
@@ -808,7 +802,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
       draggingElements.forEach((el) => el.classList.remove("dragging"));
     }
-
+ 
     // Clear drag over styles from all items defensively
     languageSelectionArea.querySelectorAll(".language-option").forEach((el) => {
       el.classList.remove("drag-over-top", "drag-over-bottom");
@@ -822,7 +816,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const targetElement = event.target.closest(".language-option");
     if (!targetElement || draggedItemIndex === null) return; // Ensure we have a target and are dragging
     const targetIndex = parseInt(targetElement.dataset.index, 10);
-
+ 
     // Clear previous indicators first
     languageSelectionArea.querySelectorAll(".language-option").forEach((el) => {
       // Don't remove indicator from the current target element yet
@@ -830,7 +824,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         el.classList.remove("drag-over-top", "drag-over-bottom");
       }
     });
-
+ 
     if (draggedItemIndex !== targetIndex) {
       // Don't show indicator when hovering over itself
       const rect = targetElement.getBoundingClientRect();
@@ -850,7 +844,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function handleDragLeave(event) {
     const relatedTarget = event.relatedTarget;
     const targetElement = event.target.closest(".language-option");
-
+ 
     // Check if the mouse is leaving the element entirely or just moving to a child/parent within it
     if (
       targetElement &&
@@ -863,16 +857,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     const targetElement = event.target.closest(".language-option");
     if (!targetElement || draggedItemIndex === null) return;
-
+ 
     const targetIndex = parseInt(targetElement.dataset.index, 10);
     targetElement.classList.remove("drag-over-top", "drag-over-bottom"); // Clean up indicator
-
+ 
     // Prevent dropping onto itself
     if (draggedItemIndex === targetIndex) {
       draggedItemIndex = null; // Reset drag state
       return;
     }
-
+ 
     const draggedItem = language_info[draggedItemIndex];
     if (!draggedItem) {
       // Safety check
@@ -880,34 +874,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       draggedItemIndex = null;
       return;
     }
-
+ 
     // Remove from old position first
     language_info.splice(draggedItemIndex, 1);
-
+ 
     // Calculate new index based on drop position relative to target
     const rect = targetElement.getBoundingClientRect();
     const isOverTopHalf = event.clientY < rect.top + rect.height / 2;
-
+ 
     // Determine insertion index: Before target if dropped on top half, Adjusted index if dropped on bottom half
     let newIndex =
       draggedItemIndex < targetIndex ? targetIndex - 1 : targetIndex; // Adjust index because splice shifted items
     if (!isOverTopHalf) {
       newIndex = draggedItemIndex < targetIndex ? targetIndex : targetIndex + 1; // Insert after target
     }
-
+ 
     // Insert at the calculated new position
     language_info.splice(newIndex, 0, draggedItem);
-
+ 
     if (DEBUG)
       console.log(
         `[LLM Options] Dropped language from original index ${draggedItemIndex} to new index ${newIndex}`,
       );
     renderLanguageOptions(); // Re-render to apply new order and indices
-
+ 
     draggedItemIndex = null; // Reset dragged item index
   }
   // --- End Language Selection ---
-
+ 
   // --- Prompt Preview & Collapsible (Unchanged) ---
   function updatePromptPreview() {
     let bulletCount = DEFAULT_BULLET_COUNT;
@@ -925,36 +919,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (promptFormatInstructionsTextarea)
       promptFormatInstructionsTextarea.value = currentCustomFormatInstructions;
   }
-  function setupCollapsible() {
-    if (advancedOptionsToggle && advancedOptionsContent) {
-      const toggleSection = () => {
-        const isExpanded =
-          advancedOptionsToggle.getAttribute("aria-expanded") === "true";
-        advancedOptionsToggle.setAttribute("aria-expanded", !isExpanded);
-        advancedOptionsContent.classList.toggle("active");
-        const toggleIndicator =
-          advancedOptionsToggle.querySelector(".toggle-indicator");
-        if (toggleIndicator)
-          toggleIndicator.textContent = isExpanded ? "►" : "▼";
-      };
-      advancedOptionsToggle.addEventListener("click", toggleSection);
-      advancedOptionsToggle.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          toggleSection();
-        }
-      });
-      const isInitiallyExpanded = false;
-      advancedOptionsToggle.setAttribute("aria-expanded", isInitiallyExpanded);
-      if (isInitiallyExpanded) advancedOptionsContent.classList.add("active");
-      const initialIndicator =
-        advancedOptionsToggle.querySelector(".toggle-indicator");
-      if (initialIndicator)
-        initialIndicator.textContent = isInitiallyExpanded ? "▼" : "►";
-    }
-  }
   // --- End Prompt Preview ---
-
+ 
   // --- Pricing Data Check and Update Functions ---
   /**
    * Checks if model and pricing data is available and updates the notification UI.
@@ -1617,28 +1583,8 @@ document.addEventListener("DOMContentLoaded", async () => {
        document.getElementById(targetTabId).classList.add('active');
        if (DEBUG) console.log(`[LLM Options] Switched to tab: ${targetTabId}`);
 
-       // Special handling for advanced options tab: ensure collapsible is correct
-       if (targetTabId === 'advanced-tab') {
-           // When switching TO the advanced tab, content visibility is handled by the overall tab system.
-           // However, the collapsible *within* it needs its own state initialized or preserved.
-           // Re-apply the initial expansion state or ensure the collapsible visually matches its aria-expanded state.
-           const isExpanded = advancedOptionsToggle.getAttribute('aria-expanded') === 'true';
-           advancedOptionsContent.classList.toggle('active', isExpanded);
-           const toggleIndicator = advancedOptionsToggle.querySelector('.toggle-indicator');
-           if (toggleIndicator) {
-               toggleIndicator.textContent = isExpanded ? '▼' : '►';
-           }
-       } else {
-           // If leaving advanced tab (and it was expanded), collapse it visually to reset its state for next time
-           if (advancedOptionsToggle && advancedOptionsToggle.getAttribute('aria-expanded') === 'true') {
-               advancedOptionsToggle.setAttribute('aria-expanded', 'false');
-               advancedOptionsContent.classList.remove('active');
-               const toggleIndicator = advancedOptionsToggle.querySelector('.toggle-indicator');
-               if (toggleIndicator) {
-                   toggleIndicator.textContent = '►';
-               }
-           }
-       }
+       // Special handling for advanced options tab: No longer collapsible, so no special handling needed here.
+       // The general tab content activation/deactivation is sufficient.
      });
    });
 
@@ -1666,7 +1612,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
  async function initializeOptionsPage() {
    try {
-     setupCollapsible();
      await loadSettings();
 
      // Connect input fields for API Key and Joplin Token to the unified handler
