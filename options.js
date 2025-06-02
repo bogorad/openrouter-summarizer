@@ -1580,51 +1580,72 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     debounceTimeoutId = setTimeout(() => {
       let tokenValue = newsblurTokenInput.value.trim();
-      // Check if it's a URL and try to extract the token
-      if (
-        tokenValue.startsWith("http://") ||
-        tokenValue.startsWith("https://")
-      ) {
+      let extractedToken = null;
+
+      // First, attempt to extract the full NewsBlur API URL and token from a potential bookmarklet string
+      // This regex specifically targets the /add_site_load_script/xxxxx?url= pattern within the raw string.
+      // The user specified 'a-z0-9' for the token from the bookmarklet template.
+      const bookmarkletRegex = /https:\/\/www\.newsblur\.com\/api\/add_site_load_script\/([a-z0-9]+)\?url=/;
+      const bookmarkletMatch = tokenValue.match(bookmarkletRegex);
+
+      if (bookmarkletMatch && bookmarkletMatch[1]) {
+        // If it's a bookmarklet string and we found the token via regex
+        extractedToken = bookmarkletMatch[1];
+        if (DEBUG) console.log("[LLM Options] Extracted NewsBlur token from bookmarklet URL (alphanumeric only):", extractedToken);
+      } else if (tokenValue.startsWith("http://") || tokenValue.startsWith("https://")) {
+        // If it's a regular HTTP/HTTPS URL, try to extract token from path or query params
         try {
           const url = new URL(tokenValue);
-          // Extract token specifically from the path between /add_site_load_script/ and ?url
-          const regex = /\/add_site_load_script\/([a-zA-Z0-9]+)\?url/;
-          const match = url.pathname.match(regex);
-          let extractedToken = null;
-          if (match && match[1]) {
-            extractedToken = match[1];
+          // Try extracting from path (for /api/share_story/TOKEN or /api/add_site_load_script/TOKEN)
+          // This allows hyphens and underscores as valid characters for general NewsBlur tokens,
+          // as these are common in API tokens.
+          const pathRegex = /\/[a-z_]+\/[a-z_]+\/([a-zA-Z0-9_-]+)(?:[\/\?#]|$)/; // Added non-capturing group for end of path
+          let pathMatch = url.pathname.match(pathRegex);
+          if (pathMatch && pathMatch[1]) {
+            extractedToken = pathMatch[1];
           }
 
-          // Validate the extracted token: alphanumeric only, at least 1 character, and not "NB"
-          if (
-            extractedToken &&
-            /^[a-z0-9]+$/.test(extractedToken) &&
-            extractedToken.toUpperCase() !== "NB"
-          ) {
-            newsblurTokenInput.value = extractedToken; // Update input field with extracted token
-            tokenValue = extractedToken;
-            if (DEBUG)
-              console.log(
-                "[LLM Options] Extracted NewsBlur token from URL:",
-                tokenValue,
-              );
-          } else {
-            if (DEBUG)
-              console.warn(
-                "[LLM Options] Could not extract a valid-looking NewsBlur token from URL:",
-                tokenValue,
-                "Extracted part:",
-                extractedToken,
-              );
+          // Fallback to query parameters token/secret, allowing hyphens/underscores
+          if (!extractedToken && url.searchParams.has('token')) {
+            extractedToken = url.searchParams.get('token');
+          } else if (!extractedToken && url.searchParams.has('secret')) {
+            extractedToken = url.searchParams.get('secret');
           }
+          if (DEBUG && extractedToken) console.log("[LLM Options] Extracted NewsBlur token from direct HTTP/HTTPS URL:", extractedToken);
+
         } catch (e) {
-          if (DEBUG)
-            console.warn("[LLM Options] Error parsing NewsBlur URL:", e);
-          // If parsing fails, proceed with the raw value, it might be the token itself
+          if (DEBUG) console.warn("[LLM Options] Error parsing direct URL:", e);
+          // extractedToken remains null if parsing fails
         }
       }
-      // Save all settings, as this function is also called on blur
-      saveSettings();
+
+      // Final validation and assignment based on extracted token or raw input presumed to be a token
+      // The final token validation should be flexible unless it came directly from the bookmarklet regex.
+      if (extractedToken && extractedToken.toUpperCase() !== 'NB') {
+        // Apply general validation for any extracted token (ensuring it's not just "NB")
+        // For tokens from bookmarkletRegex, validity is already checked.
+        // For others, allow alphanumeric, hyphen, underscore.
+        if (!/^[a-zA-Z0-9_-]+$/.test(extractedToken)) {
+          if (DEBUG) console.warn("[LLM Options] Extracted token failed general validation (alphanumeric, hyphen, underscore):", extractedToken);
+          extractedToken = null; // Invalidate if it doesn't match the general, more permissive token format
+        }
+      } else if (!extractedToken && /^[a-zA-Z0-9_-]+$/.test(tokenValue) && tokenValue.toUpperCase() !== 'NB') {
+        // If no token was extracted from a URL/bookmarklet, but the raw tokenValue itself matches a valid token pattern,
+        // then assume the user directly entered the token. Use the more permissive validation.
+        extractedToken = tokenValue;
+        if (DEBUG) console.log("[LLM Options] Input assumed to be a direct NewsBlur token (alphanumeric, hyphen, underscore):", extractedToken);
+      } else {
+        // If all extraction/direct input attempts fail, ensure extractedToken is null to indicate no valid token was found.
+        if (DEBUG) console.warn("[LLM Options] Could not extract or identify a valid NewsBlur token from input:", tokenValue);
+        extractedToken = null;
+      }
+
+      // Update the input field value based on the final extractedToken (or clear it if invalid)
+      newsblurTokenInput.value = extractedToken || "";
+      // Ensure tokenValue for saveSettings() reflects the potentially new, validated token
+      tokenValue = extractedToken || "";
+      
+      saveSettings(); // Save all settings, as this function is also called on blur
       debounceTimeoutId = null;
     }, DEBOUNCE_DELAY);
   }
