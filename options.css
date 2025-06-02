@@ -68,7 +68,8 @@ body {
 
 /* --- Tab Content --- */
 .tab-content {
-    display: none; /* Hidden by default */
+    /* Temporarily remove display: none to see all content initially */
+   /* display: none; */
 }
 
 .tab-content.active {

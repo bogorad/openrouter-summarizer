@@ -1110,7 +1110,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (apiKeyInput) apiKeyInput.value = data.apiKey || "";
       if (newsblurTokenInput) newsblurTokenInput.value = data[STORAGE_KEY_NEWSBLUR_TOKEN] || "";
       if (joplinTokenInput) joplinTokenInput.value = data[STORAGE_KEY_JOPLIN_TOKEN] || ""; // New: Populate Joplin Token Input
-      if (debugCheckbox) debugCheckbox.checked = DEBUG;
+      if (debugCheckbox) debugCheckbox.checked = true; // Set to true to always enable debug logging
+      DEBUG = true; // Ensure the internal DEBUG flag is set to true immediately
 
       let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
       bulletCountRadios.forEach(
