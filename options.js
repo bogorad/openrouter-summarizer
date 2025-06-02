@@ -1598,7 +1598,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           // Validate the extracted token: alphanumeric only, at least 1 character, and not "NB"
           if (
             extractedToken &&
-            /^[a-zA-Z0-9]+$/.test(extractedToken) &&
+            /^[a-z0-9]+$/.test(extractedToken) &&
             extractedToken.toUpperCase() !== "NB"
           ) {
             newsblurTokenInput.value = extractedToken; // Update input field with extracted token

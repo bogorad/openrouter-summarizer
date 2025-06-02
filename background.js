@@ -220,7 +220,7 @@ async function handleAsyncMessage(request, sender, sendResponse) {
           sendResponse({ status: "success", result: apiResult });
         } catch (error) {
           // This error is caught from shareToNewsblurAPI throwing it, or an unexpected error before that.
-          console.info(
+          console.error(
             "[LLM Background] shareToNewsblur handler caught an error:",
             error,
           ); // Unconditional info log
@@ -314,9 +314,9 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
         } catch (e) {
           console.info("[LLM NewsBlur] Failed to read 502 response body:", e); // Info log
         }
-        console.info(
+        console.warn(
           `[LLM NewsBlur] NewsBlur API returned 502 (Normal). Treating as success. Raw response: ${responseBody}`,
-        ); // Info log
+        ); // Changed to console.warn
         return {
           code: 0,
           message: `NewsBlur API 502 received, treated as success: ${responseBody}`,
@@ -342,7 +342,7 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
       } catch (e) {
         errorText += ` - Failed to read response body: ${e.message}`; // Fallback if body can't be read
       }
-      console.info(
+      console.error(
         "[LLM NewsBlur] NewsBlur API non-OK response (error):",
         response.status,
         responseBody,
@@ -354,7 +354,7 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
     if (DEBUG_API) console.log("NewsBlur Share Response:", result);
 
     if (result.code < 0 || (result.result && result.result === "error")) {
-      console.info(
+      console.error(
         "Error sharing to NewsBlur:",
         result.message || JSON.stringify(result.errors || result),
       ); // Changed to console.info
@@ -367,10 +367,10 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
       return result;
     }
   } catch (error) {
-    console.info(
+    console.error(
       "[LLM NewsBlur] Failed to share to NewsBlur (caught error):",
       error,
-    ); // Changed to console.info
+    ); // Changed to console.error
     return { code: -1, message: error.message };
   }
 }
