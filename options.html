@@ -14,13 +14,11 @@
     <h1>OpenRouter Summarizer<br>Options</h1>
 
     <div class="tab-navigation" role="tablist">
-      <button class="tab-button active" id="summary-tab-btn" role="tab" aria-selected="true" aria-controls="summary-tab" data-tab="summary-tab">Summary</button>
+      <button class="tab-button" id="summary-tab-btn" role="tab" aria-selected="false" aria-controls="summary-tab" data-tab="summary-tab">Summary</button>
       <button class="tab-button" id="api-tab-btn" role="tab" aria-selected="false" aria-controls="api-tab" data-tab="api-tab">API</button>
     </div>
 
-    <div class="tab-content active" id="summary-tab" role="tabpanel" aria-labelledby="summary-tab-btn">
-      <!-- Content for Summary Tab (all previously existing other tabs except API) -->
-
+    <div class="tab-content" id="summary-tab" role="tabpanel" aria-labelledby="summary-tab-btn">
       <!-- Summary Options Section -->
       <div class="section">
         <h2>Summary Options</h2>
@@ -175,17 +173,16 @@
       </div>
     </div>
 
+<!-- Actions Area -->
+<div class="actions">
+  <button id="saveBtn" class="button save-button">Save</button>
+  <button id="resetDefaultsBtn" class="button reset-button">Reset to Defaults</button>
+  <span id="status" class="status-message"></span>
+</div>
 
-    <!-- Actions Area -->
-    <div class="actions">
-      <button id="saveBtn" class="button save-button">Save</button>
-      <button id="resetDefaultsBtn" class="button reset-button">Reset to Defaults</button>
-      <span id="status" class="status-message"></span>
-    </div>
+</div>
 
-  </div>
-
-  <script src="options.js" type="module"></script> <!-- Ensure type=module if using imports -->
+<script src="options.js" type="module"></script> <!-- Ensure type=module if using imports -->
 </body>
 
 </html>
