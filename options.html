@@ -15,6 +15,7 @@
 
     <div class="tab-navigation" role="tablist">
       <button class="tab-button" id="summary-tab-btn" role="tab" aria-selected="false" aria-controls="summary-tab" data-tab="summary-tab">Summary</button>
+      <button class="tab-button" id="models-tab-btn" role="tab" aria-selected="false" aria-controls="models-tab" data-tab="models-tab">Models</button>
       <button class="tab-button" id="api-tab-btn" role="tab" aria-selected="false" aria-controls="api-tab" data-tab="api-tab">API</button>
       <button class="tab-button" id="advanced-tab-btn" role="tab" aria-selected="false" aria-controls="advanced-tab" data-tab="advanced-tab">Advanced</button>
     </div>
@@ -36,6 +37,39 @@
         </div>
       </div>
 
+
+      <!-- Configured Languages for Chat Flags Section -->
+      <div class="section">
+        <h2>Configured Languages for Chat Flags</h2>
+        <p>
+        <ul>
+          <li>Add languages here to show their flags in the summary popup.</li>
+          <li>The <b>first language</b> in this list will be used to request the <b>initial summary</b> from the LLM.
+          </li>
+          <li>Clicking a flag in the popup will open the chat tab and request a translation of the summary into that
+            language.</li>
+          <li>Drag the grab handle on the left of each language row to change their order.</li>
+        </ul>
+        </p>
+        <div id="languageSelectionArea">
+          <p>Loading languages...</p>
+        </div>
+        <button id="addLangBtn" class="button add-button">Add Another Language</button>
+        <p class="note">Start typing a language name to see suggestions. The flag displayed is based on the language's
+          ISO 639-1 code if available.</p>
+      </div>
+
+      <!-- Other Settings Section -->
+      <div class="section">
+        <h2>Other Settings</h2>
+        <div class="option-group checkbox-group">
+          <input type="checkbox" id="debug">
+          <label for="debug">Enable Debug Logging (requires DevTools console)</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="models-tab" role="tabpanel" aria-labelledby="models-tab-btn">
       <!-- Model Selection Section -->
       <div class="section">
         <h2>Model Selection</h2>
@@ -78,36 +112,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Configured Languages for Chat Flags Section -->
-      <div class="section">
-        <h2>Configured Languages for Chat Flags</h2>
-        <p>
-        <ul>
-          <li>Add languages here to show their flags in the summary popup.</li>
-          <li>The <b>first language</b> in this list will be used to request the <b>initial summary</b> from the LLM.
-          </li>
-          <li>Clicking a flag in the popup will open the chat tab and request a translation of the summary into that
-            language.</li>
-          <li>Drag the grab handle on the left of each language row to change their order.</li>
-        </ul>
-        </p>
-        <div id="languageSelectionArea">
-          <p>Loading languages...</p>
-        </div>
-        <button id="addLangBtn" class="button add-button">Add Another Language</button>
-        <p class="note">Start typing a language name to see suggestions. The flag displayed is based on the language's
-          ISO 639-1 code if available.</p>
-      </div>
-
-      <!-- Other Settings Section -->
-      <div class="section">
-        <h2>Other Settings</h2>
-        <div class="option-group checkbox-group">
-          <input type="checkbox" id="debug">
-          <label for="debug">Enable Debug Logging (requires DevTools console)</label>
-        </div>
-      </div>
     </div>
 
     <div class="tab-content" id="api-tab" role="tabpanel" aria-labelledby="api-tab-btn">
@@ -129,9 +133,9 @@
         <p class="note" id="newsblurTokenNote">This token is stored locally and used to share articles to your NewsBlur account.</p>
       </div>
 
-      <!-- Joplin Export Section -->
+      <!-- Joplin API Token Section -->
       <div class="section">
-        <h2>Joplin Export</h2>
+        <h2>Joplin API Token</h2>
         <p id="joplinTokenDesc">To enable exporting to Joplin, enter your Joplin API token. You can find this in Joplin under Tools > Options > Web Clipper/API.</p>
         <label for="joplinToken" class="sr-only">Joplin API Token</label>
         <input type="text" id="joplinToken" placeholder="Joplin API Token" class="wide-input" aria-describedby="joplinTokenDesc joplinTokenNote">

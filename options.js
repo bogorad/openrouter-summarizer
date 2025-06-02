@@ -64,6 +64,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const DEBOUNCE_DELAY = 300; // ms delay for input processing
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
 
+  function maskToken(token) {
+    if (!token || token.length <= 4) {
+      return "****"; // Too short to mask meaningfully
+    }
+    const firstTwo = token.substring(0, 2);
+    const lastTwo = token.substring(token.length - 2);
+    const middle = "*".repeat(token.length - 4);
+    return `${firstTwo}${middle}${lastTwo}`;
+  }
+
   let DEBUG = false;
   let currentModels = []; // Array of objects like { id: "model/id" }
   let currentSummaryModelId = "";
@@ -1406,13 +1416,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       [STORAGE_KEY_NEWSBLUR_TOKEN]: newsblurTokenInput
         ? newsblurTokenInput.value.trim()
         : "", // New: Save NewsBlur Token
+      [STORAGE_KEY_JOPLIN_TOKEN]: joplinTokenInput
+        ? joplinTokenInput.value.trim()
+        : "", // New: Save Joplin Token
     };
 
-    if (DEBUG)
+    if (DEBUG) {
+      // Create a copy of settingsToSave and mask sensitive fields
+      const logSettings = { ...settingsToSave };
+      if (logSettings.apiKey)
+        logSettings.apiKey = maskToken(logSettings.apiKey);
+      if (logSettings.newsblurToken)
+        logSettings.newsblurToken = maskToken(logSettings.newsblurToken);
+      if (logSettings.joplinToken)
+        logSettings.joplinToken = maskToken(logSettings.joplinToken);
       console.log(
         "[LLM Options] Settings prepared for saving (no labels):",
-        settingsToSave,
+        logSettings,
       );
+    }
 
     chrome.storage.sync.set(settingsToSave, () => {
       if (chrome.runtime.lastError) {
@@ -1585,14 +1607,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       // First, attempt to extract the full NewsBlur API URL and token from a potential bookmarklet string
       // This regex specifically targets the /add_site_load_script/xxxxx?url= pattern within the raw string.
       // The user specified 'a-z0-9' for the token from the bookmarklet template.
-      const bookmarkletRegex = /https:\/\/www\.newsblur\.com\/api\/add_site_load_script\/([a-z0-9]+)\?url=/;
+      const bookmarkletRegex =
+        /https:\/\/www\.newsblur\.com\/api\/add_site_load_script\/([a-z0-9]+)\?url=/;
       const bookmarkletMatch = tokenValue.match(bookmarkletRegex);
 
       if (bookmarkletMatch && bookmarkletMatch[1]) {
         // If it's a bookmarklet string and we found the token via regex
         extractedToken = bookmarkletMatch[1];
-        if (DEBUG) console.log("[LLM Options] Extracted NewsBlur token from bookmarklet URL (alphanumeric only):", extractedToken);
-      } else if (tokenValue.startsWith("http://") || tokenValue.startsWith("https://")) {
+        if (DEBUG)
+          console.log(
+            "[LLM Options] Extracted NewsBlur token from bookmarklet URL (alphanumeric only):",
+            maskToken(extractedToken),
+          );
+      } else if (
+        tokenValue.startsWith("http://") ||
+        tokenValue.startsWith("https://")
+      ) {
         // If it's a regular HTTP/HTTPS URL, try to extract token from path or query params
         try {
           const url = new URL(tokenValue);
@@ -1606,13 +1636,16 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
 
           // Fallback to query parameters token/secret, allowing hyphens/underscores
-          if (!extractedToken && url.searchParams.has('token')) {
-            extractedToken = url.searchParams.get('token');
-          } else if (!extractedToken && url.searchParams.has('secret')) {
-            extractedToken = url.searchParams.get('secret');
+          if (!extractedToken && url.searchParams.has("token")) {
+            extractedToken = url.searchParams.get("token");
+          } else if (!extractedToken && url.searchParams.has("secret")) {
+            extractedToken = url.searchParams.get("secret");
           }
-          if (DEBUG && extractedToken) console.log("[LLM Options] Extracted NewsBlur token from direct HTTP/HTTPS URL:", extractedToken);
-
+          if (DEBUG && extractedToken)
+            console.log(
+              "[LLM Options] Extracted NewsBlur token from direct HTTP/HTTPS URL:",
+              maskToken(extractedToken),
+            );
         } catch (e) {
           if (DEBUG) console.warn("[LLM Options] Error parsing direct URL:", e);
           // extractedToken remains null if parsing fails
@@ -1621,22 +1654,38 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // Final validation and assignment based on extracted token or raw input presumed to be a token
       // The final token validation should be flexible unless it came directly from the bookmarklet regex.
-      if (extractedToken && extractedToken.toUpperCase() !== 'NB') {
+      if (extractedToken && extractedToken.toUpperCase() !== "NB") {
         // Apply general validation for any extracted token (ensuring it's not just "NB")
         // For tokens from bookmarkletRegex, validity is already checked.
         // For others, allow alphanumeric, hyphen, underscore.
         if (!/^[a-zA-Z0-9_-]+$/.test(extractedToken)) {
-          if (DEBUG) console.warn("[LLM Options] Extracted token failed general validation (alphanumeric, hyphen, underscore):", extractedToken);
+          if (DEBUG)
+            console.warn(
+              "[LLM Options] Extracted token failed general validation (alphanumeric, hyphen, underscore):",
+              maskToken(extractedToken),
+            );
           extractedToken = null; // Invalidate if it doesn't match the general, more permissive token format
         }
-      } else if (!extractedToken && /^[a-zA-Z0-9_-]+$/.test(tokenValue) && tokenValue.toUpperCase() !== 'NB') {
+      } else if (
+        !extractedToken &&
+        /^[a-zA-Z0-9_-]+$/.test(tokenValue) &&
+        tokenValue.toUpperCase() !== "NB"
+      ) {
         // If no token was extracted from a URL/bookmarklet, but the raw tokenValue itself matches a valid token pattern,
         // then assume the user directly entered the token. Use the more permissive validation.
         extractedToken = tokenValue;
-        if (DEBUG) console.log("[LLM Options] Input assumed to be a direct NewsBlur token (alphanumeric, hyphen, underscore):", extractedToken);
+        if (DEBUG)
+          console.log(
+            "[LLM Options] Input assumed to be a direct NewsBlur token (alphanumeric, hyphen, underscore):",
+            maskToken(extractedToken),
+          );
       } else {
         // If all extraction/direct input attempts fail, ensure extractedToken is null to indicate no valid token was found.
-        if (DEBUG) console.warn("[LLM Options] Could not extract or identify a valid NewsBlur token from input:", tokenValue);
+        if (DEBUG)
+          console.log(
+            "[LLM Options] Could not extract or identify a valid NewsBlur token from input:",
+            maskToken(tokenValue),
+          );
         extractedToken = null;
       }
 
@@ -1644,7 +1693,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       newsblurTokenInput.value = extractedToken || "";
       // Ensure tokenValue for saveSettings() reflects the potentially new, validated token
       tokenValue = extractedToken || "";
-      
+
       saveSettings(); // Save all settings, as this function is also called on blur
       debounceTimeoutId = null;
     }, DEBOUNCE_DELAY);

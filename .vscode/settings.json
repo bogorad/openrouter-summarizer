@@ -1,5 +1,6 @@
 {
     "window.zoomLevel": 1.2,
     "window.zoomPerWindow": false,
-    "terminal.integrated.mouseWheelZoom": true
+    "terminal.integrated.mouseWheelZoom": true,
+    "terminal.integrated.fontFamily": "AurulentSansM Nerd Font Mono"
 }
