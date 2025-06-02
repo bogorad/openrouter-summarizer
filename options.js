@@ -1619,24 +1619,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
        // Special handling for advanced options tab: ensure collapsible is correct
        if (targetTabId === 'advanced-tab') {
-         const isExpanded = advancedOptionsToggle.getAttribute('aria-expanded') === 'true';
-         const toggleIndicator = advancedOptionsToggle.querySelector('.toggle-indicator');
-         if (toggleIndicator) {
-           // Ensure indicator is aligned with the aria-expanded state
-           toggleIndicator.textContent = isExpanded ? '▼' : '►';
-         }
-          // Ensure content visibility matches the tab and collapsible header state
-          advancedOptionsContent.classList.toggle('active', isExpanded);
-       } else {
-         // If leaving advanced tab, collapse it visually
-         if (advancedOptionsToggle.getAttribute('aria-expanded') === 'true') {
-           advancedOptionsToggle.setAttribute('aria-expanded', 'false');
-           advancedOptionsContent.classList.remove('active');
+           // When switching TO the advanced tab, content visibility is handled by the overall tab system.
+           // However, the collapsible *within* it needs its own state initialized or preserved.
+           // Re-apply the initial expansion state or ensure the collapsible visually matches its aria-expanded state.
+           const isExpanded = advancedOptionsToggle.getAttribute('aria-expanded') === 'true';
+           advancedOptionsContent.classList.toggle('active', isExpanded);
            const toggleIndicator = advancedOptionsToggle.querySelector('.toggle-indicator');
            if (toggleIndicator) {
-             toggleIndicator.textContent = '►';
+               toggleIndicator.textContent = isExpanded ? '▼' : '►';
            }
-         }
+       } else {
+           // If leaving advanced tab (and it was expanded), collapse it visually to reset its state for next time
+           if (advancedOptionsToggle && advancedOptionsToggle.getAttribute('aria-expanded') === 'true') {
+               advancedOptionsToggle.setAttribute('aria-expanded', 'false');
+               advancedOptionsContent.classList.remove('active');
+               const toggleIndicator = advancedOptionsToggle.querySelector('.toggle-indicator');
+               if (toggleIndicator) {
+                   toggleIndicator.textContent = '►';
+               }
+           }
        }
      });
    });
@@ -1649,7 +1650,7 @@ document.addEventListener("DOMContentLoaded", async () => {
        if (initialTabButton) {
            initialTabButton.click(); // Simulate click to activate tab and its content
        } else {
-           // Fallback to the new default tab if stored tab doesn't exist (e.g., if 'api-keys-tokens-tab' was stored)
+           // Fallback to the default tab if stored tab doesn't exist
            document.querySelector(`.tab-button[data-tab="summary-tab"]`).click();
        }
    });
