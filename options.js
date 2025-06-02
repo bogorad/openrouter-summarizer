@@ -12,7 +12,8 @@ import {
   DEFAULT_MAX_REQUEST_PRICE,
   STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
   DEFAULT_CACHE_EXPIRY_DAYS,
-  STORAGE_KEY_NEWSBLUR_TOKEN, // New: Import NewsBlur token storage key
+  STORAGE_KEY_NEWSBLUR_TOKEN,
+  STORAGE_KEY_JOPLIN_TOKEN, // New: Import Joplin token storage key
 } from "./constants.js";
 import { showError } from "./utils.js";
 
@@ -20,7 +21,8 @@ console.log(`[LLM Options] Script Start v3.4.4`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
-  const newsblurTokenInput = document.getElementById("newsblurToken"); // New: NewsBlur Token Input
+  const newsblurTokenInput = document.getElementById("newsblurToken");
+  const joplinTokenInput = document.getElementById("joplinToken"); // New: Joplin Token Input
   const modelSelectionArea = document.getElementById("modelSelectionArea");
   const addModelBtn = document.getElementById("addModelBtn");
   const languageSelectionArea = document.getElementById(
@@ -1095,7 +1097,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
         STORAGE_KEY_MAX_REQUEST_PRICE,
         STORAGE_KEY_MAX_PRICE_BEHAVIOR,
-        STORAGE_KEY_NEWSBLUR_TOKEN, // New: NewsBlur API Token
+        STORAGE_KEY_NEWSBLUR_TOKEN,
+        STORAGE_KEY_JOPLIN_TOKEN, // New: Joplin API Token
       ];
       const data = await chrome.storage.sync.get(keysToGet);
 
@@ -1105,7 +1108,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       DEBUG = data.debug ?? DEFAULT_DEBUG_MODE;
       if (apiKeyInput) apiKeyInput.value = data.apiKey || "";
-      if (newsblurTokenInput) newsblurTokenInput.value = data[STORAGE_KEY_NEWSBLUR_TOKEN] || ""; // New: Populate NewsBlur Token Input
+      if (newsblurTokenInput) newsblurTokenInput.value = data[STORAGE_KEY_NEWSBLUR_TOKEN] || "";
+      if (joplinTokenInput) joplinTokenInput.value = data[STORAGE_KEY_JOPLIN_TOKEN] || ""; // New: Populate Joplin Token Input
       if (debugCheckbox) debugCheckbox.checked = DEBUG;
 
       let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
@@ -1456,76 +1460,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   // --- End Load, Save, Reset ---
 
-  // --- Initial Setup ---
-  async function initializeOptionsPage() {
-    try {
-      setupCollapsible();
-      await loadSettings(); // Load settings, render happens inside
-
-      // New: Add event listener for NewsBlur token input
-      if (newsblurTokenInput) {
-        newsblurTokenInput.addEventListener("input", handleNewsblurTokenInput); // Changed to new handler
-        newsblurTokenInput.addEventListener("blur", handleNewsblurTokenInput);  // Changed to new handler
-      } else {
-        console.error("[LLM Options] NewsBlur Token input field not found.");
-      }
-
-      if (addModelBtn) {
-        addModelBtn.addEventListener("click", addModel);
-      } else {
-        console.error("[LLM Options] Add Model button not found.");
-      }
-      
-      if (apiKeyInput) {
-        apiKeyInput.addEventListener("input", handleApiKeyInput);
-      } else {
-        console.error("[LLM Options] API Key input field not found.");
-      }
-
-      // Add event listeners for bullet count radios to save immediately
-      bulletCountRadios.forEach(radio => {
-        radio.addEventListener("change", () => {
-          if (DEBUG)
-            console.log(`[LLM Options] Bullet Count changed to: ${radio.value}`);
-          saveSettings(); // Save settings immediately after selection
-          updatePromptPreview(); // Update preview to reflect the change
-        });
-      });
-      if (addLangBtn) {
-        addLangBtn.addEventListener("click", addLanguage);
-      } else {
-        console.error("[LLM Options] Add Language button not found.");
-      }
-      if (resetButton) {
-        resetButton.addEventListener("click", resetToDefaults);
-      } else {
-        console.error("[LLM Options] Reset button not found.");
-      }
-      const saveBtn = document.getElementById("saveBtn");
-      if (saveBtn) {
-        saveBtn.addEventListener("click", saveSettings);
-      } else {
-        console.error("[LLM Options] Save button not found.");
-      }
-      // Event listeners are added dynamically in calculateKbLimitForSummary
-      if (updatePricingBtn) {
-        updatePricingBtn.addEventListener("click", updateKnownModelsAndPricing);
-      } else {
-        console.error("[LLM Options] Update Model Pricing button not found.");
-      }
-      // Add event listener for max price behavior radio buttons
-      document.querySelectorAll('input[name="maxPriceBehavior"]').forEach(radio => {
-        radio.addEventListener("change", () => {
-          currentMaxPriceBehavior = radio.value;
-        });
-      });
-      if (DEBUG) console.log("[LLM Options] Event listeners attached.");
-    } catch (error) {
-      console.error("[LLM Options] Error during initialization:", error);
-      showError("Failed to initialize options page: " + error.message);
-    }
-  }
-
   /**
    * Handles input changes for the max price field in the table.
    */
@@ -1562,40 +1496,44 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /**
-   * Handles input changes for the API key field with debouncing to prevent frequent updates.
+   * Handles input changes for the NewsBlur token field, extracting token from URL if necessary.
    */
-  /**
-   * Extracts the NewsBlur token from a given URL string, if the pattern matches a NewsBlur API URL.
-   * Returns the extracted token or the original string if no match is found.
-   * @param {string} inputString - The string to check for a NewsBlur token URL.
-   * @returns {string} The extracted token or the original input string.
-   */
-  function extractNewsblurTokenFromUrl(inputString) {
-    const newsblurUrlPattern = /https:\/\/[^\/]+\/api\/add_site_load_script\/([a-zA-Z0-9]+)\?url=.*/;
-    const match = inputString.match(newsblurUrlPattern);
-    if (match && match[1]) {
-      if (DEBUG) console.log("[LLM Options] Extracted NewsBlur token from URL:", match[1]);
-      return match[1];
-    }
-    return inputString;
-  }
-
-  /**
-   * Handles input and blur changes for the NewsBlur token field, extracting the token if a URL is pasted.
-   */
-  function handleNewsblurTokenInput() {
+  function handleNewsblurTokenInput(event) {
     if (debounceTimeoutId) {
       clearTimeout(debounceTimeoutId);
     }
     debounceTimeoutId = setTimeout(() => {
-      let inputValue = newsblurTokenInput.value.trim();
-      const extractedToken = extractNewsblurTokenFromUrl(inputValue);
+      let tokenValue = newsblurTokenInput.value.trim();
+      // Check if it's a URL and try to extract the token
+      if (tokenValue.startsWith("http://") || tokenValue.startsWith("https://")) {
+        try {
+          const url = new URL(tokenValue);
+          const pathParts = url.pathname.split('/');
+          // Assuming token is the last part of the path, e.g., /NB/token_here
+          // Or sometimes it's in a query parameter like ?token=...
+          let extractedToken = pathParts[pathParts.length - 1];
+          if (!extractedToken && url.searchParams.has('token')) {
+            extractedToken = url.searchParams.get('token');
+          } else if (!extractedToken && url.searchParams.has('secret')) { // Another possible param
+            extractedToken = url.searchParams.get('secret');
+          }
 
-      if (inputValue !== extractedToken) {
-        newsblurTokenInput.value = extractedToken; // Update the input field with the extracted token
-        if (DEBUG) console.log("[LLM Options] NewsBlur token input updated to extracted value.");
+          // Basic validation for typical token format (alphanumeric, possibly with hyphens/underscores)
+          // Ensure it's not just 'NB' or a short segment.
+          if (extractedToken && /^[a-zA-Z0-9_-]{10,}$/.test(extractedToken) && extractedToken.toUpperCase() !== 'NB') {
+            newsblurTokenInput.value = extractedToken; // Update input field with extracted token
+            tokenValue = extractedToken;
+            if (DEBUG) console.log("[LLM Options] Extracted NewsBlur token from URL:", tokenValue);
+          } else {
+            if (DEBUG) console.warn("[LLM Options] Could not extract a valid-looking NewsBlur token from URL:", tokenValue, "Extracted part:", extractedToken);
+          }
+        } catch (e) {
+          if (DEBUG) console.warn("[LLM Options] Error parsing NewsBlur URL:", e);
+          // If parsing fails, proceed with the raw value, it might be the token itself
+        }
       }
-      saveSettings(); // Save the (potentially updated) token to storage
+      // Save all settings, as this function is also called on blur
+      saveSettings();
       debounceTimeoutId = null;
     }, DEBOUNCE_DELAY);
   }
@@ -1603,59 +1541,208 @@ document.addEventListener("DOMContentLoaded", async () => {
   /**
    * Handles input changes for the API key field with debouncing to prevent frequent updates.
    */
-  function handleApiKeyInput() {
+  function handleApiAndJoplinInput(event) {
     if (debounceTimeoutId) {
-      clearTimeout(debounceTimeoutId);
-    }
-    debounceTimeoutId = setTimeout(() => {
-      const apiKey = apiKeyInput.value.trim();
-      if (apiKey) {
-        if (DEBUG) console.log("[LLM Options] API key entered, triggering model refresh after debounce.");
-        updateKnownModelsAndPricing();
-      } else {
-        if (DEBUG) console.log("[LLM Options] API key is empty, skipping model refresh.");
-      }
-      debounceTimeoutId = null;
-    }, DEBOUNCE_DELAY);
-  }
+        clearTimeout(debounceTimeoutId);
+   }
+   debounceTimeoutId = setTimeout(() => {
+       // This function saves all settings, so it's fine for both (apiKey and joplinToken)
+       saveSettings();
+       // Specific logic for API key to trigger model refresh
+       if (event.target.id === 'apiKey') {
+           const apiKey = apiKeyInput.value.trim();
+           if (apiKey) {
+               if (DEBUG) console.log("[LLM Options] API key entered, triggering model refresh after debounce.");
+               updateKnownModelsAndPricing();
+           } else {
+               if (DEBUG) console.log("[LLM Options] API key is empty, skipping model refresh.");
+           }
+       }
+       debounceTimeoutId = null;
+   }, DEBOUNCE_DELAY);
+ }
 
-  /**
-   * Updates the allModels list for autocomplete from knownModelsAndPrices.
-   */
-  function updateAllModelsList() {
-    allModels = Object.values(knownModelsAndPrices).map(model => ({
-      id: model.id,
-      name: model.name || ''
-    }));
-    if (DEBUG) console.log("[LLM Options] Updated allModels list for autocomplete:", allModels.length, "models available.");
-  }
+ /**
+  * Updates the allModels list for autocomplete from knownModelsAndPrices.
+  */
+ function updateAllModelsList() {
+   allModels = Object.values(knownModelsAndPrices).map(model => ({
+     id: model.id,
+     name: model.name || ''
+   }));
+   if (DEBUG) console.log("[LLM Options] Updated allModels list for autocomplete:", allModels.length, "models available.");
+ }
 
-  /**
-   * Checks pricing data for all configured models and updates if necessary.
-   */
-  function checkPricingData() {
-    if (!pricingNotification) return;
-    
-    const currentTime = Date.now();
-    const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    let isDataExpired = true;
-    
-    if (Object.keys(knownModelsAndPrices).length > 0) {
-      const firstModel = Object.values(knownModelsAndPrices)[0];
-      if (firstModel && firstModel.timestamp) {
-        isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
-      }
-    }
-    
-    if (Object.keys(knownModelsAndPrices).length === 0 || isDataExpired) {
-      pricingNotification.textContent = "Model and pricing data missing or expired. Fetching data...";
-      updateKnownModelsAndPricing();
-    } else {
-      pricingNotification.textContent = "Model and pricing data up to date.";
-      updateAllModelsList(); // Ensure autocomplete list is updated
-    }
-  }
+ /**
+  * Checks pricing data for all configured models and updates if necessary.
+  */
+ function checkPricingData() {
+   if (!pricingNotification) return;
+   
+   const currentTime = Date.now();
+   const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+   let isDataExpired = true;
+   
+   if (Object.keys(knownModelsAndPrices).length > 0) {
+     const firstModel = Object.values(knownModelsAndPrices)[0];
+     if (firstModel && firstModel.timestamp) {
+       isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
+     }
+   }
+   
+   if (Object.keys(knownModelsAndPrices).length === 0 || isDataExpired) {
+     pricingNotification.textContent = "Model and pricing data missing or expired. Fetching data...";
+     updateKnownModelsAndPricing();
+   } else {
+     pricingNotification.textContent = "Model and pricing data up to date.";
+     updateAllModelsList(); // Ensure autocomplete list is updated
+   }
+ }
 
-  initializeOptionsPage();
-  // --- End Initial Setup ---
+ // --- Tab Handling ---
+ function setupTabNavigation() {
+   const tabButtons = document.querySelectorAll('.tab-button');
+   const tabContents = document.querySelectorAll('.tab-content');
+
+   tabButtons.forEach(button => {
+     button.addEventListener('click', () => {
+       // Deactivate all tabs and hide all content
+       tabButtons.forEach(btn => btn.classList.remove('active'));
+       tabContents.forEach(content => content.classList.remove('active'));
+
+       // Activate clicked tab
+       button.classList.add('active');
+       // Show corresponding content
+       const targetTabId = button.dataset.tab;
+       document.getElementById(targetTabId).classList.add('active');
+       if (DEBUG) console.log(`[LLM Options] Switched to tab: ${targetTabId}`);
+
+       // Special handling for advanced options tab: ensure collapsible is correct
+       if (targetTabId === 'advanced-tab') {
+         const isExpanded = advancedOptionsToggle.getAttribute('aria-expanded') === 'true';
+         const toggleIndicator = advancedOptionsToggle.querySelector('.toggle-indicator');
+         if (toggleIndicator) {
+           // Ensure indicator is aligned with the aria-expanded state
+           toggleIndicator.textContent = isExpanded ? '▼' : '►';
+         }
+          // Ensure content visibility matches the tab and collapsible header state
+          advancedOptionsContent.classList.toggle('active', isExpanded);
+       } else {
+         // If leaving advanced tab, collapse it visually
+         if (advancedOptionsToggle.getAttribute('aria-expanded') === 'true') {
+           advancedOptionsToggle.setAttribute('aria-expanded', 'false');
+           advancedOptionsContent.classList.remove('active');
+           const toggleIndicator = advancedOptionsToggle.querySelector('.toggle-indicator');
+           if (toggleIndicator) {
+             toggleIndicator.textContent = '►';
+           }
+         }
+       }
+     });
+   });
+
+   // Set initial active tab
+   // Check local storage for last active tab, otherwise default to 'api-keys-tokens-tab'
+   chrome.storage.local.get('lastActiveTab', (result) => {
+       const lastActiveTab = result.lastActiveTab || 'api-keys-tokens-tab'; // Updated default
+       const initialTabButton = document.querySelector(`.tab-button[data-tab="${lastActiveTab}"]`);
+       if (initialTabButton) {
+           initialTabButton.click(); // Simulate click to activate tab and its content
+       } else {
+           // Fallback to the new default tab if stored tab doesn't exist
+           document.querySelector(`.tab-button[data-tab="api-keys-tokens-tab"]`).click();
+       }
+   });
+
+   // Save active tab on change
+   tabButtons.forEach(button => {
+       button.addEventListener('click', () => {
+           const currentTabId = button.dataset.tab;
+           chrome.storage.local.set({ 'lastActiveTab': currentTabId });
+       });
+   });
+ }
+
+ async function initializeOptionsPage() {
+   try {
+     setupCollapsible();
+     await loadSettings();
+
+     // Connect input fields for API Key and Joplin Token to the unified handler
+     if (apiKeyInput) {
+       apiKeyInput.addEventListener("input", handleApiAndJoplinInput);
+       apiKeyInput.addEventListener("blur", handleApiAndJoplinInput);
+     } else {
+       console.error("[LLM Options] API Key input field not found.");
+     }
+
+     const joplinTokenInput = document.getElementById("joplinToken");
+     if (joplinTokenInput) {
+       joplinTokenInput.addEventListener("input", handleApiAndJoplinInput);
+       joplinTokenInput.addEventListener("blur", handleApiAndJoplinInput);
+     } else {
+       console.error("[LLM Options] Joplin Token input field not found.");
+     }
+
+     // NewsBlur token input still needs its specific URL extraction logic
+     if (newsblurTokenInput) {
+       newsblurTokenInput.addEventListener("input", handleNewsblurTokenInput);
+       newsblurTokenInput.addEventListener("blur", handleNewsblurTokenInput);
+     } else {
+       console.error("[LLM Options] NewsBlur Token input field not found.");
+     }
+
+     if (addModelBtn) {
+       addModelBtn.addEventListener("click", addModel);
+     } else {
+       console.error("[LLM Options] Add Model button not found.");
+     }
+     
+     // Add event listeners for bullet count radios to save immediately
+     bulletCountRadios.forEach(radio => {
+       radio.addEventListener("change", () => {
+         if (DEBUG)
+           console.log(`[LLM Options] Bullet Count changed to: ${radio.value}`);
+         saveSettings();
+         updatePromptPreview();
+       });
+     });
+     if (addLangBtn) {
+       addLangBtn.addEventListener("click", addLanguage);
+     } else {
+       console.error("[LLM Options] Add Language button not found.");
+     }
+     if (resetButton) {
+       resetButton.addEventListener("click", resetToDefaults);
+     } else {
+       console.error("[LLM Options] Reset button not found.");
+     }
+     const saveBtn = document.getElementById("saveBtn");
+     if (saveBtn) {
+       saveBtn.addEventListener("click", saveSettings);
+     } else {
+       console.error("[LLM Options] Save button not found.");
+     }
+     if (updatePricingBtn) {
+       updatePricingBtn.addEventListener("click", updateKnownModelsAndPricing);
+     } else {
+       console.error("[LLM Options] Update Model Pricing button not found.");
+     }
+     // Add event listener for max price behavior radio buttons
+     document.querySelectorAll('input[name="maxPriceBehavior"]').forEach(radio => {
+       radio.addEventListener("change", () => {
+         currentMaxPriceBehavior = radio.value;
+       });
+     });
+     setupTabNavigation(); // Setup tab navigation
+     if (DEBUG) console.log("[LLM Options] Event listeners attached.");
+   } catch (error) {
+     console.error("[LLM Options] Error during initialization:", error);
+     showError("Failed to initialize options page: " + error.message);
+   }
+ }
+
+ initializeOptionsPage();
+ // --- End Initial Setup ---
 }); // End DOMContentLoaded
+

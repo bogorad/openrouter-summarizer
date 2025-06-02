@@ -13,25 +13,51 @@
   <div class="container">
     <h1>OpenRouter Summarizer<br>Options</h1>
 
-    <!-- API Key Section -->
-    <div class="section">
-      <h2>API Key</h2>
-      <p>Enter your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter.ai</a>.</p>
-      <input type="password" id="apiKey" placeholder="sk-or-v1-..." class="wide-input">
-      <p class="note">Your key is stored locally in your browser and only sent directly to OpenRouter.</p>
+    <div class="tab-navigation" role="tablist">
+      <button class="tab-button" id="summary-tab-btn" role="tab" aria-selected="false" aria-controls="summary-tab" data-tab="summary-tab">Summary</button>
+      <button class="tab-button" id="models-tab-btn" role="tab" aria-selected="false" aria-controls="models-tab" data-tab="models-tab">Models</button>
+      <button class="tab-button" id="languages-tab-btn" role="tab" aria-selected="false" aria-controls="languages-tab" data-tab="languages-tab">Languages</button>
+      <button class="tab-button active" id="api-keys-tokens-tab-btn" role="tab" aria-selected="true" aria-controls="api-keys-tokens-tab" data-tab="api-keys-tokens-tab">API Keys and Tokens</button>
+      <button class="tab-button" id="other-tab-btn" role="tab" aria-selected="false" aria-controls="other-tab" data-tab="other-tab">Other</button>
+      <button class="tab-button" id="advanced-tab-btn" role="tab" aria-selected="false" aria-controls="advanced-tab" data-tab="advanced-tab">Advanced</button>
     </div>
 
-    <!-- NewsBlur Token Section -->
-    <div class="section">
-      <h2>NewsBlur API Token</h2>
-      <p>To enable sharing to NewsBlur, go to NewsBlur's settings - "Goodies and Mobile Apps", right-click on "Share on NewsBlur", click on "Copy link address", and paste it here. I will extract the token for you.</p>
-      <input type="text" id="newsblurToken" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxx" class="wide-input">
-      <p class="note">This token is stored locally and used to share articles to your NewsBlur account.</p>
+    <div class="tab-content active" id="api-keys-tokens-tab" role="tabpanel" aria-labelledby="api-keys-tokens-tab-btn">
+      <!-- API Key Section (MOVED HERE) -->
+      <div class="section">
+        <h2>OpenRouter API Key</h2>
+        <p id="apiKeyDesc">Enter your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter.ai</a>.</p>
+        <label for="apiKey" class="sr-only">OpenRouter API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-or-v1-..." class="wide-input" aria-describedby="apiKeyDesc apiKeyNote">
+        <p class="note" id="apiKeyNote">Your key is stored locally in your browser and only sent directly to OpenRouter.</p>
+      </div>
+
+      <!-- NewsBlur Token Section -->
+      <div class="section">
+        <h2>NewsBlur API Token</h2>
+        <p id="newsblurTokenDesc">To enable sharing to NewsBlur, go to NewsBlur's settings - "Goodies and Mobile Apps", right-click on "Share on NewsBlur", click on "Copy link address", and paste it here. I will extract the token for you.</p>
+        <label for="newsblurToken" class="sr-only">NewsBlur API Token</label>
+        <input type="text" id="newsblurToken" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxx" class="wide-input" aria-describedby="newsblurTokenDesc newsblurTokenNote">
+        <p class="note" id="newsblurTokenNote">This token is stored locally and used to share articles to your NewsBlur account.</p>
+      </div>
+
+      <!-- Joplin Export Section -->
+      <div class="section">
+        <h2>Joplin Export</h2>
+        <p id="joplinTokenDesc">To enable exporting to Joplin, enter your Joplin API token. You can find this in Joplin under Tools > Options > Web Clipper/API.</p>
+        <label for="joplinToken" class="sr-only">Joplin API Token</label>
+        <input type="text" id="joplinToken" placeholder="Joplin API Token" class="wide-input" aria-describedby="joplinTokenDesc joplinTokenNote">
+        <p class="note" id="joplinTokenNote">Your Joplin token is stored locally and used to send articles to your Joplin instance.</p>
+      </div>
+
     </div>
 
-    <!-- Summary Options Section -->
-    <div class="section">
-      <h2>Summary Options</h2>
+    <!-- Empty api-tab div is removed -->
+
+    <div class="tab-content" id="summary-tab" role="tabpanel" aria-labelledby="summary-tab-btn">
+      <!-- Summary Options Section -->
+      <div class="section">
+        <h2>Summary Options</h2>
       <div class="option-group">
         <label>Number of Bullet Points:</label>
         <div class="radio-group"> <!-- Note: This is a different .radio-group -->
@@ -45,116 +71,124 @@
       </div>
     </div>
 
-    <!-- Model Selection Section -->
-    <div class="section">
-      <h2>Model Selection</h2>
-      <p>Select preferred models to use for summarization and chat. You can edit the model IDs directly, or add more.
-        Just start typing, we'll do the rest.</p>
-      <div id="modelSelectionArea">
-        <p>Loading models...</p> <!-- Content generated by options.js -->
+    <div class="tab-content" id="models-tab" role="tabpanel" aria-labelledby="models-tab-btn">
+      <!-- Model Selection Section -->
+      <div class="section">
+        <h2>Model Selection</h2>
+        <p>Select preferred models to use for summarization and chat. You can edit the model IDs directly, or add more.
+          Just start typing, we'll do the rest.</p>
+        <div id="modelSelectionArea">
+          <p>Loading models...</p> <!-- Content generated by options.js -->
+        </div>
+        <button id="addModelBtn" class="button add-button"> <!-- Keep existing ID and base classes -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            style="vertical-align: middle; margin-right: 8px;"> <!-- Add SVG inline -->
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Another Model
+        </button>
+        <p class="note">Use valid model strings <a
+            href="https://openrouter.ai/models?fmt=cards&supported_parameters=structured_outputs" target="_blank">from
+            OpenRouter</a> (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>). You can use
+          <code>:nitro</code> for the fastest model or <code>:auto</code>.
+        </p>
+        <!-- Request Price Limit -->
+        <h3 style="margin-top: 25px;">Request Price Limit</h3>
+        <p>Set a maximum cost in USD for summary requests to control expenses.</p>
+        <div class="option-group">
+          <span id="maxKbDisplay" aria-live="polite"></span>
+        </div>
+        <p class="note">Note: KB value is an estimate based on content size.</p>
+        <div class="option-group">
+          <button id="updatePricingBtn" class="button add-button"
+            title="Fetch latest pricing data for all configured models"
+            aria-label="Update pricing data for all models">Update Model Pricing</button>
+        </div>
+        <p class="note" id="pricingNotification">Pricing data status will be shown here.</p>
+        <div class="option-group">
+          <label>Behavior when max price is reached:</label>
+          <div class="radio-group">
+            <label><input type="radio" name="maxPriceBehavior" value="fail"> Fail and Report</label>
+            <label><input type="radio" name="maxPriceBehavior" value="truncate" checked> Truncate Output</label>
+          </div>
+        </div>
       </div>
-      <button id="addModelBtn" class="button add-button"> <!-- Keep existing ID and base classes -->
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          style="vertical-align: middle; margin-right: 8px;"> <!-- Add SVG inline -->
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        Add Another Model
-      </button>
-      <p class="note">Use valid model strings <a
-          href="https://openrouter.ai/models?fmt=cards&supported_parameters=structured_outputs" target="_blank">from
-          OpenRouter</a> (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>). You can use
-        <code>:nitro</code> for the fastest model or <code>:auto</code>.
-      </p>
-      <!-- Request Price Limit -->
-      <h3 style="margin-top: 25px;">Request Price Limit</h3>
-      <p>Set a maximum cost in USD for summary requests to control expenses.</p>
-      <div class="option-group">
-        <span id="maxKbDisplay" aria-live="polite"></span>
+    </div>
+
+    <div class="tab-content" id="languages-tab" role="tabpanel" aria-labelledby="languages-tab-btn">
+      <!-- Configured Languages for Chat Flags Section -->
+      <div class="section">
+        <h2>Configured Languages for Chat Flags</h2>
+        <p>
+        <ul>
+          <li>Add languages here to show their flags in the summary popup.</li>
+          <li>The <b>first language</b> in this list will be used to request the <b>initial summary</b> from the LLM.
+          </li>
+          <li>Clicking a flag in the popup will open the chat tab and request a translation of the summary into that
+            language.</li>
+          <li>Drag the grab handle on the left of each language row to change their order.</li>
+        </ul>
+        </p>
+        <div id="languageSelectionArea">
+          <p>Loading languages...</p> <!-- Content generated by options.js -->
+        </div>
+        <button id="addLangBtn" class="button add-button">Add Another Language</button>
+        <p class="note">Start typing a language name to see suggestions. The flag displayed is based on the language's
+          ISO 639-1 code if available.</p>
       </div>
-      <p class="note">Note: KB value is an estimate based on content size.</p>
-      <div class="option-group">
-        <button id="updatePricingBtn" class="button add-button"
-          title="Fetch latest pricing data for all configured models"
-          aria-label="Update pricing data for all models">Update Model Pricing</button>
-      </div>
-      <p class="note" id="pricingNotification">Pricing data status will be shown here.</p>
-      <div class="option-group">
-        <label>Behavior when max price is reached:</label>
-        <div class="radio-group">
-          <label><input type="radio" name="maxPriceBehavior" value="fail"> Fail and Report</label>
-          <label><input type="radio" name="maxPriceBehavior" value="truncate" checked> Truncate Output</label>
+    </div>
+
+
+    <div class="tab-content" id="other-tab" role="tabpanel" aria-labelledby="other-tab-btn">
+      <!-- Other Settings Section -->
+      <div class="section">
+        <h2>Other Settings</h2>
+        <div class="option-group checkbox-group">
+          <input type="checkbox" id="debug">
+          <label for="debug">Enable Debug Logging (requires DevTools console)</label>
         </div>
       </div>
     </div>
 
-    <!-- Configured Languages for Chat Flags Section -->
-    <div class="section">
-      <h2>Configured Languages for Chat Flags</h2>
-      <p>
-      <ul>
-        <li>Add languages here to show their flags in the summary popup.</li>
-        <li>The <b>first language</b> in this list will be used to request the <b>initial summary</b> from the LLM.
-        </li>
-        <li>Clicking a flag in the popup will open the chat tab and request a translation of the summary into that
-          language.</li>
-        <li>Drag the grab handle on the left of each language row to change their order.</li>
-      </ul>
-      </p>
-      <div id="languageSelectionArea">
-        <p>Loading languages...</p> <!-- Content generated by options.js -->
-      </div>
-      <button id="addLangBtn" class="button add-button">Add Another Language</button>
-      <p class="note">Start typing a language name to see suggestions. The flag displayed is based on the language's
-        ISO 639-1 code if available.</p>
-    </div>
+    <div class="tab-content" id="advanced-tab" role="tabpanel" aria-labelledby="advanced-tab-btn">
+      <!-- Advanced Options / Prompt Customization Section (MOVED & COLLAPSIBLE) -->
+      <div class="section">
+        <h2 class="collapsible-header" id="advancedOptionsToggle" role="button" tabindex="0" aria-expanded="false">
+          Advanced Options <span class="toggle-indicator">►</span>
+        </h2>
+        <div class="collapsible-content" id="advancedOptionsContent">
+          <!-- Content moved inside here -->
+          <h3>Prompt Customization</h3>
+          <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle
+            formatting instructions section.</p>
+          <div class="prompt-display-area">
+            <div class="prompt-label">Intro:</div>
+            <div class="prompt-part prompt-preamble" id="promptPreamble">
+              <!-- Preamble text will be loaded by JS -->
+            </div>
 
-
-    <!-- Other Settings Section -->
-    <div class="section">
-      <h2>Other Settings</h2>
-      <div class="option-group checkbox-group">
-        <input type="checkbox" id="debug">
-        <label for="debug">Enable Debug Logging (requires DevTools console)</label>
-      </div>
-    </div>
-
-    <!-- Advanced Options / Prompt Customization Section (MOVED & COLLAPSIBLE) -->
-    <div class="section">
-      <h2 class="collapsible-header" id="advancedOptionsToggle" role="button" tabindex="0" aria-expanded="false">
-        Advanced Options <span class="toggle-indicator">►</span>
-      </h2>
-      <div class="collapsible-content" id="advancedOptionsContent">
-        <!-- Content moved inside here -->
-        <h3>Prompt Customization</h3>
-        <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle
-          formatting instructions section.</p>
-        <div class="prompt-display-area">
-          <div class="prompt-label">Intro:</div>
-          <div class="prompt-part prompt-preamble" id="promptPreamble">
-            <!-- Preamble text will be loaded by JS -->
+            <div class="prompt-label">Outro:</div>
+            <div class="prompt-part prompt-postamble" id="promptPostamble">
+              <!-- Postamble text will be loaded by JS -->
+            </div>
           </div>
+          <p class="note">The preamble and postamble are fixed. The initial summary is generated in the <b>first
+              configured language</b> based on the preamble. It replaces US English.</p>
 
-          <div class="prompt-label">Outro:</div>
-          <div class="prompt-part prompt-postamble" id="promptPostamble">
-            <!-- Postamble text will be loaded by JS -->
-          </div>
+          <!-- Custom Instructions Input -->
+          <h3 style="margin-top: 25px;">Formatting Instructions</h3>
+          <p>Customize the core instructions for how the summary points should be formatted. Keep it concise.</p>
+          <textarea id="promptFormatInstructions" rows="6" class="prompt-part prompt-editable" spellcheck="false">
+            <!-- Editable instructions loaded/defaulted by JS -->
+          </textarea>
+          <p class="note">This text is inserted between the intro and the outro.</p>
+
+
         </div>
-        <p class="note">The preamble and postamble are fixed. The initial summary is generated in the <b>first
-            configured language</b> based on the preamble. It replaces US English.</p>
-
-        <!-- Custom Instructions Input -->
-        <h3 style="margin-top: 25px;">Formatting Instructions</h3>
-        <p>Customize the core instructions for how the summary points should be formatted. Keep it concise.</p>
-        <textarea id="promptFormatInstructions" rows="6" class="prompt-part prompt-editable" spellcheck="false">
-          <!-- Editable instructions loaded/defaulted by JS -->
-        </textarea>
-        <p class="note">This text is inserted between the intro and the outro.</p>
-
-
       </div>
+      <!-- End Advanced Options Section -->
     </div>
-    <!-- End Advanced Options Section -->
 
 
     <!-- Actions Area -->
