@@ -88,19 +88,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   let draggedItemIndex = null;
 
   // --- Autocomplete Functions for Languages and Models ---
-  function setupAutocomplete(textInput, type = 'language') {
+  function setupAutocomplete(textInput, type = "language") {
     if (!textInput) return;
     textInput.addEventListener("input", (event) => {
       const query = event.target.value;
       let suggestions = [];
-      if (type === 'language') {
+      if (type === "language") {
         suggestions = filterLanguages(query);
         if (DEBUG)
           console.log(
             `[LLM Options] Language autocomplete suggestions for "${query}":`,
             suggestions,
           );
-      } else if (type === 'model') {
+      } else if (type === "model") {
         suggestions = filterModels(query);
         if (DEBUG)
           console.log(
@@ -119,10 +119,10 @@ document.addEventListener("DOMContentLoaded", async () => {
    */
   function calculateKbLimitForSummary() {
     if (!maxKbDisplay) return;
-    
+
     maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(3)} max KiB: Calculating...`;
     currentSummaryKbLimit = "";
-    
+
     if (!currentSummaryModelId) {
       maxKbDisplay.innerHTML = `
         <table class="price-kb-table">
@@ -140,16 +140,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           </tbody>
         </table>
       `;
-      document.getElementById("maxPriceInput").addEventListener("input", handleMaxPriceInput);
-      document.getElementById("maxPriceInput").addEventListener("blur", handleMaxPriceBlur);
+      document
+        .getElementById("maxPriceInput")
+        .addEventListener("input", handleMaxPriceInput);
+      document
+        .getElementById("maxPriceInput")
+        .addEventListener("blur", handleMaxPriceBlur);
       currentSummaryKbLimit = "";
       return;
     }
-    
+
     const modelData = knownModelsAndPrices[currentSummaryModelId];
     const currentTime = Date.now();
     const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    
+
     if (modelData && currentTime - modelData.timestamp < cacheExpiry) {
       const pricePerToken = modelData.pricePerToken || 0;
       let kbLimit = "Calculating...";
@@ -181,43 +185,70 @@ document.addEventListener("DOMContentLoaded", async () => {
           </tbody>
         </table>
       `;
-      document.getElementById("maxPriceInput").addEventListener("input", handleMaxPriceInput);
-      document.getElementById("maxPriceInput").addEventListener("blur", handleMaxPriceBlur);
-      if (DEBUG) console.log(`[LLM Options] Used cached data for ${currentSummaryModelId}:`, modelData);
+      document
+        .getElementById("maxPriceInput")
+        .addEventListener("input", handleMaxPriceInput);
+      document
+        .getElementById("maxPriceInput")
+        .addEventListener("blur", handleMaxPriceBlur);
+      if (DEBUG)
+        console.log(
+          `[LLM Options] Used cached data for ${currentSummaryModelId}:`,
+          modelData,
+        );
       return;
     }
-    
-    chrome.runtime.sendMessage({
-      action: "getModelPricing",
-      modelId: currentSummaryModelId
-    }, (response) => {
-      if (chrome.runtime.lastError || !response || response.status !== "success") {
-        maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
-        currentSummaryKbLimit = "";
-        if (DEBUG) console.error("[LLM Options] Error fetching model pricing:", chrome.runtime.lastError || "No response");
-        return;
-      }
-      
-      const pricePerToken = response.pricePerToken || 0;
-      modelPricingCache[currentSummaryModelId] = { pricePerToken, timestamp: currentTime };
-      chrome.storage.local.set({ [STORAGE_KEY_PRICING_CACHE]: modelPricingCache }, () => {
-        if (DEBUG) console.log(`[LLM Options] Updated pricing cache for ${currentSummaryModelId}`);
-      });
-      
-      let kbLimit = "Calculating...";
-      if (pricePerToken === 0) {
-        currentSummaryKbLimit = "No limit";
-        kbLimit = "No limit";
-      } else if (currentMaxRequestPrice === 0) {
-        currentSummaryKbLimit = "0";
-        kbLimit = "0";
-      } else {
-        const maxTokens = currentMaxRequestPrice / pricePerToken;
-        const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
-        currentSummaryKbLimit = maxKb.toString();
-        kbLimit = `~${maxKb}`;
-      }
-      maxKbDisplay.innerHTML = `
+
+    chrome.runtime.sendMessage(
+      {
+        action: "getModelPricing",
+        modelId: currentSummaryModelId,
+      },
+      (response) => {
+        if (
+          chrome.runtime.lastError ||
+          !response ||
+          response.status !== "success"
+        ) {
+          maxKbDisplay.textContent = `max price: ${currentMaxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
+          currentSummaryKbLimit = "";
+          if (DEBUG)
+            console.error(
+              "[LLM Options] Error fetching model pricing:",
+              chrome.runtime.lastError || "No response",
+            );
+          return;
+        }
+
+        const pricePerToken = response.pricePerToken || 0;
+        modelPricingCache[currentSummaryModelId] = {
+          pricePerToken,
+          timestamp: currentTime,
+        };
+        chrome.storage.local.set(
+          { [STORAGE_KEY_PRICING_CACHE]: modelPricingCache },
+          () => {
+            if (DEBUG)
+              console.log(
+                `[LLM Options] Updated pricing cache for ${currentSummaryModelId}`,
+              );
+          },
+        );
+
+        let kbLimit = "Calculating...";
+        if (pricePerToken === 0) {
+          currentSummaryKbLimit = "No limit";
+          kbLimit = "No limit";
+        } else if (currentMaxRequestPrice === 0) {
+          currentSummaryKbLimit = "0";
+          kbLimit = "0";
+        } else {
+          const maxTokens = currentMaxRequestPrice / pricePerToken;
+          const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
+          currentSummaryKbLimit = maxKb.toString();
+          kbLimit = `~${maxKb}`;
+        }
+        maxKbDisplay.innerHTML = `
         <table class="price-kb-table">
           <thead>
             <tr>
@@ -233,9 +264,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           </tbody>
         </table>
       `;
-      document.getElementById("maxPriceInput").addEventListener("input", handleMaxPriceInput);
-      document.getElementById("maxPriceInput").addEventListener("blur", handleMaxPriceBlur);
-    });
+        document
+          .getElementById("maxPriceInput")
+          .addEventListener("input", handleMaxPriceInput);
+        document
+          .getElementById("maxPriceInput")
+          .addEventListener("blur", handleMaxPriceBlur);
+      },
+    );
   }
   function filterLanguages(query) {
     const lowerQuery = query.toLowerCase().trim();
@@ -249,13 +285,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lowerQuery = query.toLowerCase().trim();
     if (!lowerQuery || allModels.length === 0) return [];
     return allModels
-      .filter((model) => 
-        model.id.toLowerCase().includes(lowerQuery) || 
-        (model.name && model.name.toLowerCase().includes(lowerQuery))
+      .filter(
+        (model) =>
+          model.id.toLowerCase().includes(lowerQuery) ||
+          (model.name && model.name.toLowerCase().includes(lowerQuery)),
       )
       .slice(0, 10); // Limit to top 10 suggestions
   }
-  function showAutocompleteSuggestions(inputElement, suggestions, type = 'language') {
+  function showAutocompleteSuggestions(
+    inputElement,
+    suggestions,
+    type = "language",
+  ) {
     if (!autocompleteDropdown) {
       autocompleteDropdown = document.createElement("div");
       autocompleteDropdown.className = "autocomplete-dropdown";
@@ -272,7 +313,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const div = document.createElement("div");
       div.className = "autocomplete-item";
       div.dataset.index = index;
-      if (type === 'language') {
+      if (type === "language") {
         div.dataset.languageCode = item.code;
         div.dataset.languageName = item.name;
         const flagImg = document.createElement("img");
@@ -290,10 +331,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         nameSpan.className = "language-name";
         div.appendChild(flagImg);
         div.appendChild(nameSpan);
-      } else if (type === 'model') {
+      } else if (type === "model") {
         div.dataset.modelId = item.id;
         const nameSpan = document.createElement("span");
-        nameSpan.textContent = item.name ? `${item.id} (${item.name})` : item.id;
+        nameSpan.textContent = item.name
+          ? `${item.id} (${item.name})`
+          : item.id;
         nameSpan.className = "model-name";
         div.appendChild(nameSpan);
       }
@@ -302,7 +345,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
       autocompleteDropdown.appendChild(div);
     });
-    const rect = (type === 'language' ? inputElement.closest(".language-input-wrapper") : inputElement).getBoundingClientRect();
+    const rect = (
+      type === "language"
+        ? inputElement.closest(".language-input-wrapper")
+        : inputElement
+    ).getBoundingClientRect();
     autocompleteDropdown.style.position = "absolute";
     autocompleteDropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
     autocompleteDropdown.style.left = `${rect.left + window.scrollX}px`;
@@ -317,17 +364,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     activeAutocompleteInput = null;
   }
-  function selectAutocompleteSuggestion(itemElement, inputElement, type = 'language') {
-    if (type === 'language') {
+  function selectAutocompleteSuggestion(
+    itemElement,
+    inputElement,
+    type = "language",
+  ) {
+    if (type === "language") {
       inputElement.value = itemElement.dataset.languageName;
-      const flagImg = inputElement.parentElement.querySelector(".language-flag");
+      const flagImg =
+        inputElement.parentElement.querySelector(".language-flag");
       if (flagImg) {
         flagImg.src = chrome.runtime.getURL(
           `country-flags/svg/${itemElement.dataset.languageCode.toLowerCase()}.svg`,
         );
         flagImg.alt = `${itemElement.dataset.languageName} flag`;
       }
-    } else if (type === 'model') {
+    } else if (type === "model") {
       inputElement.value = itemElement.dataset.modelId;
     }
     const event = new Event("input", { bubbles: true });
@@ -355,7 +407,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectAutocompleteSuggestion(
           items[highlightedAutocompleteIndex],
           activeAutocompleteInput,
-          activeAutocompleteInput.id.startsWith('modelText_') ? 'model' : 'language'
+          activeAutocompleteInput.id.startsWith("modelText_")
+            ? "model"
+            : "language",
         );
       }
     } else if (event.key === "Escape") {
@@ -382,14 +436,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderModelOptions() {
     if (!modelSelectionArea) return;
     modelSelectionArea.innerHTML = "";
- 
+
     if (!currentModels || currentModels.length === 0) {
       modelSelectionArea.innerHTML =
         "<p>No models configured. Add one below or save to use defaults.</p>";
       if (addModelBtn) addModelBtn.disabled = true;
       return;
     }
- 
+
     if (addModelBtn) {
       addModelBtn.disabled = currentModels.length >= MAX_MODELS;
       addModelBtn.title =
@@ -397,7 +451,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? `Maximum limit of ${MAX_MODELS} models reached.`
           : `Add another model (max ${MAX_MODELS}).`;
     }
- 
+
     const validModelIds = currentModels
       .filter((m) => m.id.trim() !== "")
       .map((m) => m.id);
@@ -407,18 +461,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!validModelIds.includes(currentChatModelId)) {
       currentChatModelId = validModelIds.length > 0 ? validModelIds[0] : "";
     }
- 
+
     currentModels.forEach((model, index) => {
       const modelIdTrimmed = model.id.trim();
       const isModelIdValid = modelIdTrimmed !== "";
- 
+
       const group = document.createElement("div");
       group.className = "option-group model-option";
- 
+
       // --- Model Info (ID Input ONLY) ---
       const modelInfo = document.createElement("div");
       modelInfo.className = "model-info"; // Wrapper div
- 
+
       const textInput = document.createElement("input"); // Model ID Input
       textInput.type = "text";
       textInput.id = `modelText_${index}`;
@@ -426,15 +480,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       textInput.placeholder = "Enter OpenRouter Model ID";
       textInput.dataset.index = index;
       textInput.addEventListener("input", handleModelTextChange);
- 
+
       modelInfo.appendChild(textInput); // Only append ID input
       group.appendChild(modelInfo);
-      setupAutocomplete(textInput, 'model'); // Setup autocomplete for model input
- 
+      setupAutocomplete(textInput, "model"); // Setup autocomplete for model input
+
       // --- Radios Container (Summary + Chat) ---
       const modelRadios = document.createElement("div");
       modelRadios.className = "model-radios";
- 
+
       // -- Summary Radio Group --
       const summaryGroup = document.createElement("div");
       summaryGroup.className = "radio-group";
@@ -458,7 +512,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       summaryGroup.appendChild(summaryRadio);
       summaryGroup.appendChild(summaryLabel);
       modelRadios.appendChild(summaryGroup);
- 
+
       // -- Chat Radio Group --
       const chatGroup = document.createElement("div");
       chatGroup.className = "radio-group";
@@ -479,9 +533,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       chatGroup.appendChild(chatRadio);
       chatGroup.appendChild(chatLabel);
       modelRadios.appendChild(chatGroup);
- 
+
       group.appendChild(modelRadios);
- 
+
       // --- Remove Button ---
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
@@ -491,18 +545,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       removeBtn.dataset.index = index;
       removeBtn.addEventListener("click", handleModelRemoveClick);
       group.appendChild(removeBtn);
- 
+
       modelSelectionArea.appendChild(group);
     });
     calculateKbLimitForSummary();
   }
- 
+
   // Handler for Summary/Chat radio changes (Updated for immediate save)
   function handleRadioChange(event) {
     if (!event.target.checked) return;
     const modelId = event.target.value;
     const type = event.target.name === "summary-default" ? "summary" : "chat";
- 
+
     if (type === "summary") {
       currentSummaryModelId = modelId;
       if (DEBUG)
@@ -516,24 +570,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     saveSettings(); // Save settings immediately after selection
   }
- 
+
   // UPDATED Handler for Model ID text changes (No Label Logic)
   function handleModelTextChange(event) {
     const idx = parseInt(event.target.dataset.index, 10);
     if (idx < 0 || idx >= currentModels.length) return; // Add boundary check
- 
+
     const oldModelId = currentModels[idx].id.trim();
     const newModelId = event.target.value.trim();
     const isNewIdValid = newModelId !== "";
- 
+
     currentModels[idx].id = newModelId;
- 
+
     // Update the corresponding radio buttons' values and disabled state
     const summaryRadio = document.getElementById(`summary-radio-${idx}`);
     const chatRadio = document.getElementById(`chat-radio-${idx}`);
- 
+
     let needsReRender = false; // Flag if defaults need recalculation
- 
+
     if (summaryRadio) {
       summaryRadio.value = newModelId;
       summaryRadio.disabled = !isNewIdValid;
@@ -558,7 +612,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         needsReRender = true;
       }
     }
- 
+
     // Re-render if defaults were potentially invalidated and reset
     if (needsReRender) {
       if (DEBUG)
@@ -568,7 +622,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderModelOptions();
       return; // Exit early as render handles the rest
     }
- 
+
     // Update default selections if the changed model *was* the default
     if (oldModelId === currentSummaryModelId && isNewIdValid) {
       currentSummaryModelId = newModelId;
@@ -577,23 +631,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentChatModelId = newModelId;
     }
   }
- 
+
   // REMOVED handleModelLabelChange function entirely
- 
+
   // Handler for Model Removal (Unchanged logic, state already lacks labels)
   function handleModelRemoveClick(event) {
     const index = parseInt(event.target.dataset.index, 10);
     if (index < 0 || index >= currentModels.length) return;
- 
+
     const removedModelId = currentModels[index].id.trim();
     currentModels.splice(index, 1);
- 
+
     const remainingValidIds = currentModels
       .filter((m) => m.id.trim() !== "")
       .map((m) => m.id.trim());
     const newDefaultId =
       remainingValidIds.length > 0 ? remainingValidIds[0] : "";
- 
+
     let changedDefaults = false;
     if (removedModelId !== "" && removedModelId === currentSummaryModelId) {
       currentSummaryModelId = newDefaultId;
@@ -611,10 +665,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           `[LLM Options] Chat default removed, new default: ${currentChatModelId || "None"}`,
         );
     }
- 
+
     renderModelOptions();
   }
- 
+
   // UPDATED Function to add a new model row (No Label)
   function addModel() {
     if (currentModels.length < MAX_MODELS) {
@@ -634,7 +688,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   // --- End Model Selection ---
- 
+
   // --- Language Selection Rendering and Handlers (Unchanged) ---
   function renderLanguageOptions() {
     if (!languageSelectionArea) return;
@@ -692,7 +746,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       languageSelectionArea.appendChild(group);
       setupAutocomplete(textInput);
     });
- 
+
     if (addLangBtn) {
       addLangBtn.disabled = language_info.length >= MAX_LANGUAGES;
       addLangBtn.title =
@@ -802,7 +856,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
       draggingElements.forEach((el) => el.classList.remove("dragging"));
     }
- 
+
     // Clear drag over styles from all items defensively
     languageSelectionArea.querySelectorAll(".language-option").forEach((el) => {
       el.classList.remove("drag-over-top", "drag-over-bottom");
@@ -816,7 +870,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const targetElement = event.target.closest(".language-option");
     if (!targetElement || draggedItemIndex === null) return; // Ensure we have a target and are dragging
     const targetIndex = parseInt(targetElement.dataset.index, 10);
- 
+
     // Clear previous indicators first
     languageSelectionArea.querySelectorAll(".language-option").forEach((el) => {
       // Don't remove indicator from the current target element yet
@@ -824,7 +878,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         el.classList.remove("drag-over-top", "drag-over-bottom");
       }
     });
- 
+
     if (draggedItemIndex !== targetIndex) {
       // Don't show indicator when hovering over itself
       const rect = targetElement.getBoundingClientRect();
@@ -844,7 +898,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function handleDragLeave(event) {
     const relatedTarget = event.relatedTarget;
     const targetElement = event.target.closest(".language-option");
- 
+
     // Check if the mouse is leaving the element entirely or just moving to a child/parent within it
     if (
       targetElement &&
@@ -857,16 +911,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     const targetElement = event.target.closest(".language-option");
     if (!targetElement || draggedItemIndex === null) return;
- 
+
     const targetIndex = parseInt(targetElement.dataset.index, 10);
     targetElement.classList.remove("drag-over-top", "drag-over-bottom"); // Clean up indicator
- 
+
     // Prevent dropping onto itself
     if (draggedItemIndex === targetIndex) {
       draggedItemIndex = null; // Reset drag state
       return;
     }
- 
+
     const draggedItem = language_info[draggedItemIndex];
     if (!draggedItem) {
       // Safety check
@@ -874,34 +928,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       draggedItemIndex = null;
       return;
     }
- 
+
     // Remove from old position first
     language_info.splice(draggedItemIndex, 1);
- 
+
     // Calculate new index based on drop position relative to target
     const rect = targetElement.getBoundingClientRect();
     const isOverTopHalf = event.clientY < rect.top + rect.height / 2;
- 
+
     // Determine insertion index: Before target if dropped on top half, Adjusted index if dropped on bottom half
     let newIndex =
       draggedItemIndex < targetIndex ? targetIndex - 1 : targetIndex; // Adjust index because splice shifted items
     if (!isOverTopHalf) {
       newIndex = draggedItemIndex < targetIndex ? targetIndex : targetIndex + 1; // Insert after target
     }
- 
+
     // Insert at the calculated new position
     language_info.splice(newIndex, 0, draggedItem);
- 
+
     if (DEBUG)
       console.log(
         `[LLM Options] Dropped language from original index ${draggedItemIndex} to new index ${newIndex}`,
       );
     renderLanguageOptions(); // Re-render to apply new order and indices
- 
+
     draggedItemIndex = null; // Reset dragged item index
   }
   // --- End Language Selection ---
- 
+
   // --- Prompt Preview & Collapsible (Unchanged) ---
   function updatePromptPreview() {
     let bulletCount = DEFAULT_BULLET_COUNT;
@@ -920,7 +974,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       promptFormatInstructionsTextarea.value = currentCustomFormatInstructions;
   }
   // --- End Prompt Preview ---
- 
+
   // --- Pricing Data Check and Update Functions ---
   /**
    * Checks if model and pricing data is available and updates the notification UI.
@@ -928,20 +982,21 @@ document.addEventListener("DOMContentLoaded", async () => {
    */
   function checkModelAndPricingData() {
     if (!pricingNotification) return;
-    
+
     const currentTime = Date.now();
     const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
     let isDataExpired = true;
-    
+
     if (Object.keys(knownModelsAndPrices).length > 0) {
       const firstModel = Object.values(knownModelsAndPrices)[0];
       if (firstModel && firstModel.timestamp) {
         isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
       }
     }
-    
+
     if (Object.keys(knownModelsAndPrices).length === 0 || isDataExpired) {
-      pricingNotification.textContent = "Model and pricing data missing or expired. Fetching data...";
+      pricingNotification.textContent =
+        "Model and pricing data missing or expired. Fetching data...";
       updateKnownModelsAndPricing();
     } else {
       pricingNotification.textContent = "Model and pricing data up to date.";
@@ -949,79 +1004,117 @@ document.addEventListener("DOMContentLoaded", async () => {
       updateAllModelsList(); // Update autocomplete list after data is confirmed
     }
   }
-  
+
   /**
    * Updates model and pricing data for all models by fetching from the API.
    * Saves settings if the API key is valid and refresh is successful.
    */
   function updateKnownModelsAndPricing() {
     if (!pricingNotification || !updatePricingBtn) return;
-    
+
     updatePricingBtn.disabled = true;
     pricingNotification.textContent = "Fetching model and pricing data...";
-    
-    chrome.runtime.sendMessage({
-      action: "updateKnownModelsAndPricing"
-    }, (response) => {
-      if (chrome.runtime.lastError || !response || response.status !== "success") {
-        pricingNotification.textContent = `Error updating data: ${chrome.runtime.lastError?.message || response?.message || "Unknown error"}`;
-        if (DEBUG) console.error("[LLM Options] Error updating model and pricing data:", chrome.runtime.lastError || response?.message);
-      } else {
-        const updated = response.updated || 0;
-        pricingNotification.textContent = `Updated data for ${updated} model(s). Settings saved.`;
-        if (DEBUG) console.log(`[LLM Options] Updated data for ${updated} models.`);
-        // Reload the cache after update
-        chrome.storage.local.get(STORAGE_KEY_KNOWN_MODELS_AND_PRICES, (cacheData) => {
-          knownModelsAndPrices = cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
-          if (DEBUG) console.log("[LLM Options] Reloaded model and pricing data:", knownModelsAndPrices);
-          calculateKbLimitForSummary(); // Recalculate KB limit after updating data
-          validateCurrentModels(); // Validate models after update
-          updateAllModelsList(); // Update autocomplete list after data refresh
-        });
-        // Save settings after successful refresh to confirm API key validity
-        if (apiKeyInput && apiKeyInput.value.trim()) {
-          if (DEBUG) console.log("[LLM Options] API key validated, saving settings automatically.");
-          saveSettings();
+
+    chrome.runtime.sendMessage(
+      {
+        action: "updateKnownModelsAndPricing",
+      },
+      (response) => {
+        if (
+          chrome.runtime.lastError ||
+          !response ||
+          response.status !== "success"
+        ) {
+          pricingNotification.textContent = `Error updating data: ${chrome.runtime.lastError?.message || response?.message || "Unknown error"}`;
+          if (DEBUG)
+            console.error(
+              "[LLM Options] Error updating model and pricing data:",
+              chrome.runtime.lastError || response?.message,
+            );
         } else {
-          if (DEBUG) console.log("[LLM Options] API key is empty, skipping automatic save.");
+          const updated = response.updated || 0;
+          pricingNotification.textContent = `Updated data for ${updated} model(s). Settings saved.`;
+          if (DEBUG)
+            console.log(`[LLM Options] Updated data for ${updated} models.`);
+          // Reload the cache after update
+          chrome.storage.local.get(
+            STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
+            (cacheData) => {
+              knownModelsAndPrices =
+                cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
+              if (DEBUG)
+                console.log(
+                  "[LLM Options] Reloaded model and pricing data:",
+                  knownModelsAndPrices,
+                );
+              calculateKbLimitForSummary(); // Recalculate KB limit after updating data
+              validateCurrentModels(); // Validate models after update
+              updateAllModelsList(); // Update autocomplete list after data refresh
+            },
+          );
+          // Save settings after successful refresh to confirm API key validity
+          if (apiKeyInput && apiKeyInput.value.trim()) {
+            if (DEBUG)
+              console.log(
+                "[LLM Options] API key validated, saving settings automatically.",
+              );
+            saveSettings();
+          } else {
+            if (DEBUG)
+              console.log(
+                "[LLM Options] API key is empty, skipping automatic save.",
+              );
+          }
         }
-      }
-      updatePricingBtn.disabled = false;
-    });
+        updatePricingBtn.disabled = false;
+      },
+    );
   }
-  
+
   /**
    * Validates current models against known_models_and_prices and updates UI if necessary.
    */
   function validateCurrentModels() {
     if (Object.keys(knownModelsAndPrices).length === 0) return;
-    
+
     const validModelIds = Object.keys(knownModelsAndPrices);
     let hasChanged = false;
-    
+
     // Check summary model
-    if (currentSummaryModelId && !validModelIds.includes(currentSummaryModelId)) {
+    if (
+      currentSummaryModelId &&
+      !validModelIds.includes(currentSummaryModelId)
+    ) {
       const newSummaryModel = validModelIds.length > 0 ? validModelIds[0] : "";
-      if (DEBUG) console.log(`[LLM Options] Summary model ${currentSummaryModelId} not compatible, switching to ${newSummaryModel}`);
+      if (DEBUG)
+        console.log(
+          `[LLM Options] Summary model ${currentSummaryModelId} not compatible, switching to ${newSummaryModel}`,
+        );
       currentSummaryModelId = newSummaryModel;
       hasChanged = true;
     }
-    
+
     // Check chat model (optional flexibility)
     if (currentChatModelId && !validModelIds.includes(currentChatModelId)) {
       const newChatModel = validModelIds.length > 0 ? validModelIds[0] : "";
-      if (DEBUG) console.log(`[LLM Options] Chat model ${currentChatModelId} not compatible, switching to ${newChatModel}`);
+      if (DEBUG)
+        console.log(
+          `[LLM Options] Chat model ${currentChatModelId} not compatible, switching to ${newChatModel}`,
+        );
       currentChatModelId = newChatModel;
       hasChanged = true;
     }
-    
+
     // Check all configured models and warn if some are not in the known list
-    const unknownModels = currentModels.filter(model => model.id && !validModelIds.includes(model.id));
+    const unknownModels = currentModels.filter(
+      (model) => model.id && !validModelIds.includes(model.id),
+    );
     if (unknownModels.length > 0) {
-      if (DEBUG) console.log(`[LLM Options] Unknown models detected:`, unknownModels);
+      if (DEBUG)
+        console.log(`[LLM Options] Unknown models detected:`, unknownModels);
       // Optionally notify user or adjust list
     }
-    
+
     if (hasChanged) {
       renderModelOptions();
     }
@@ -1074,8 +1167,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       DEBUG = data.debug ?? DEFAULT_DEBUG_MODE;
       if (apiKeyInput) apiKeyInput.value = data.apiKey || "";
-      if (newsblurTokenInput) newsblurTokenInput.value = data[STORAGE_KEY_NEWSBLUR_TOKEN] || "";
-      if (joplinTokenInput) joplinTokenInput.value = data[STORAGE_KEY_JOPLIN_TOKEN] || ""; // New: Populate Joplin Token Input
+      if (newsblurTokenInput)
+        newsblurTokenInput.value = data[STORAGE_KEY_NEWSBLUR_TOKEN] || "";
+      if (joplinTokenInput)
+        joplinTokenInput.value = data[STORAGE_KEY_JOPLIN_TOKEN] || ""; // New: Populate Joplin Token Input
       if (debugCheckbox) debugCheckbox.checked = DEBUG;
 
       let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
@@ -1165,12 +1260,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Handled in calculateKbLimitForSummary
 
       // Load known models and pricing data from local storage
-      const cacheData = await chrome.storage.local.get([STORAGE_KEY_PRICING_CACHE, STORAGE_KEY_KNOWN_MODELS_AND_PRICES]);
+      const cacheData = await chrome.storage.local.get([
+        STORAGE_KEY_PRICING_CACHE,
+        STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
+      ]);
       modelPricingCache = cacheData[STORAGE_KEY_PRICING_CACHE] || {};
-      knownModelsAndPrices = cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
-      if (DEBUG) console.log("[LLM Options] Loaded pricing cache:", modelPricingCache);
-      if (DEBUG) console.log("[LLM Options] Loaded known models and pricing data:", knownModelsAndPrices);
-      
+      knownModelsAndPrices =
+        cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
+      if (DEBUG)
+        console.log("[LLM Options] Loaded pricing cache:", modelPricingCache);
+      if (DEBUG)
+        console.log(
+          "[LLM Options] Loaded known models and pricing data:",
+          knownModelsAndPrices,
+        );
+
       // Populate allModels from knownModelsAndPrices for autocomplete
       updateAllModelsList();
 
@@ -1183,7 +1287,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 1500);
       }
       // Set the radio button for max price behavior
-      document.querySelector(`input[name="maxPriceBehavior"][value="${currentMaxPriceBehavior}"]`).checked = true;
+      document.querySelector(
+        `input[name="maxPriceBehavior"][value="${currentMaxPriceBehavior}"]`,
+      ).checked = true;
       if (DEBUG) console.log("[LLM Options] Settings loaded successfully.");
     } catch (error) {
       showError(`Error loading settings: ${error.message}. Using defaults.`);
@@ -1297,7 +1403,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS,
       [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice,
       [STORAGE_KEY_MAX_PRICE_BEHAVIOR]: currentMaxPriceBehavior,
-      [STORAGE_KEY_NEWSBLUR_TOKEN]: newsblurTokenInput ? newsblurTokenInput.value.trim() : "", // New: Save NewsBlur Token
+      [STORAGE_KEY_NEWSBLUR_TOKEN]: newsblurTokenInput
+        ? newsblurTokenInput.value.trim()
+        : "", // New: Save NewsBlur Token
     };
 
     if (DEBUG)
@@ -1406,7 +1514,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       updatePromptPreview();
       calculateKbLimitForSummary();
       // Reset the radio button for max price behavior
-      document.querySelector(`input[name="maxPriceBehavior"][value="${currentMaxPriceBehavior}"]`).checked = true;
+      document.querySelector(
+        `input[name="maxPriceBehavior"][value="${currentMaxPriceBehavior}"]`,
+      ).checked = true;
 
       saveSettings();
 
@@ -1471,30 +1581,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     debounceTimeoutId = setTimeout(() => {
       let tokenValue = newsblurTokenInput.value.trim();
       // Check if it's a URL and try to extract the token
-      if (tokenValue.startsWith("http://") || tokenValue.startsWith("https://")) {
+      if (
+        tokenValue.startsWith("http://") ||
+        tokenValue.startsWith("https://")
+      ) {
         try {
           const url = new URL(tokenValue);
-          const pathParts = url.pathname.split('/');
-          // Assuming token is the last part of the path, e.g., /NB/token_here
-          // Or sometimes it's in a query parameter like ?token=...
-          let extractedToken = pathParts[pathParts.length - 1];
-          if (!extractedToken && url.searchParams.has('token')) {
-            extractedToken = url.searchParams.get('token');
-          } else if (!extractedToken && url.searchParams.has('secret')) { // Another possible param
-            extractedToken = url.searchParams.get('secret');
+          // Extract token specifically from the path between /add_site_load_script/ and ?url
+          const regex = /\/add_site_load_script\/([a-zA-Z0-9]+)\?url/;
+          const match = url.pathname.match(regex);
+          let extractedToken = null;
+          if (match && match[1]) {
+            extractedToken = match[1];
           }
 
-          // Basic validation for typical token format (alphanumeric, possibly with hyphens/underscores)
-          // Ensure it's not just 'NB' or a short segment.
-          if (extractedToken && /^[a-zA-Z0-9_-]{10,}$/.test(extractedToken) && extractedToken.toUpperCase() !== 'NB') {
+          // Validate the extracted token: alphanumeric only, at least 1 character, and not "NB"
+          if (
+            extractedToken &&
+            /^[a-zA-Z0-9]+$/.test(extractedToken) &&
+            extractedToken.toUpperCase() !== "NB"
+          ) {
             newsblurTokenInput.value = extractedToken; // Update input field with extracted token
             tokenValue = extractedToken;
-            if (DEBUG) console.log("[LLM Options] Extracted NewsBlur token from URL:", tokenValue);
+            if (DEBUG)
+              console.log(
+                "[LLM Options] Extracted NewsBlur token from URL:",
+                tokenValue,
+              );
           } else {
-            if (DEBUG) console.warn("[LLM Options] Could not extract a valid-looking NewsBlur token from URL:", tokenValue, "Extracted part:", extractedToken);
+            if (DEBUG)
+              console.warn(
+                "[LLM Options] Could not extract a valid-looking NewsBlur token from URL:",
+                tokenValue,
+                "Extracted part:",
+                extractedToken,
+              );
           }
         } catch (e) {
-          if (DEBUG) console.warn("[LLM Options] Error parsing NewsBlur URL:", e);
+          if (DEBUG)
+            console.warn("[LLM Options] Error parsing NewsBlur URL:", e);
           // If parsing fails, proceed with the raw value, it might be the token itself
         }
       }
@@ -1509,186 +1634,203 @@ document.addEventListener("DOMContentLoaded", async () => {
    */
   function handleApiAndJoplinInput(event) {
     if (debounceTimeoutId) {
-        clearTimeout(debounceTimeoutId);
-   }
-   debounceTimeoutId = setTimeout(() => {
-       // This function saves all settings, so it's fine for both (apiKey and joplinToken)
-       saveSettings();
-       // Specific logic for API key to trigger model refresh
-       if (event.target.id === 'apiKey') {
-           const apiKey = apiKeyInput.value.trim();
-           if (apiKey) {
-               if (DEBUG) console.log("[LLM Options] API key entered, triggering model refresh after debounce.");
-               updateKnownModelsAndPricing();
-           } else {
-               if (DEBUG) console.log("[LLM Options] API key is empty, skipping model refresh.");
-           }
-       }
-       debounceTimeoutId = null;
-   }, DEBOUNCE_DELAY);
- }
+      clearTimeout(debounceTimeoutId);
+    }
+    debounceTimeoutId = setTimeout(() => {
+      // This function saves all settings, so it's fine for both (apiKey and joplinToken)
+      saveSettings();
+      // Specific logic for API key to trigger model refresh
+      if (event.target.id === "apiKey") {
+        const apiKey = apiKeyInput.value.trim();
+        if (apiKey) {
+          if (DEBUG)
+            console.log(
+              "[LLM Options] API key entered, triggering model refresh after debounce.",
+            );
+          updateKnownModelsAndPricing();
+        } else {
+          if (DEBUG)
+            console.log(
+              "[LLM Options] API key is empty, skipping model refresh.",
+            );
+        }
+      }
+      debounceTimeoutId = null;
+    }, DEBOUNCE_DELAY);
+  }
 
- /**
-  * Updates the allModels list for autocomplete from knownModelsAndPrices.
-  */
- function updateAllModelsList() {
-   allModels = Object.values(knownModelsAndPrices).map(model => ({
-     id: model.id,
-     name: model.name || ''
-   }));
-   if (DEBUG) console.log("[LLM Options] Updated allModels list for autocomplete:", allModels.length, "models available.");
- }
+  /**
+   * Updates the allModels list for autocomplete from knownModelsAndPrices.
+   */
+  function updateAllModelsList() {
+    allModels = Object.values(knownModelsAndPrices).map((model) => ({
+      id: model.id,
+      name: model.name || "",
+    }));
+    if (DEBUG)
+      console.log(
+        "[LLM Options] Updated allModels list for autocomplete:",
+        allModels.length,
+        "models available.",
+      );
+  }
 
- /**
-  * Checks pricing data for all configured models and updates if necessary.
-  */
- function checkPricingData() {
-   if (!pricingNotification) return;
-   
-   const currentTime = Date.now();
-   const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-   let isDataExpired = true;
-   
-   if (Object.keys(knownModelsAndPrices).length > 0) {
-     const firstModel = Object.values(knownModelsAndPrices)[0];
-     if (firstModel && firstModel.timestamp) {
-       isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
-     }
-   }
-   
-   if (Object.keys(knownModelsAndPrices).length === 0 || isDataExpired) {
-     pricingNotification.textContent = "Model and pricing data missing or expired. Fetching data...";
-     updateKnownModelsAndPricing();
-   } else {
-     pricingNotification.textContent = "Model and pricing data up to date.";
-     updateAllModelsList(); // Ensure autocomplete list is updated
-   }
- }
+  /**
+   * Checks pricing data for all configured models and updates if necessary.
+   */
+  function checkPricingData() {
+    if (!pricingNotification) return;
 
- // --- Tab Handling ---
- function setupTabNavigation() {
-   const tabButtons = document.querySelectorAll('.tab-button');
-   const tabContents = document.querySelectorAll('.tab-content');
+    const currentTime = Date.now();
+    const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    let isDataExpired = true;
 
-   tabButtons.forEach(button => {
-     button.addEventListener('click', () => {
-       // Deactivate all tabs and hide all content
-       tabButtons.forEach(btn => btn.classList.remove('active'));
-       tabContents.forEach(content => content.classList.remove('active'));
+    if (Object.keys(knownModelsAndPrices).length > 0) {
+      const firstModel = Object.values(knownModelsAndPrices)[0];
+      if (firstModel && firstModel.timestamp) {
+        isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
+      }
+    }
 
-       // Activate clicked tab
-       button.classList.add('active');
-       // Show corresponding content
-       const targetTabId = button.dataset.tab;
-       document.getElementById(targetTabId).classList.add('active');
-       if (DEBUG) console.log(`[LLM Options] Switched to tab: ${targetTabId}`);
+    if (Object.keys(knownModelsAndPrices).length === 0 || isDataExpired) {
+      pricingNotification.textContent =
+        "Model and pricing data missing or expired. Fetching data...";
+      updateKnownModelsAndPricing();
+    } else {
+      pricingNotification.textContent = "Model and pricing data up to date.";
+      updateAllModelsList(); // Ensure autocomplete list is updated
+    }
+  }
 
-       // Special handling for advanced options tab: No longer collapsible, so no special handling needed here.
-       // The general tab content activation/deactivation is sufficient.
-     });
-   });
+  // --- Tab Handling ---
+  function setupTabNavigation() {
+    const tabButtons = document.querySelectorAll(".tab-button");
+    const tabContents = document.querySelectorAll(".tab-content");
 
-   // Set initial active tab
-   // Check local storage for last active tab, otherwise default to 'summary-tab'
-   chrome.storage.local.get('lastActiveTab', (result) => {
-       const lastActiveTab = result.lastActiveTab || 'summary-tab'; // New default is 'summary-tab'
-       const initialTabButton = document.querySelector(`.tab-button[data-tab="${lastActiveTab}"]`);
-       if (initialTabButton) {
-           initialTabButton.click(); // Simulate click to activate tab and its content
-       } else {
-           // Fallback to the default tab if stored tab doesn't exist
-           document.querySelector(`.tab-button[data-tab="summary-tab"]`).click();
-       }
-   });
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        // Deactivate all tabs and hide all content
+        tabButtons.forEach((btn) => btn.classList.remove("active"));
+        tabContents.forEach((content) => content.classList.remove("active"));
 
-   // Save active tab on change
-   tabButtons.forEach(button => {
-       button.addEventListener('click', () => {
-           const currentTabId = button.dataset.tab;
-           chrome.storage.local.set({ 'lastActiveTab': currentTabId });
-       });
-   });
- }
+        // Activate clicked tab
+        button.classList.add("active");
+        // Show corresponding content
+        const targetTabId = button.dataset.tab;
+        document.getElementById(targetTabId).classList.add("active");
+        if (DEBUG) console.log(`[LLM Options] Switched to tab: ${targetTabId}`);
 
- async function initializeOptionsPage() {
-   try {
-     await loadSettings();
+        // Special handling for advanced options tab: No longer collapsible, so no special handling needed here.
+        // The general tab content activation/deactivation is sufficient.
+      });
+    });
 
-     // Connect input fields for API Key and Joplin Token to the unified handler
-     if (apiKeyInput) {
-       apiKeyInput.addEventListener("input", handleApiAndJoplinInput);
-       apiKeyInput.addEventListener("blur", handleApiAndJoplinInput);
-     } else {
-       console.error("[LLM Options] API Key input field not found.");
-     }
+    // Set initial active tab
+    // Check local storage for last active tab, otherwise default to 'summary-tab'
+    chrome.storage.local.get("lastActiveTab", (result) => {
+      const lastActiveTab = result.lastActiveTab || "summary-tab"; // New default is 'summary-tab'
+      const initialTabButton = document.querySelector(
+        `.tab-button[data-tab="${lastActiveTab}"]`,
+      );
+      if (initialTabButton) {
+        initialTabButton.click(); // Simulate click to activate tab and its content
+      } else {
+        // Fallback to the default tab if stored tab doesn't exist
+        document.querySelector(`.tab-button[data-tab="summary-tab"]`).click();
+      }
+    });
 
-     const joplinTokenInput = document.getElementById("joplinToken");
-     if (joplinTokenInput) {
-       joplinTokenInput.addEventListener("input", handleApiAndJoplinInput);
-       joplinTokenInput.addEventListener("blur", handleApiAndJoplinInput);
-     } else {
-       console.error("[LLM Options] Joplin Token input field not found.");
-     }
+    // Save active tab on change
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const currentTabId = button.dataset.tab;
+        chrome.storage.local.set({ lastActiveTab: currentTabId });
+      });
+    });
+  }
 
-     // NewsBlur token input still needs its specific URL extraction logic
-     if (newsblurTokenInput) {
-       newsblurTokenInput.addEventListener("input", handleNewsblurTokenInput);
-       newsblurTokenInput.addEventListener("blur", handleNewsblurTokenInput);
-     } else {
-       console.error("[LLM Options] NewsBlur Token input field not found.");
-     }
+  async function initializeOptionsPage() {
+    try {
+      await loadSettings();
 
-     if (addModelBtn) {
-       addModelBtn.addEventListener("click", addModel);
-     } else {
-       console.error("[LLM Options] Add Model button not found.");
-     }
-     
-     // Add event listeners for bullet count radios to save immediately
-     bulletCountRadios.forEach(radio => {
-       radio.addEventListener("change", () => {
-         if (DEBUG)
-           console.log(`[LLM Options] Bullet Count changed to: ${radio.value}`);
-         saveSettings();
-         updatePromptPreview();
-       });
-     });
-     if (addLangBtn) {
-       addLangBtn.addEventListener("click", addLanguage);
-     } else {
-       console.error("[LLM Options] Add Language button not found.");
-     }
-     if (resetButton) {
-       resetButton.addEventListener("click", resetToDefaults);
-     } else {
-       console.error("[LLM Options] Reset button not found.");
-     }
-     const saveBtn = document.getElementById("saveBtn");
-     if (saveBtn) {
-       saveBtn.addEventListener("click", saveSettings);
-     } else {
-       console.error("[LLM Options] Save button not found.");
-     }
-     if (updatePricingBtn) {
-       updatePricingBtn.addEventListener("click", updateKnownModelsAndPricing);
-     } else {
-       console.error("[LLM Options] Update Model Pricing button not found.");
-     }
-     // Add event listener for max price behavior radio buttons
-     document.querySelectorAll('input[name="maxPriceBehavior"]').forEach(radio => {
-       radio.addEventListener("change", () => {
-         currentMaxPriceBehavior = radio.value;
-       });
-     });
-     setupTabNavigation(); // Setup tab navigation
-     if (DEBUG) console.log("[LLM Options] Event listeners attached.");
-   } catch (error) {
-     console.error("[LLM Options] Error during initialization:", error);
-     showError("Failed to initialize options page: " + error.message);
-   }
- }
+      // Connect input fields for API Key and Joplin Token to the unified handler
+      if (apiKeyInput) {
+        apiKeyInput.addEventListener("input", handleApiAndJoplinInput);
+        apiKeyInput.addEventListener("blur", handleApiAndJoplinInput);
+      } else {
+        console.error("[LLM Options] API Key input field not found.");
+      }
 
- initializeOptionsPage();
- // --- End Initial Setup ---
+      const joplinTokenInput = document.getElementById("joplinToken");
+      if (joplinTokenInput) {
+        joplinTokenInput.addEventListener("input", handleApiAndJoplinInput);
+        joplinTokenInput.addEventListener("blur", handleApiAndJoplinInput);
+      } else {
+        console.error("[LLM Options] Joplin Token input field not found.");
+      }
+
+      // NewsBlur token input still needs its specific URL extraction logic
+      if (newsblurTokenInput) {
+        newsblurTokenInput.addEventListener("input", handleNewsblurTokenInput);
+        newsblurTokenInput.addEventListener("blur", handleNewsblurTokenInput);
+      } else {
+        console.error("[LLM Options] NewsBlur Token input field not found.");
+      }
+
+      if (addModelBtn) {
+        addModelBtn.addEventListener("click", addModel);
+      } else {
+        console.error("[LLM Options] Add Model button not found.");
+      }
+
+      // Add event listeners for bullet count radios to save immediately
+      bulletCountRadios.forEach((radio) => {
+        radio.addEventListener("change", () => {
+          if (DEBUG)
+            console.log(
+              `[LLM Options] Bullet Count changed to: ${radio.value}`,
+            );
+          saveSettings();
+          updatePromptPreview();
+        });
+      });
+      if (addLangBtn) {
+        addLangBtn.addEventListener("click", addLanguage);
+      } else {
+        console.error("[LLM Options] Add Language button not found.");
+      }
+      if (resetButton) {
+        resetButton.addEventListener("click", resetToDefaults);
+      } else {
+        console.error("[LLM Options] Reset button not found.");
+      }
+      const saveBtn = document.getElementById("saveBtn");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", saveSettings);
+      } else {
+        console.error("[LLM Options] Save button not found.");
+      }
+      if (updatePricingBtn) {
+        updatePricingBtn.addEventListener("click", updateKnownModelsAndPricing);
+      } else {
+        console.error("[LLM Options] Update Model Pricing button not found.");
+      }
+      // Add event listener for max price behavior radio buttons
+      document
+        .querySelectorAll('input[name="maxPriceBehavior"]')
+        .forEach((radio) => {
+          radio.addEventListener("change", () => {
+            currentMaxPriceBehavior = radio.value;
+          });
+        });
+      setupTabNavigation(); // Setup tab navigation
+      if (DEBUG) console.log("[LLM Options] Event listeners attached.");
+    } catch (error) {
+      console.error("[LLM Options] Error during initialization:", error);
+      showError("Failed to initialize options page: " + error.message);
+    }
+  }
+
+  initializeOptionsPage();
+  // --- End Initial Setup ---
 }); // End DOMContentLoaded
-
