@@ -39,19 +39,26 @@ const POPUP_TEMPLATE_HTML = `
 // --- Module State ---
 let popup = null;
 let currentContent = ""; // Stores the HTML/text content being displayed
-let popupCallbacks = { onCopy: null, onChat: null, onClose: null, onOptions: null, onNewsblur: null }; // Initialize new callback
+let popupCallbacks = {
+  onCopy: null,
+  onChat: null,
+  onClose: null,
+  onOptions: null,
+  onNewsblur: null,
+}; // Initialize new callback
 let copyTimeoutId = null;
 let DEBUG = false;
 
 let currentOriginalMarkdownArray = null; // To store the array of original Markdown strings
 let currentPageURL = null; // To store the page URL
+let currentPageTitle = null; // To store the page title
 let isErrorState = false; // To track if the popup is in an error state
 
 // Helper function to escape HTML special characters
 function escapeHTML(str) {
-  if (typeof str !== 'string') return '';
+  if (typeof str !== "string") return "";
   // A robust way to escape HTML: create a text node and get its HTML representation.
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
 }
@@ -64,10 +71,7 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
   let htmlToCopy = "";
   let textToCopy = "";
 
-  if (
-    currentOriginalMarkdownArray &&
-    currentOriginalMarkdownArray.length > 0
-  ) {
+  if (currentOriginalMarkdownArray && currentOriginalMarkdownArray.length > 0) {
     // Construct HTML list from original markdown items
     htmlToCopy = "<ul>"; // Use literal tags
     currentOriginalMarkdownArray.forEach((item) => {
@@ -83,11 +87,21 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
       .join("\n");
 
     if (currentPageURL) {
-      htmlToCopy += `<p>Source: <a href="${escapeHTML(currentPageURL)}">${escapeHTML(currentPageURL)}</a></p>`; // Use literal tags, escape URL content
+      // MODIFIED: Use currentPageTitle if available, otherwise fallback to currentPageURL for the link text
+      const linkText = currentPageTitle
+        ? escapeHTML(currentPageTitle)
+        : escapeHTML(currentPageURL);
+      htmlToCopy += `<br><p>Source: <a href="${escapeHTML(currentPageURL)}">${linkText}</a></p>`; // Use literal tags, escape URL content
       textToCopy += `\n\nSource: ${currentPageURL}`;
+      if (currentPageTitle) {
+        // ADDED
+        textToCopy += ` (${currentPageTitle})`; // ADDED
+      }
     }
     if (DEBUG)
-      console.log("[LLM Popup] Preparing rich text and plain text from original markdown array.");
+      console.log(
+        "[LLM Popup] Preparing rich text and plain text from original markdown array.",
+      );
   } else if (contentDiv && contentDiv.innerHTML.trim() !== "") {
     // Fallback: Use the innerHTML of the contentDiv for rich text
     // and textContent for plain text
@@ -95,22 +109,28 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
     textToCopy = contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
 
     const listItems = contentDiv.querySelectorAll("li");
-    if (listItems.length > 0 && !textToCopy.includes('\n')) {
-        textToCopy = Array.from(listItems)
-            .map(li => `* ${li.textContent.replace(/\u00A0/g, " ").trim()}`)
-            .join("\n");
+    if (listItems.length > 0 && !textToCopy.includes("\n")) {
+      textToCopy = Array.from(listItems)
+        .map((li) => `* ${li.textContent.replace(/\u00A0/g, " ").trim()}`)
+        .join("\n");
     }
 
     if (DEBUG)
-      console.log("[LLM Popup] Fallback: Preparing rich/plain text from visible popup content.");
-  } else if (typeof currentContent === "string" && !currentContent.startsWith("<")) {
+      console.log(
+        "[LLM Popup] Fallback: Preparing rich/plain text from visible popup content.",
+      );
+  } else if (
+    typeof currentContent === "string" &&
+    !currentContent.startsWith("<")
+  ) {
     // Fallback for simple text like "Thinking..."
     htmlToCopy = `<p>${escapeHTML(currentContent.trim())}</p>`; // Use literal tags
     textToCopy = currentContent.trim();
     if (DEBUG)
-      console.log("[LLM Popup] Fallback: Preparing rich/plain text from currentContent string.");
+      console.log(
+        "[LLM Popup] Fallback: Preparing rich/plain text from currentContent string.",
+      );
   }
-
 
   if (htmlToCopy && textToCopy) {
     try {
@@ -128,9 +148,15 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
       try {
         await navigator.clipboard.writeText(textToCopy);
         copyBtn.textContent = "Copied (Text)!";
-        if (DEBUG) console.log("[LLM Popup] Rich text failed, plain text copied as fallback.");
+        if (DEBUG)
+          console.log(
+            "[LLM Popup] Rich text failed, plain text copied as fallback.",
+          );
       } catch (textErr) {
-        console.error("[LLM Popup] Failed to copy plain text as fallback: ", textErr);
+        console.error(
+          "[LLM Popup] Failed to copy plain text as fallback: ",
+          textErr,
+        );
         copyBtn.textContent = "Error";
       }
     }
@@ -162,8 +188,9 @@ export function showPopup(
   callbacks,
   originalMarkdownArray = null,
   pageURL = null,
+  pageTitle = null, // MODIFIED: Added pageTitle parameter
   errorState = false,
-  hasNewsblurToken = false // New: Add hasNewsblurToken parameter
+  hasNewsblurToken = false, // New: Add hasNewsblurToken parameter
 ) {
   return new Promise((resolve) => {
     hidePopup(); // Clears previous state
@@ -186,6 +213,7 @@ export function showPopup(
     currentContent = content;
     currentOriginalMarkdownArray = originalMarkdownArray;
     currentPageURL = pageURL;
+    currentPageTitle = pageTitle; // ADDED: Store pageTitle
     isErrorState = errorState;
 
     try {
@@ -207,7 +235,8 @@ export function showPopup(
 
     if (contentDiv) {
       if (typeof content === "string") {
-        if (content.startsWith("<ul>")) { // Check for HTML list
+        if (content.startsWith("<ul>")) {
+          // Check for HTML list
           contentDiv.innerHTML = content;
         } else {
           contentDiv.textContent = content;
@@ -240,13 +269,17 @@ export function showPopup(
         chatBtn.title = "Open options to adjust settings";
         chatBtn.onclick = () => popupCallbacks.onOptions();
         chatBtn.disabled = false;
-        if (DEBUG) console.log("[LLM Popup] Button set to 'Options' due to error state.");
+        if (DEBUG)
+          console.log(
+            "[LLM Popup] Button set to 'Options' due to error state.",
+          );
       } else {
         chatBtn.textContent = "Chat";
         chatBtn.title = "Open chat with summary context";
         chatBtn.onclick = () => popupCallbacks.onChat(null);
         chatBtn.disabled = true; // Keep disabled until content is ready
-        if (DEBUG) console.log("[LLM Popup] Button set to 'Chat' for normal state.");
+        if (DEBUG)
+          console.log("[LLM Popup] Button set to 'Chat' for normal state.");
       }
     } else {
       console.error(
@@ -254,9 +287,10 @@ export function showPopup(
       );
     }
 
-    if (newsblurBtn) { // New: Attach listener for NewsBlur button
+    if (newsblurBtn) {
+      // New: Attach listener for NewsBlur button
       newsblurBtn.onclick = () => popupCallbacks.onNewsblur(hasNewsblurToken); // Pass hasNewsblurToken to callback
-      newsblurBtn.style.display = hasNewsblurToken ? 'inline-block' : 'none'; // Control visibility
+      newsblurBtn.style.display = hasNewsblurToken ? "inline-block" : "none"; // Control visibility
     } else {
       console.error(
         "[LLM Popup] Could not attach NewsBlur listener: Button missing.",
@@ -296,10 +330,17 @@ export function hidePopup() {
     const popupElement = popup;
     popup = null;
     // Reset callbacks and state
-    popupCallbacks = { onCopy: null, onChat: null, onClose: null, onOptions: null, onNewsblur: null }; // Reset new callback
+    popupCallbacks = {
+      onCopy: null,
+      onChat: null,
+      onClose: null,
+      onOptions: null,
+      onNewsblur: null,
+    }; // Reset new callback
     currentContent = "";
     currentOriginalMarkdownArray = null;
     currentPageURL = null;
+    currentPageTitle = null; // ADDED: Reset pageTitle
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
     isErrorState = false;
@@ -332,8 +373,9 @@ export function updatePopupContent(
   newContent,
   originalMarkdownArray = null,
   pageURL = null,
+  pageTitle = null, // MODIFIED: Added pageTitle parameter
   errorState = false,
-  hasNewsblurToken = false // New: Add hasNewsblurToken parameter
+  hasNewsblurToken = false, // New: Add hasNewsblurToken parameter
 ) {
   if (!popup) {
     if (DEBUG)
@@ -345,6 +387,7 @@ export function updatePopupContent(
   currentContent = newContent;
   currentOriginalMarkdownArray = originalMarkdownArray; // Store for copy
   currentPageURL = pageURL; // Store for copy
+  currentPageTitle = pageTitle; // ADDED: Store pageTitle
   isErrorState = errorState;
 
   const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
@@ -353,7 +396,8 @@ export function updatePopupContent(
 
   if (contentDiv) {
     if (typeof newContent === "string") {
-      if (newContent.startsWith("<ul>")) { // Check for HTML list
+      if (newContent.startsWith("<ul>")) {
+        // Check for HTML list
         contentDiv.innerHTML = newContent;
       } else {
         contentDiv.textContent = newContent;
@@ -378,19 +422,26 @@ export function updatePopupContent(
       chatBtn.title = "Open options to adjust settings";
       chatBtn.onclick = () => popupCallbacks.onOptions();
       chatBtn.disabled = false;
-      if (DEBUG) console.log("[LLM Popup] Button updated to 'Options' due to error state in updatePopupContent.");
+      if (DEBUG)
+        console.log(
+          "[LLM Popup] Button updated to 'Options' due to error state in updatePopupContent.",
+        );
     } else {
       chatBtn.textContent = "Chat";
       chatBtn.title = "Open chat with summary context";
       chatBtn.onclick = () => popupCallbacks.onChat(null);
       // Chat button should be enabled/disabled by enableChatButton based on summary generation status
       // chatBtn.disabled = true; // Re-evaluate: keep existing logic from enableChatButton
-      if (DEBUG) console.log("[LLM Popup] Button updated to 'Chat' for normal state in updatePopupContent.");
+      if (DEBUG)
+        console.log(
+          "[LLM Popup] Button updated to 'Chat' for normal state in updatePopupContent.",
+        );
     }
   }
-  if (newsblurBtn) { // New: Control NewsBlur button visibility and pass token status
+  if (newsblurBtn) {
+    // New: Control NewsBlur button visibility and pass token status
     newsblurBtn.onclick = () => popupCallbacks.onNewsblur(hasNewsblurToken); // Ensure callback always gets token status
-    newsblurBtn.style.display = hasNewsblurToken ? 'inline-block' : 'none';
+    newsblurBtn.style.display = hasNewsblurToken ? "inline-block" : "none";
   }
 }
 
@@ -404,14 +455,16 @@ export function enableChatButton(enable) {
   if (chatBtn) {
     // Only enable if not in an error state where it should show "Options"
     if (isErrorState && chatBtn.textContent === "Options") {
-        // Don't change disabled state if it's an "Options" button
+      // Don't change disabled state if it's an "Options" button
     } else {
-        chatBtn.disabled = !enable;
+      chatBtn.disabled = !enable;
     }
   }
 
   if (DEBUG)
-    console.log(`[LLM Popup] Chat button ${enable ? "enabled" : "disabled (or kept as Options)"}.`);
+    console.log(
+      `[LLM Popup] Chat button ${enable ? "enabled" : "disabled (or kept as Options)"}.`,
+    );
 }
 
 /**

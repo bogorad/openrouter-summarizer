@@ -161,6 +161,7 @@ async function validateAndSendToLLM(content) {
 
   const requestId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   lastSummary = "Thinking...";
+  const pageTitle = document.title; // ADDED: Get page title
 
   try {
     await SummaryPopup.showPopup(
@@ -174,8 +175,9 @@ async function validateAndSendToLLM(content) {
       },
       null, // parsedSummary - this will be set when updatePopupContent is called
       null, // pageURL - this will be set when updatePopupContent is called
+      pageTitle, // ADDED: Pass pageTitle
       false, // errorState - not an error yet
-      false // hasNewsblurToken - assume false until settings are retrieved later on updatePopupContent
+      false, // hasNewsblurToken - assume false until settings are retrieved later on updatePopupContent
     );
     if (DEBUG) console.log("[LLM Content] Summary popup is now ready.");
   } catch (error) {
@@ -193,11 +195,22 @@ async function validateAndSendToLLM(content) {
   chrome.runtime.sendMessage({ action: "getSettings" }, (response) => {
     if (chrome.runtime.lastError || !response) {
       if (DEBUG) {
-        console.error("[LLM Content] getSettings message response error:", chrome.runtime.lastError, response);
+        console.error(
+          "[LLM Content] getSettings message response error:",
+          chrome.runtime.lastError,
+          response,
+        );
       }
       const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
       showError(errorMsg);
-      SummaryPopup.updatePopupContent(errorMsg, null, null, true, false); // Pass false for hasNewsblurToken on settings error
+      SummaryPopup.updatePopupContent(
+        errorMsg,
+        null,
+        null,
+        pageTitle,
+        true,
+        false,
+      ); // MODIFIED: Pass pageTitle
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
@@ -218,9 +231,18 @@ async function validateAndSendToLLM(content) {
       const errorMsg = "Error: No summary model selected.";
       showError(errorMsg);
       if (DEBUG) {
-        console.error("[LLM Content] Critical: summaryModelId is empty after getSettings");
+        console.error(
+          "[LLM Content] Critical: summaryModelId is empty after getSettings",
+        );
       }
-      SummaryPopup.updatePopupContent(errorMsg, null, null, true, false); // For no model, token is irrelevant to current error, but NewsBlur button should be disabled
+      SummaryPopup.updatePopupContent(
+        errorMsg,
+        null,
+        null,
+        pageTitle,
+        true,
+        false,
+      ); // MODIFIED: Pass pageTitle
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
@@ -246,7 +268,14 @@ async function validateAndSendToLLM(content) {
         ) {
           const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
           showError(errorMsg);
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurToken); // Pass actual token status for pricing error
+          SummaryPopup.updatePopupContent(
+            errorMsg,
+            null,
+            null,
+            pageTitle,
+            true,
+            hasNewsblurToken,
+          ); // MODIFIED: Pass pageTitle
           FloatingIcon.removeFloatingIcon();
           Highlighter.removeSelectionHighlight();
           lastSummary = "";
@@ -273,7 +302,14 @@ async function validateAndSendToLLM(content) {
         if (estimatedCost > maxRequestPrice) {
           const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}.`;
           showError(errorMsg);
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurToken); // Pass actual token status for cost error
+          SummaryPopup.updatePopupContent(
+            errorMsg,
+            null,
+            null,
+            pageTitle,
+            true,
+            hasNewsblurToken,
+          ); // MODIFIED: Pass pageTitle
           FloatingIcon.removeFloatingIcon();
           Highlighter.removeSelectionHighlight();
           lastSummary = "";
@@ -287,17 +323,29 @@ async function validateAndSendToLLM(content) {
 }
 
 // --- Send Request to Background ---
-function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) { // Added hasNewsblurTokenStatus parameter
+function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
+  // Added hasNewsblurTokenStatus parameter
   if (DEBUG)
     console.log("[LLM Request] Sending summarization request to background.");
   chrome.runtime.sendMessage(
-    { action: "requestSummary", requestId: requestId, selectedHtml: content, hasNewsblurToken: hasNewsblurTokenStatus }, // Pass the token status
+    {
+      action: "requestSummary",
+      requestId: requestId,
+      selectedHtml: content,
+      hasNewsblurToken: hasNewsblurTokenStatus,
+    }, // Pass the token status
     (response) => {
       if (chrome.runtime.lastError) {
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
         showError(errorMsg);
         if (SummaryPopup)
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurTokenStatus); // Pass token status
+          SummaryPopup.updatePopupContent(
+            errorMsg,
+            null,
+            null,
+            true,
+            hasNewsblurTokenStatus,
+          ); // Pass token status
         if (FloatingIcon) FloatingIcon.removeFloatingIcon();
         if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -308,7 +356,13 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) { /
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         showError(errorMsg);
         if (SummaryPopup)
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurTokenStatus); // Pass token status
+          SummaryPopup.updatePopupContent(
+            errorMsg,
+            null,
+            null,
+            true,
+            hasNewsblurTokenStatus,
+          ); // Pass token status
         if (FloatingIcon) FloatingIcon.removeFloatingIcon();
         if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -322,7 +376,13 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) { /
         const errorMsg = "Error: Unexpected response from background.";
         showError(errorMsg);
         if (SummaryPopup)
-          SummaryPopup.updatePopupContent(errorMsg, null, null, true, hasNewsblurTokenStatus); // Pass token status
+          SummaryPopup.updatePopupContent(
+            errorMsg,
+            null,
+            null,
+            true,
+            hasNewsblurTokenStatus,
+          ); // Pass token status
         if (FloatingIcon) FloatingIcon.removeFloatingIcon();
         if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
@@ -347,7 +407,7 @@ function handleElementSelected(element, clickX, clickY) {
     handleIconClick,
     handleIconDismiss,
     handleJoplinIconClick, // New: Pass a handler for the Joplin icon
-    !!joplinToken      // New: Pass the boolean indicating if Joplin token is set
+    !!joplinToken, // New: Pass the boolean indicating if Joplin token is set
   );
 }
 
@@ -383,33 +443,50 @@ function handleIconDismiss() {
 // New handler function for the Joplin icon click
 async function handleJoplinIconClick() {
   if (DEBUG) console.log("[LLM Content] handleJoplinIconClick called.");
-  
+
   // Remove floating icon immediately
   FloatingIcon.removeFloatingIcon();
 
   // Ensure the token is available
   if (!joplinToken) {
-    showError("Joplin API token is not set. Please go to extension options to set it.", true, 5000);
-    if (DEBUG) console.error("[LLM Content] Joplin token is missing, cannot proceed.");
+    showError(
+      "Joplin API token is not set. Please go to extension options to set it.",
+      true,
+      5000,
+    );
+    if (DEBUG)
+      console.error("[LLM Content] Joplin token is missing, cannot proceed.");
     return;
   }
 
   // For Joplin, always send the raw HTML snippet.
-  const contentToSend = Highlighter.getSelectedElement()?.outerHTML || lastSelectedDomSnippet;
+  const contentToSend =
+    Highlighter.getSelectedElement()?.outerHTML || lastSelectedDomSnippet;
   // Unconditionally set isHtmlContent to true for Joplin.
   const isHtmlContent = true;
-  
+
   if (!contentToSend || contentToSend.trim() === "") {
     showError("No content available to send to Joplin.", true, 3000);
-    if (DEBUG) console.error("[LLM Content] No content (HTML) to send to Joplin.");
+    if (DEBUG)
+      console.error("[LLM Content] No content (HTML) to send to Joplin.");
     return;
   }
 
   const pageURL = window.location.href; // Get current page URL
-  if (DEBUG) console.log("[LLM Content] Initiating Joplin note creation with HTML content and URL:", contentToSend.substring(0, 100), pageURL);
-  
+  if (DEBUG)
+    console.log(
+      "[LLM Content] Initiating Joplin note creation with HTML content and URL:",
+      contentToSend.substring(0, 100),
+      pageURL,
+    );
+
   // Use JoplinManager to handle the notebook selection and note creation
-  await JoplinManager.fetchAndShowNotebookSelection(joplinToken, contentToSend, pageURL, isHtmlContent);
+  await JoplinManager.fetchAndShowNotebookSelection(
+    joplinToken,
+    contentToSend,
+    pageURL,
+    isHtmlContent,
+  );
 }
 
 function handlePopupChat(targetLang = null) {
@@ -557,6 +634,7 @@ function handleMessage(req, sender, sendResponse) {
       );
       showError("Error: No element selected. Use Alt+Click first.");
       if (SummaryPopup) {
+        const pageTitleForError = document.title; // ADDED
         SummaryPopup.showPopup(
           "Error: No element selected. Use Alt+Click first.",
           {
@@ -567,8 +645,9 @@ function handleMessage(req, sender, sendResponse) {
           },
           null, // parsedSummary
           null, // pageURL
+          pageTitleForError, // ADDED: Pass pageTitle
           true, // errorState true
-          false // hasNewsblurToken: False in this specific error UI state
+          false, // hasNewsblurToken: False in this specific error UI state
         );
         SummaryPopup.enableChatButton(false); // Chat button is always disabled in error state
         setTimeout(SummaryPopup.hidePopup, 3000);
@@ -591,6 +670,7 @@ function handleMessage(req, sender, sendResponse) {
     // assuming it comes from getSettings message prior to summary request.
     // However, for simplicity here, we assume if the flag is true at module level,
     // the value is available via joplinToken variable.
+    const pageTitle = document.title; // ADDED: Get page title
     const hasNewsblurTokenFromBackground = req.hasNewsblurToken || false;
 
     if (!SummaryPopup || !renderTextAsHtml) {
@@ -608,6 +688,7 @@ function handleMessage(req, sender, sendResponse) {
         `Error: ${req.error}`,
         null,
         pageURL,
+        pageTitle, // ADDED: Pass pageTitle
         true,
         hasNewsblurTokenFromBackground, // Pass along the actual token status with the error
       );
@@ -637,8 +718,9 @@ function handleMessage(req, sender, sendResponse) {
             summaryHtml,
             combinedSummaryArray,
             pageURL,
+            pageTitle, // ADDED: Pass pageTitle
             false, // errorState false
-            hasNewsblurTokenFromBackground // Pass token status on success
+            hasNewsblurTokenFromBackground, // Pass token status on success
           );
           SummaryPopup.enableChatButton(true);
           if (DEBUG)
@@ -662,8 +744,9 @@ function handleMessage(req, sender, sendResponse) {
             "<br><small>(Raw response shown due to parsing error)</small>",
           null, // parsedSummary
           pageURL,
+          pageTitle, // ADDED: Pass pageTitle
           true, // errorState true
-          hasNewsblurTokenFromBackground // Pass token status if parsing failed, as NewsBlur might still be usable
+          hasNewsblurTokenFromBackground, // Pass token status if parsing failed, as NewsBlur might still be usable
         );
         lastSummary = "Error: Could not parse summary response."; // Store explicit error for chat context
         SummaryPopup.enableChatButton(false); // Chat button is disabled in error state
@@ -675,8 +758,9 @@ function handleMessage(req, sender, sendResponse) {
         "Error: No summary data received or invalid format.",
         null,
         pageURL,
+        pageTitle, // ADDED: Pass pageTitle
         true,
-        hasNewsblurTokenFromBackground // Pass token status for general error state
+        hasNewsblurTokenFromBackground, // Pass token status for general error state
       );
       SummaryPopup.enableChatButton(false);
     }
@@ -704,11 +788,13 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
 
 // Helper to remove highlight classes from HTML string
 function cleanHtmlForNewsblur(htmlString) {
-  const tempDiv = document.createElement('div');
+  const tempDiv = document.createElement("div");
   tempDiv.innerHTML = htmlString;
-  tempDiv.querySelectorAll('.llm-highlight, .llm-highlight-preview').forEach(el => {
-    el.classList.remove('llm-highlight', 'llm-highlight-preview');
-  });
+  tempDiv
+    .querySelectorAll(".llm-highlight, .llm-highlight-preview")
+    .forEach((el) => {
+      el.classList.remove("llm-highlight", "llm-highlight-preview");
+    });
   return tempDiv.innerHTML;
 }
 
@@ -723,13 +809,17 @@ function handlePopupNewsblur(hasNewsblurToken) {
     return;
   }
 
-  if (!lastSummary || lastSummary === "Thinking..." || lastSummary.startsWith("Error:")) {
+  if (
+    !lastSummary ||
+    lastSummary === "Thinking..." ||
+    lastSummary.startsWith("Error:")
+  ) {
     const msg = "No valid summary available to share with NewsBlur.";
     console.error("[LLM Content] NewsBlur share failed: " + msg); // Non-debug log
     showError(msg);
     return;
   }
-  
+
   if (!lastSelectedDomSnippet) {
     const msg = "No original content selected to share with NewsBlur.";
     console.error("[LLM Content] NewsBlur share failed: " + msg); // Non-debug log
@@ -753,32 +843,48 @@ function handlePopupNewsblur(hasNewsblurToken) {
   // Constructing the content for NewsBlur
   const title = document.title;
   const story_url = window.location.href;
-  const comments = "Summary: <ul>" + parsedSummary.map(item => `<li>${renderTextAsHtml(item)}</li>`).join('') + "</ul>"; // HTML-formatted comments
+  const comments =
+    "Summary: <ul>" +
+    parsedSummary.map((item) => `<li>${renderTextAsHtml(item)}</li>`).join("") +
+    "</ul>"; // HTML-formatted comments
   const cleanedHtmlContent = cleanHtmlForNewsblur(lastSelectedDomSnippet); // Clean HTML before sending
 
-
-  chrome.runtime.sendMessage({
-    action: "shareToNewsblur",
-    options: {
-      title: title,
-      story_url: story_url,
-      content: cleanedHtmlContent, // Now explicitly cleaned HTML
-      comments: comments // Now explicitly HTML (<ul><li>...</ul>)
-    }
-  }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.error("[LLM Content] Error sending shareToNewsblur message:", chrome.runtime.lastError); // Non-debug log
-      showError("Error sharing to NewsBlur: " + chrome.runtime.lastError.message);
-      return;
-    }
-    if (response.status === "success") {
-      console.log("[LLM Content] Successfully sent NewsBlur share request:", response.result); // Non-debug log for success
-      showError("Shared to NewsBlur successfully!", false, 3000);
-    } else {
-      showError(`Failed to share to NewsBlur: ${response.message || "Unknown error"}`);
-      if (DEBUG) console.error("[LLM Content] Failed to share to NewsBlur:", response);
-    }
-  });
+  chrome.runtime.sendMessage(
+    {
+      action: "shareToNewsblur",
+      options: {
+        title: title,
+        story_url: story_url,
+        content: cleanedHtmlContent, // Now explicitly cleaned HTML
+        comments: comments, // Now explicitly HTML (<ul><li>...</ul>)
+      },
+    },
+    (response) => {
+      if (chrome.runtime.lastError) {
+        console.error(
+          "[LLM Content] Error sending shareToNewsblur message:",
+          chrome.runtime.lastError,
+        ); // Non-debug log
+        showError(
+          "Error sharing to NewsBlur: " + chrome.runtime.lastError.message,
+        );
+        return;
+      }
+      if (response.status === "success") {
+        console.log(
+          "[LLM Content] Successfully sent NewsBlur share request:",
+          response.result,
+        ); // Non-debug log for success
+        showError("Shared to NewsBlur successfully!", false, 3000);
+      } else {
+        showError(
+          `Failed to share to NewsBlur: ${response.message || "Unknown error"}`,
+        );
+        if (DEBUG)
+          console.error("[LLM Content] Failed to share to NewsBlur:", response);
+      }
+    },
+  );
 
   SummaryPopup.hidePopup();
   Highlighter.removeSelectionHighlight();
@@ -795,7 +901,13 @@ async function initialize() {
     const result = await chrome.storage.sync.get(["debug", "joplinToken"]); // Retrieve joplinToken
     DEBUG = !!result.debug;
     joplinToken = result.joplinToken || null; // Set actual Joplin token
-    if (DEBUG) console.log("[LLM Content] Initial Debug mode:", DEBUG, "Joplin Token Loaded:", (joplinToken ? "Yes" : "No"));
+    if (DEBUG)
+      console.log(
+        "[LLM Content] Initial Debug mode:",
+        DEBUG,
+        "Joplin Token Loaded:",
+        joplinToken ? "Yes" : "No",
+      );
 
     // showError and renderTextAsHtml are available from static imports at the top.
     // No need to dynamically import utils.js here.

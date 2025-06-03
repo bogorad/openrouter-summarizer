@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.7
+# OpenRouter Summarizer v3.7.2
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -10,12 +10,12 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 - **Optimized `Copy` button for sharing:** now it returns proper rich-text and the current URL at the end.
 - **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
 - **Added NewsBlur sharing:** See options, you'll need your NewsBlur Token.
-- **Chagned Claude Sonnet model:** from 3.7 to 4.
+- **Added Joplin archiving:** See options, you'll need your Joplin Token.
+- **Chagned default Claude Sonnet model:** from 3.7 to 4.
 
 ---
 
 ## 🚀 Features
-- **Joplin support:** Save to Joplin instead of summarizing.
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
@@ -28,6 +28,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 - **Instant Results:** Summaries appear in a clean popup; chat happens in a dedicated tab.
 - **Secure & Private:** Your API key and options are stored locally in your browser storage. Chat context is stored temporarily in session storage. Nothing is sent anywhere except OpenRouter.ai when you request a summary or chat response.
 - **Debug-Friendly:** Enable debug mode in `Options` for detailed console logging. The API key is filtered from the debug console messages.
+- **Joplin support:** Save to Joplin instead of summarizing.
 
 ---
 
