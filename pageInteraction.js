@@ -1,6 +1,6 @@
 // pageInteraction.js
 
-console.log(`[LLM Content] Script Start (v3.0.22)`);
+console.log(`[LLM Content] Script Start (v3.0.23)`);
 
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.
@@ -843,11 +843,18 @@ function handlePopupNewsblur(hasNewsblurToken) {
   // Constructing the content for NewsBlur
   const title = document.title;
   const story_url = window.location.href;
-  const comments =
-    "Summary: <ul>" +
+
+  // 1. Generate summary HTML
+  const summaryHtml =
+    "<ul>" +
     parsedSummary.map((item) => `<li>${renderTextAsHtml(item)}</li>`).join("") +
-    "</ul>"; // HTML-formatted comments
-  const cleanedHtmlContent = cleanHtmlForNewsblur(lastSelectedDomSnippet); // Clean HTML before sending
+    "</ul>";
+
+  // 2. Get cleaned source HTML
+  const cleanedHtmlContent = cleanHtmlForNewsblur(lastSelectedDomSnippet);
+
+  // 3. Combine them as requested
+  const combinedContent = summaryHtml + "<br>" + cleanedHtmlContent;
 
   chrome.runtime.sendMessage(
     {
@@ -855,8 +862,8 @@ function handlePopupNewsblur(hasNewsblurToken) {
       options: {
         title: title,
         story_url: story_url,
-        content: cleanedHtmlContent, // Now explicitly cleaned HTML
-        comments: comments, // Now explicitly HTML (<ul><li>...</ul>)
+        content: combinedContent, // Use the combined content
+        comments: "", // Send an empty string for comments
       },
     },
     (response) => {
