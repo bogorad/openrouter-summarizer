@@ -741,7 +741,7 @@ function handleMessage(req, sender, sendResponse) {
         summaryHtml = renderTextAsHtml(rawSummaryString);
         SummaryPopup.updatePopupContent(
           summaryHtml +
-            "<br><small>(Raw response shown due to parsing error)</small>",
+            "<hr><small>(Raw response shown due to parsing error)</small>",
           null, // parsedSummary
           pageURL,
           pageTitle, // ADDED: Pass pageTitle
