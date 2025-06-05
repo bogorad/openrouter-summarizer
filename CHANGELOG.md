@@ -1,3 +1,4 @@
+- **Version 3.7.4:** Added a checkbox in Options > API to automatically send content to Joplin when sharing to NewsBlur. This option is enabled and auto-checked when a NewsBlur token is present.
 - **Version 3.7.3:** Refactored NewsBlur sharing to send a combined HTML block containing both the summary and the original content in the `content` field, with an empty `comments` field.
 - **Version 3.5:** Updated to version 3.5. (v3.5)
 - **Fixed Webpack Warnings for Missing Exports:** Added missing constants `MIN_MARKDOWN_LENGTH` and `TOKENS_PER_CHAR` to `constants.js` and implemented `cleanUnprintableChars` function in `utils.js` to resolve Webpack warnings and runtime errors related to unprintable characters in Slack markdown output. (v3.4.7)

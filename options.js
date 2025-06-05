@@ -17,12 +17,13 @@ import {
 } from "./constants.js";
 import { showError } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.4.4`);
+console.log(`[LLM Options] Script Start v3.4.5`);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
   const newsblurTokenInput = document.getElementById("newsblurToken");
   const joplinTokenInput = document.getElementById("joplinToken"); // New: Joplin Token Input
+  const alsoSendToJoplinCheckbox = document.getElementById("alsoSendToJoplin");
   const modelSelectionArea = document.getElementById("modelSelectionArea");
   const addModelBtn = document.getElementById("addModelBtn");
   const languageSelectionArea = document.getElementById(
@@ -49,6 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const DEFAULT_DEBUG_MODE = false;
   const DEFAULT_MAX_PRICE_BEHAVIOR = "truncate";
   const STORAGE_KEY_MAX_PRICE_BEHAVIOR = "maxPriceBehavior";
+  const STORAGE_KEY_ALSO_SEND_TO_JOPLIN = "alsoSendToJoplin";
   const NUM_TO_WORD = {
     3: "three",
     4: "four",
@@ -1168,6 +1170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         STORAGE_KEY_MAX_PRICE_BEHAVIOR,
         STORAGE_KEY_NEWSBLUR_TOKEN,
         STORAGE_KEY_JOPLIN_TOKEN, // New: Joplin API Token
+        STORAGE_KEY_ALSO_SEND_TO_JOPLIN,
       ];
       const data = await chrome.storage.sync.get(keysToGet);
 
@@ -1182,6 +1185,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (joplinTokenInput)
         joplinTokenInput.value = data[STORAGE_KEY_JOPLIN_TOKEN] || ""; // New: Populate Joplin Token Input
       if (debugCheckbox) debugCheckbox.checked = DEBUG;
+
+      const alsoSendToJoplin = data[STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ?? false;
+      if (alsoSendToJoplinCheckbox) {
+        alsoSendToJoplinCheckbox.checked = alsoSendToJoplin;
+        updateJoplinCheckboxState();
+      }
 
       let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
       bulletCountRadios.forEach(
@@ -1419,6 +1428,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       [STORAGE_KEY_JOPLIN_TOKEN]: joplinTokenInput
         ? joplinTokenInput.value.trim()
         : "", // New: Save Joplin Token
+      [STORAGE_KEY_ALSO_SEND_TO_JOPLIN]: alsoSendToJoplinCheckbox
+        ? alsoSendToJoplinCheckbox.checked
+        : false,
     };
 
     if (DEBUG) {
@@ -1531,6 +1543,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
       // Input field is handled in calculateKbLimitForSummary
 
+      if (alsoSendToJoplinCheckbox) {
+        alsoSendToJoplinCheckbox.checked = false;
+        alsoSendToJoplinCheckbox.disabled = true;
+      }
+
       renderModelOptions();
       renderLanguageOptions();
       updatePromptPreview();
@@ -1590,6 +1607,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         clearTimeout(debounceTimeoutId);
       }
       calculateKbLimitForSummary();
+    }
+  }
+
+  /**
+   * Updates the enabled/disabled state of the Joplin checkbox based on the NewsBlur token.
+   */
+  function updateJoplinCheckboxState() {
+    if (!alsoSendToJoplinCheckbox || !newsblurTokenInput) return;
+    const hasToken = newsblurTokenInput.value.trim() !== "";
+    alsoSendToJoplinCheckbox.disabled = !hasToken;
+    if (!hasToken) {
+      alsoSendToJoplinCheckbox.checked = false;
     }
   }
 
@@ -1693,6 +1722,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       newsblurTokenInput.value = extractedToken || "";
       // Ensure tokenValue for saveSettings() reflects the potentially new, validated token
       tokenValue = extractedToken || "";
+
+      if (alsoSendToJoplinCheckbox) {
+        const hasToken = tokenValue.trim() !== "";
+        alsoSendToJoplinCheckbox.disabled = !hasToken;
+        if (hasToken) {
+          alsoSendToJoplinCheckbox.checked = true;
+        } else {
+          alsoSendToJoplinCheckbox.checked = false;
+        }
+      }
 
       saveSettings(); // Save all settings, as this function is also called on blur
       debounceTimeoutId = null;
