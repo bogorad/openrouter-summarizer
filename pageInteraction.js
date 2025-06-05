@@ -741,7 +741,7 @@ function handleMessage(req, sender, sendResponse) {
         summaryHtml = renderTextAsHtml(rawSummaryString);
         SummaryPopup.updatePopupContent(
           summaryHtml +
-            "<hr><small>(Raw response shown due to parsing error)</small>",
+            "<br><small>(Raw response shown due to parsing error)</small>",
           null, // parsedSummary
           pageURL,
           pageTitle, // ADDED: Pass pageTitle
@@ -854,7 +854,7 @@ function handlePopupNewsblur(hasNewsblurToken) {
   const cleanedHtmlContent = cleanHtmlForNewsblur(lastSelectedDomSnippet);
 
   // 3. Combine them as requested
-  const combinedContent = summaryHtml + "<br>" + cleanedHtmlContent;
+  const combinedContent = summaryHtml + "<hr>" + cleanedHtmlContent;
 
   chrome.runtime.sendMessage(
     {
