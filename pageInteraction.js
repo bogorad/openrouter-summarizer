@@ -1,6 +1,6 @@
 // pageInteraction.js
 
-console.log(`[LLM Content] Script Start (v3.0.23)`);
+console.log(`[LLM Content] Script Start (v3.0.24)`);
 
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.
@@ -801,10 +801,10 @@ function cleanHtmlForNewsblur(htmlString) {
 // --- Callback Functions for NewsBlur ---
 function handlePopupNewsblur(hasNewsblurToken) {
   if (DEBUG) console.log("[LLM Content] handlePopupNewsblur called.");
-  // Placeholder for NewsBlur action
+
   if (!hasNewsblurToken) {
     const msg = "NewsBlur token is missing. Please set it in the options.";
-    console.error("[LLM Content] NewsBlur share failed: " + msg); // Non-debug log for critical error
+    console.error("[LLM Content] NewsBlur share failed: " + msg);
     showError(msg);
     return;
   }
@@ -814,92 +814,119 @@ function handlePopupNewsblur(hasNewsblurToken) {
     lastSummary === "Thinking..." ||
     lastSummary.startsWith("Error:")
   ) {
-    const msg = "No valid summary available to share with NewsBlur.";
-    console.error("[LLM Content] NewsBlur share failed: " + msg); // Non-debug log
+    const msg = "No valid summary available to share.";
+    console.error("[LLM Content] Share failed: " + msg);
     showError(msg);
     return;
   }
 
   if (!lastSelectedDomSnippet) {
-    const msg = "No original content selected to share with NewsBlur.";
-    console.error("[LLM Content] NewsBlur share failed: " + msg); // Non-debug log
+    const msg = "No original content selected to share.";
+    console.error("[LLM Content] Share failed: " + msg);
     showError(msg);
     return;
   }
 
-  // Retrieve the original parsed summary array
-  let parsedSummary = [];
-  try {
-    parsedSummary = JSON.parse(lastSummary);
-    if (!Array.isArray(parsedSummary)) {
-      throw new Error("Last summary is not a valid JSON array.");
-    }
-  } catch (e) {
-    console.error("[LLM Content] Error parsing lastSummary for NewsBlur:", e); // Non-debug log
-    showError("Failed to prepare summary for NewsBlur sharing.");
-    return;
-  }
-
-  // Constructing the content for NewsBlur
-  const title = document.title;
-  const story_url = window.location.href;
-
-  // 1. Generate summary HTML
-  const summaryHtml =
-    "<ul>" +
-    parsedSummary.map((item) => `<li>${renderTextAsHtml(item)}</li>`).join("") +
-    "</ul>";
-
-  // 2. Get cleaned source HTML
-  const cleanedHtmlContent = cleanHtmlForNewsblur(lastSelectedDomSnippet);
-
-  // 3. Combine them as requested
-  const combinedContent = summaryHtml + "<hr>" + cleanedHtmlContent;
-
-  chrome.runtime.sendMessage(
-    {
-      action: "shareToNewsblur",
-      options: {
-        title: title,
-        story_url: story_url,
-        content: combinedContent, // Use the combined content
-        comments: "", // Send an empty string for comments
-      },
-    },
-    (response) => {
+  chrome.storage.sync.get(
+    [constants.STORAGE_KEY_ALSO_SEND_TO_JOPLIN],
+    (settings) => {
       if (chrome.runtime.lastError) {
+        showError("Could not retrieve settings for sharing.");
         console.error(
-          "[LLM Content] Error sending shareToNewsblur message:",
+          "[LLM Content] Error getting settings for share:",
           chrome.runtime.lastError,
-        ); // Non-debug log
-        showError(
-          "Error sharing to NewsBlur: " + chrome.runtime.lastError.message,
         );
         return;
       }
-      if (response.status === "success") {
-        console.log(
-          "[LLM Content] Successfully sent NewsBlur share request:",
-          response.result,
-        ); // Non-debug log for success
-        showError("Shared to NewsBlur successfully!", false, 3000);
-      } else {
-        showError(
-          `Failed to share to NewsBlur: ${response.message || "Unknown error"}`,
+
+      const alsoSendToJoplin =
+        settings[constants.STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ?? false;
+
+      let parsedSummary = [];
+      try {
+        parsedSummary = JSON.parse(lastSummary);
+        if (!Array.isArray(parsedSummary)) {
+          throw new Error("Last summary is not a valid JSON array.");
+        }
+      } catch (e) {
+        console.error(
+          "[LLM Content] Error parsing lastSummary for sharing:",
+          e,
         );
-        if (DEBUG)
-          console.error("[LLM Content] Failed to share to NewsBlur:", response);
+        showError("Failed to prepare summary for sharing.");
+        return;
       }
+
+      const title = document.title;
+      const story_url = window.location.href;
+      const summaryHtml =
+        "<ul>" +
+        parsedSummary
+          .map((item) => `<li>${renderTextAsHtml(item)}</li>`)
+          .join("") +
+        "</ul>";
+      const cleanedHtmlContent = cleanHtmlForNewsblur(lastSelectedDomSnippet);
+      const combinedContent = summaryHtml + "<hr>" + cleanedHtmlContent;
+
+      chrome.runtime.sendMessage(
+        {
+          action: "shareToNewsblur",
+          options: {
+            title: title,
+            story_url: story_url,
+            content: combinedContent,
+            comments: "",
+          },
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              "[LLM Content] Error sending shareToNewsblur message:",
+              chrome.runtime.lastError,
+            );
+            showError(
+              "Error sharing to NewsBlur: " + chrome.runtime.lastError.message,
+            );
+            return;
+          }
+          if (response.status === "success") {
+            console.log(
+              "[LLM Content] Successfully sent NewsBlur share request:",
+              response.result,
+            );
+            showError("Shared to NewsBlur successfully!", false, 3000);
+          } else {
+            showError(
+              `Failed to share to NewsBlur: ${response.message || "Unknown error"}`,
+            );
+            if (DEBUG)
+              console.error(
+                "[LLM Content] Failed to share to NewsBlur:",
+                response,
+              );
+          }
+        },
+      );
+
+      if (alsoSendToJoplin && joplinToken) {
+        if (DEBUG) console.log("[LLM Content] Also sending content to Joplin.");
+        JoplinManager.fetchAndShowNotebookSelection(
+          joplinToken,
+          combinedContent,
+          story_url,
+          true,
+        );
+      }
+
+      SummaryPopup.hidePopup();
+      Highlighter.removeSelectionHighlight();
+      FloatingIcon.removeFloatingIcon();
+      lastSummary = "";
+      lastModelUsed = "";
+      lastSelectedDomSnippet = null;
+      lastProcessedMarkdown = null;
     },
   );
-
-  SummaryPopup.hidePopup();
-  Highlighter.removeSelectionHighlight();
-  FloatingIcon.removeFloatingIcon();
-  lastSummary = "";
-  lastModelUsed = "";
-  lastSelectedDomSnippet = null;
-  lastProcessedMarkdown = null;
 }
 
 // --- Initialization Function ---

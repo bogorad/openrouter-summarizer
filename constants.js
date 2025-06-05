@@ -23,6 +23,7 @@ export const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
 export const STORAGE_KEY_KNOWN_MODELS_AND_PRICES = "knownModelsAndPrices";
 export const STORAGE_KEY_NEWSBLUR_TOKEN = "newsblurToken";
 export const STORAGE_KEY_JOPLIN_TOKEN = "joplinToken"; // New: Joplin Token
+export const STORAGE_KEY_ALSO_SEND_TO_JOPLIN = "alsoSendToJoplin";
 
 // --- Joplin API ---
 export const JOPLIN_API_BASE_URL = "http://localhost:41184";
