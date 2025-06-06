@@ -1,6 +1,6 @@
 // @description Manages the summary popup UI for the OpenRouter Summarizer extension, including rich text copying.
 import { marked } from "marked"; // Import marked library
-console.log(`[LLM Popup] Script Loaded (v3.0.17)`); // Updated version
+console.log(`[LLM Popup] Script Loaded (v3.0.18)`); // Updated version
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -53,6 +53,7 @@ let currentOriginalMarkdownArray = null; // To store the array of original Markd
 let currentPageURL = null; // To store the page URL
 let currentPageTitle = null; // To store the page title
 let isErrorState = false; // To track if the popup is in an error state
+let handleEscapeKey = null; // To hold the reference to our keydown handler
 
 // Helper function to escape HTML special characters
 function escapeHTML(str) {
@@ -308,6 +309,17 @@ export function showPopup(
     document.body.appendChild(popup);
     if (DEBUG) console.log("[LLM Popup] Popup added to page from template.");
 
+    // Define and add the Escape key listener
+    handleEscapeKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (popupCallbacks.onClose) {
+          popupCallbacks.onClose();
+        }
+      }
+    };
+    document.addEventListener("keydown", handleEscapeKey);
+
     popup.style.display = "flex";
     requestAnimationFrame(() => {
       if (popup) {
@@ -344,6 +356,12 @@ export function hidePopup() {
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
     isErrorState = false;
+
+    // Remove the Escape key listener
+    if (handleEscapeKey) {
+      document.removeEventListener("keydown", handleEscapeKey);
+      handleEscapeKey = null;
+    }
 
     popupElement.classList.remove("visible");
     const computedStyle = window.getComputedStyle(popupElement);
