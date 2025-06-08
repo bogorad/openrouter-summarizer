@@ -219,8 +219,17 @@ async function validateAndSendToLLM(content) {
     }
 
     if (DEBUG) {
-      console.log("[LLM Content] getSettings response received:", response);
+      const logResponse = { ...response };
+      if (logResponse.apiKey) {
+        logResponse.apiKey = "[Hidden]";
+      }
+      if (logResponse.newsblurToken) {
+        logResponse.newsblurToken = "[Hidden]";
+      }
+      console.log("[LLM Content] getSettings response received:", logResponse);
     }
+    //   console.log("[LLM Content] getSettings response received:", response);
+    // }
     const maxRequestPrice =
       response.maxRequestPrice || constants.DEFAULT_MAX_REQUEST_PRICE || 0.01;
     const summaryModelId = response.summaryModelId || "";

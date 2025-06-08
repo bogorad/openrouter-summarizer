@@ -1,3 +1,4 @@
+- **Version 3.7.7:** Fixed masking of API keys in console debug.
 - **Version 3.7.6:** Implemented Escape key functionality to close the summary popup, mirroring the behavior of the "Close" button for improved usability.
 
 * **Version 3.7.5:** Implemented the dual-sharing workflow. When sharing to NewsBlur, if the corresponding option is checked, the same content is now also sent to Joplin.
