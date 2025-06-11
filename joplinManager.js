@@ -19,6 +19,12 @@ let joplinPopupElement = null; // Refers to the created popup DOM element
 let DEBUG = false;
 let currentJoplinContent = null; // Stored content to be sent to Joplin
 let currentJoplinSourceUrl = null; // Stored source URL to be sent to Joplin
+let lastUsedNotebookId = null; // To store the ID of the last used notebook
+let lastUsedNotebookName = null; // To store the name of the last used notebook
+
+// Storage keys for last used notebook
+const STORAGE_KEY_LAST_NOTEBOOK_ID = "lastUsedJoplinNotebookId";
+const STORAGE_KEY_LAST_NOTEBOOK_NAME = "lastUsedJoplinNotebookName";
 
 // Autocomplete Specific state
 let autocompleteDropdownElement = null;
@@ -431,10 +437,26 @@ function renderNotebookSelectionPopup(joplinToken, folders) {
 
     // Set up initial selection if folders exist
     if (folders.length > 0) {
-        // By default, select the first notebook from the sorted list and populate the input.
-        // This allows immediate saving if the first option is desired.
-        selectedNotebookId = folders[0].id;
-        notebookSearchInput.value = folders[0].title;
+        // Check if we have a last used notebook and if it still exists in the folders list
+        let initialNotebook = null;
+        if (lastUsedNotebookId) {
+            initialNotebook = folders.find(f => f.id === lastUsedNotebookId);
+            if (initialNotebook && DEBUG) {
+                console.log("[LLM JoplinManager] Using last used notebook:", initialNotebook.title);
+            }
+        }
+        
+        // If last used notebook wasn't found, use the first one
+        if (!initialNotebook) {
+            initialNotebook = folders[0];
+            if (DEBUG && lastUsedNotebookId) {
+                console.log("[LLM JoplinManager] Last used notebook not found, using first notebook:", initialNotebook.title);
+            }
+        }
+        
+        // Set the selected notebook
+        selectedNotebookId = initialNotebook.id;
+        notebookSearchInput.value = initialNotebook.title;
         enableJoplinButtons(true);
     } else {
         updateJoplinPopupBodyContent("<p>No Joplin notebooks found. Please create one in Joplin, or click 'Cancel'.</p>", true);
@@ -532,14 +554,6 @@ async function sendNoteToJoplin(joplinToken, parentId, notebookName = "") {
         if (DEBUG) console.error("[LLM JoplinManager] Create note failed: Missing token, parentId, or content.");
         hideJoplinPopup(); // Hide if critical data is missing
         return;
-    }
-
-    // If notebook name wasn't provided, try to find it in the folders list
-    if (!notebookName && joplinPopupElement) {
-        const inputElement = joplinPopupElement.querySelector('.joplin-notebook-search-input');
-        if (inputElement) {
-            notebookName = inputElement.value.trim();
-        }
     }
 
     showError("Sending note to Joplin...", false, 0); // Show temporary status message
