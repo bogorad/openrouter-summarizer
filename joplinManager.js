@@ -190,7 +190,7 @@ function handleAutocompleteKeydown(event, inputElement, folders, joplinToken) {
              // trigger save action directly.
              if (selectedNotebookId) {
                 event.preventDefault(); // Prevent accidental form submission
-                sendNoteToJoplin(joplinToken, selectedNotebookId);
+                sendNoteToJoplin(joplinToken, selectedNotebookId, inputElement.value.trim());
              } else {
                 // If Enter is pressed without a selection and no suggestions, try exact match on current input
                 const currentText = inputElement.value.trim();
@@ -199,7 +199,7 @@ function handleAutocompleteKeydown(event, inputElement, folders, joplinToken) {
                     selectedNotebookId = exactMatch.id;
                     enableJoplinButtons(true);
                     event.preventDefault(); // Prevent accidental form submission
-                    sendNoteToJoplin(joplinToken, selectedNotebookId);
+                    sendNoteToJoplin(joplinToken, selectedNotebookId, exactMatch.title);
                 } else {
                     // No match and no selection, just prevent default newline in input
                     event.preventDefault();
@@ -234,7 +234,7 @@ function handleAutocompleteKeydown(event, inputElement, folders, joplinToken) {
             // If an item is highlighted, select it and trigger save
             selectAutocompleteSuggestion(items[highlightedAutocompleteIndex], inputElement);
             // Now trigger save immediately after selection
-            sendNoteToJoplin(joplinToken, selectedNotebookId); // selectedNotebookId is set by selectAutocompleteSuggestion
+            sendNoteToJoplin(joplinToken, selectedNotebookId, inputElement.value.trim()); // selectedNotebookId is set by selectAutocompleteSuggestion
         } else {
             // This path should ideally be covered by the initial 'if (items.length === 0)' check
             // if no suggestions are shown, but kept as a fallback if Enter pressed with suggestions but none highlighted.
@@ -246,7 +246,7 @@ function handleAutocompleteKeydown(event, inputElement, folders, joplinToken) {
                 enableJoplinButtons(true);
                 hideAutocompleteSuggestions();
                 if (DEBUG) console.log("[LLM JoplinManager] Notebook immediately selected on Enter (exact match) with suggestions visible but none highlighted:", exactMatch.title, "ID:", selectedNotebookId);
-                sendNoteToJoplin(joplinToken, selectedNotebookId); // Trigger save for exact match
+                sendNoteToJoplin(joplinToken, selectedNotebookId, exactMatch.title); // Trigger save for exact match
             } else {
                 showError("No matching notebook found. Please select from the list.", false, 2000);
                 selectedNotebookId = null;
@@ -295,12 +295,22 @@ function handleGlobalClick(event) {
 // --- Public API ---
 
 /**
- * Initializes the Joplin Manager module.
+ * Initializes the module by loading the last used notebook from storage.
  * @param {object} options - Configuration options.
  * @param {boolean} [options.initialDebugState=false] - Initial debug logging state.
  */
 export function initializeJoplinManager(options) {
     DEBUG = !!options?.initialDebugState;
+    
+    // Load last used notebook from storage
+    chrome.storage.local.get([STORAGE_KEY_LAST_NOTEBOOK_ID, STORAGE_KEY_LAST_NOTEBOOK_NAME], (result) => {
+        lastUsedNotebookId = result[STORAGE_KEY_LAST_NOTEBOOK_ID];
+        lastUsedNotebookName = result[STORAGE_KEY_LAST_NOTEBOOK_NAME];
+        if (DEBUG && lastUsedNotebookId) {
+            console.log("[LLM JoplinManager] Loaded last used notebook:", lastUsedNotebookName, "ID:", lastUsedNotebookId);
+        }
+    });
+    
     if (DEBUG) console.log("[LLM JoplinManager] Initialized.");
 }
 
@@ -481,24 +491,20 @@ function renderNotebookSelectionPopup(joplinToken, folders) {
                 const currentText = notebookSearchInput.value.trim();
                 const matchedFolder = folders.find(f => f.id === selectedNotebookId && f.title === currentText);
                 if (matchedFolder) {
-                    await sendNoteToJoplin(joplinToken, selectedNotebookId);
+                    await sendNoteToJoplin(joplinToken, selectedNotebookId, matchedFolder.title);
                 } else {
                     // This scenario means selectedNotebookId doesn't match current input (e.g. user typed over a selection)
                     // Try to re-match based on input text, or disable save
                     const reMatchedFolder = folders.find(f => f.title.toLowerCase() === currentText.toLowerCase());
                     if (reMatchedFolder) {
                         selectedNotebookId = reMatchedFolder.id;
-                        await sendNoteToJoplin(joplinToken, selectedNotebookId);
+                        await sendNoteToJoplin(joplinToken, selectedNotebookId, reMatchedFolder.title);
                     } else {
-                        showError("Please select a valid notebook from the list.", false, 2000);
-                        enableJoplinButtons(false);
-                        if (DEBUG) console.warn("[LLM JoplinManager] Save clicked with unmatched text in input.");
+                        showError("Please select a valid notebook from the list.", true, 3000);
                     }
                 }
             } else {
-                // This case should ideally not be hit if enableJoplinButtons is handled correctly
-                showError("Please select a notebook before saving.", false, 2000);
-                if (DEBUG) console.warn("[LLM JoplinManager] Save clicked without notebook selected via autocomplete.");
+                showError("Please select a notebook first.", true, 3000);
             }
         };
     }
@@ -518,13 +524,22 @@ function renderNotebookSelectionPopup(joplinToken, folders) {
  * Sends the current content as a new note to Joplin.
  * @param {string} joplinToken - The Joplin API token.
  * @param {string} parentId - The ID of the selected Joplin notebook.
+ * @param {string} notebookName - The name of the selected notebook.
  */
-async function sendNoteToJoplin(joplinToken, parentId) {
+async function sendNoteToJoplin(joplinToken, parentId, notebookName = "") {
     if (!joplinToken || !parentId || !currentJoplinContent) {
         showError("Invalid data for sending note to Joplin.", true, 5000);
         if (DEBUG) console.error("[LLM JoplinManager] Create note failed: Missing token, parentId, or content.");
         hideJoplinPopup(); // Hide if critical data is missing
         return;
+    }
+
+    // If notebook name wasn't provided, try to find it in the folders list
+    if (!notebookName && joplinPopupElement) {
+        const inputElement = joplinPopupElement.querySelector('.joplin-notebook-search-input');
+        if (inputElement) {
+            notebookName = inputElement.value.trim();
+        }
     }
 
     showError("Sending note to Joplin...", false, 0); // Show temporary status message
@@ -556,6 +571,20 @@ async function sendNoteToJoplin(joplinToken, parentId) {
         if (response.status === "success") {
             showError("Note sent to Joplin successfully!", false, 3000);
             if (DEBUG) console.log("[LLM JoplinManager] Note created successfully:", response.result);
+            
+            // Only save the last used notebook if we have a name
+            if (notebookName) {
+                lastUsedNotebookId = parentId;
+                lastUsedNotebookName = notebookName;
+                
+                // Store in chrome.storage.local for persistence
+                chrome.storage.local.set({
+                    [STORAGE_KEY_LAST_NOTEBOOK_ID]: parentId,
+                    [STORAGE_KEY_LAST_NOTEBOOK_NAME]: notebookName
+                });
+                
+                if (DEBUG) console.log("[LLM JoplinManager] Saved last used notebook:", notebookName, "ID:", parentId);
+            }
         } else {
             throw new Error(response.message || "Failed to create Joplin note.");
         }
