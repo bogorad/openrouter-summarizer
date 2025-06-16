@@ -8,22 +8,22 @@ import {
 export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
   if (DEBUG) {
     console.log(
-      "[LLM Chat Handler] Handling llmChatStream request with messages:",
-      request.messages.length,
-      "messages.",
+      "[LLM Chat Handler] Received llmChatStream request:",
+      // Mask API key for security
+      { ...request, messages: "[MESSAGES]" },
     );
   }
+
   chrome.storage.sync.get(
     [STORAGE_KEY_API_KEY, STORAGE_KEY_MODELS],
     (storageResult) => {
       const apiKey = storageResult[STORAGE_KEY_API_KEY];
-      let models = DEFAULT_MODEL_OPTIONS;
+      let models = [];
       if (
         Array.isArray(storageResult[STORAGE_KEY_MODELS]) &&
         storageResult[STORAGE_KEY_MODELS].length > 0 &&
         storageResult[STORAGE_KEY_MODELS].every(
-          (m) =>
-            typeof m === "object" && m !== null && typeof m.id === "string",
+          (m) => typeof m === "object" && m.id,
         )
       ) {
         models = storageResult[STORAGE_KEY_MODELS].map((m) => ({
@@ -36,52 +36,43 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
         sendResponse({ status: "error", message: "API key required." });
         return;
       }
+
       if (
         !request.model ||
-        typeof request.model !== "string" ||
         request.model.trim() === "" ||
         !modelIds.includes(request.model)
       ) {
+        const errorMsg = `Invalid or missing model ID: '${request.model}'. Please select a valid model in options.`;
         console.error(
-          `[LLM Chat Handler] Invalid or unavailable model requested for chat: "${request.model}". Available:`,
-          modelIds,
+          "[LLM Chat Handler] Aborting chat request due to invalid model.",
         );
         sendResponse({
           status: "error",
-          message: `Invalid or unavailable model requested: ${request.model}`,
+          message: errorMsg,
         });
         return;
       }
 
-      const controller = new AbortController();
-      const signal = controller.signal;
-      // Storing the controller in session storage to be accessible by abortChatRequest
-      chrome.storage.session.set({ chatAbortController: controller });
-
-
       const payload = {
         model: request.model,
         messages: request.messages,
+        max_tokens: 4096, // Added max_tokens parameter
       };
 
-      if (DEBUG) {
-        console.log(
-          "[LLM Chat Handler] Sending payload to OpenRouter for chat:",
-          payload,
-        );
-      }
+      const controller = new AbortController();
+      // Storing the controller in session storage to be accessible by abortChatRequest
+      chrome.storage.session.set({ chatAbortController: controller });
 
       fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer":
-            "https://github.com/bogorad/openrouter-summarizer",
-          "X-Title": "OR-Summ",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
+          "X-Title": "OpenRouter Summarizer",
         },
         body: JSON.stringify(payload),
-        signal: signal,
+        signal: controller.signal,
       })
         .then((response) =>
           response.ok
@@ -93,96 +84,48 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
               }),
         )
         .then((data) => {
-          if (DEBUG) {
-            console.log(
-              "[LLM Chat Handler] Received raw chat response data:",
-              data,
-            );
-          }
-
-          if (data && data.error && data.error.code && data.error.message) {
-            const errorMsg = `ERROR: ${data.error.code} ${data.error.message}`;
-            console.error(
-              "[LLM Chat Handler] API returned an error:",
-              data.error,
-            );
-            try {
-              sendResponse({ status: "error", message: errorMsg });
-            } catch (e) {
-              if (DEBUG) {
-                console.warn(
-                  "[LLM Chat Handler] Failed to send API error response:",
-                  e.message,
-                );
-              }
-            }
-            chrome.storage.session.remove("chatAbortController");
+          if (data.error) {
+            const errorMsg = data.error.message || "Unknown API error.";
+            sendResponse({ status: "error", message: errorMsg });
             return;
           }
 
-          const directContent =
-            data?.choices?.[0]?.message?.content?.trim();
-
-          if (directContent !== undefined && directContent !== null) {
-            if (DEBUG) {
-              console.log(
-                "[LLM Chat Handler] Extracted direct content:",
-                directContent.substring(0, 100) + "...",
-              );
-            }
-            try {
-              sendResponse({ status: "success", content: directContent });
-            } catch (e) {
-              if (DEBUG) {
-                console.warn(
-                  "[LLM Chat Handler] Failed to send chat success response:",
-                  e.message,
-                );
-              }
-            }
-          } else {
-            console.error(
-              "[LLM Chat Handler] API success but no content found in response:",
-              data,
+          if (DEBUG)
+            console.warn(
+              "[LLM Chat Handler] Non-streaming response received, which is unexpected. Processing direct content.",
             );
-            try {
-              sendResponse({
-                status: "error",
-                message: "API success but no content received.",
-              });
-            } catch (e) {
-              if (DEBUG) {
-                console.warn(
-                  "[LLM Chat Handler] Failed to send no-content error response:",
-                  e.message,
-                );
-              }
-            }
-          }
+
+          // Clean up the abort controller from session storage on successful completion
           chrome.storage.session.remove("chatAbortController");
+
+          const directContent = data?.choices?.[0]?.message?.content?.trim();
+          if (directContent) {
+            if (DEBUG)
+              console.log(
+                "[LLM Chat Handler] Success with direct content:",
+                directContent.substring(0, 100) + "...",
+                "Model:",
+                data.model,
+              );
+            sendResponse({ status: "success", content: directContent });
+          } else {
+            sendResponse({
+              status: "error",
+              message: "No content in response.",
+            });
+          }
         })
         .catch((error) => {
-          if (error.name !== "AbortError") {
-            if (DEBUG) {
-              console.error(
-                "[LLM Chat Handler] Error in fetch for chat:",
-                error,
-              );
-            }
-          } else {
-            if (DEBUG) console.log("[LLM Chat Handler] Chat fetch aborted.");
-          }
-          try {
-            sendResponse({ status: "error", message: error.message });
-          } catch (e) {
-            if (DEBUG) {
-              console.warn(
-                "[LLM Chat Handler] Failed to send fetch/network error response:",
-                e.message,
-              );
-            }
-          }
+          // Clean up the abort controller from session storage on error
           chrome.storage.session.remove("chatAbortController");
+
+          if (error.name === "AbortError") {
+            if (DEBUG) console.log("[LLM Chat Handler] Chat fetch aborted.");
+            sendResponse({ status: "aborted" });
+          } else {
+            console.error("[LLM Chat Handler] Fetch error:", error);
+            sendResponse({ status: "error", message: error.message });
+          }
         });
     },
   );
@@ -198,21 +141,31 @@ export function handleAbortChatRequest(sendResponse, DEBUG = false) {
     if (controller && typeof controller.abort === "function") {
       try {
         controller.abort();
-        if (DEBUG) console.log("[LLM Chat Handler] AbortController triggered abort.");
+        if (DEBUG)
+          console.log("[LLM Chat Handler] AbortController triggered abort.");
       } catch (abortError) {
-        if (DEBUG) console.error("[LLM Chat Handler] Error calling abort():", abortError);
+        if (DEBUG)
+          console.error(
+            "[LLM Chat Handler] Error calling abort():",
+            abortError,
+          );
       }
       chrome.storage.session.remove("chatAbortController");
       try {
         sendResponse({ status: "aborted" });
       } catch (e) {
         if (DEBUG) {
-          console.warn("[LLM Chat Handler] Failed to send abort response:", e.message);
+          console.warn(
+            "[LLM Chat Handler] Failed to send abort response:",
+            e.message,
+          );
         }
       }
     } else {
       if (DEBUG) {
-        console.log("[LLM Chat Handler] No active request or valid controller to abort.");
+        console.log(
+          "[LLM Chat Handler] No active request or valid controller to abort.",
+        );
       }
       try {
         sendResponse({ status: "no active request" });
@@ -227,3 +180,4 @@ export function handleAbortChatRequest(sendResponse, DEBUG = false) {
     }
   });
 }
+

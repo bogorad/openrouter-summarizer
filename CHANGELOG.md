@@ -1,3 +1,4 @@
+- **Version 3.7.10:** Added max_tokens=4096 to OR call in `chat` so that more expensive models don't fail.
 - **Version 3.7.9:** Force popup window to use fonts from CSS.
 - **Version 3.7.8:** Remember the last used Joplin notbook.
 - **Version 3.7.7:** Fixed masking of API keys in console debug.
