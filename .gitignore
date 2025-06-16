@@ -5,3 +5,4 @@ flake.lock
 package-lock.json
 .direnv/
 .vscode/
+repomix-output.xml
