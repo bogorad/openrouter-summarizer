@@ -1,6 +1,6 @@
 // pageInteraction.js
 
-console.log(`[LLM Content] Script Start (v3.0.24)`);
+console.log(`[LLM Content] Script Start (v3.0.25 - Enhanced DOM Cleanup)`);
 
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.
@@ -14,6 +14,7 @@ import * as FloatingIcon from "./floatingIcon.js";
 import * as SummaryPopup from "./summaryPopup.js";
 import * as JoplinManager from "./joplinManager.js"; // New: Import JoplinManager
 import * as constants from "./constants.js"; // Assuming constants.js exports values
+import { sanitizeHtml, sanitizeForSharing, quickCleanHtml } from "./js/htmlSanitizer.js";
 
 // --- Module-level variables (assignments will happen in initialize) ---
 // These are assigned from the static imports for convenience if you prefer this pattern,
@@ -85,14 +86,27 @@ function processSelectedElement() {
 
   Highlighter.removeSelectionHighlight();
 
-  const selectedHtml = selectedElement.outerHTML;
-  if (!selectedHtml || selectedHtml.trim() === "") {
+  const rawHtml = selectedElement.outerHTML;
+  if (!rawHtml || rawHtml.trim() === "") {
     if (DEBUG)
       console.warn(
         "[LLM Content] Selected element has no HTML content to summarize.",
       );
     showError("Error: Selected element has no content.");
     return;
+  }
+
+  // Apply sanitization before processing
+  const sanitizedHtml = sanitizeHtml(rawHtml, { debug: DEBUG });
+
+  if (DEBUG) {
+    console.log(
+      "[LLM Content] HTML sanitization complete - Original:",
+      rawHtml.length,
+      "chars, Sanitized:",
+      sanitizedHtml.length,
+      "chars"
+    );
   }
 
   let processedMarkdown;
@@ -102,8 +116,23 @@ function processSelectedElement() {
       codeBlockStyle: "fenced",
       bulletListMarker: "-",
     });
-    turndown.remove(["script", "style", "nav"]);
-    processedMarkdown = turndown.turndown(selectedHtml);
+
+    // Enhanced cleanup for remaining unwanted elements
+    turndown.remove(["script", "style", "nav", "aside", "footer", "header", "form"]);
+
+    // Add custom rule to remove empty divs and spans
+    turndown.addRule('removeEmptyElements', {
+      filter: function (node) {
+        return (node.nodeName === 'DIV' || node.nodeName === 'SPAN') &&
+               !node.textContent.trim() &&
+               !node.querySelector('img, video, audio, iframe');
+      },
+      replacement: function () {
+        return '';
+      }
+    });
+
+    processedMarkdown = turndown.turndown(sanitizedHtml);
     if (DEBUG)
       console.log(
         "[LLM Content] Successfully converted HTML to Markdown:",
@@ -112,8 +141,8 @@ function processSelectedElement() {
       );
     if (DEBUG) {
       console.log(
-        "[LLM Content] Conversion Details - HTML Length: " +
-          selectedHtml.length +
+        "[LLM Content] Conversion Details - Sanitized HTML Length: " +
+          sanitizedHtml.length +
           ", Markdown Length: " +
           processedMarkdown.length,
       );
@@ -468,23 +497,52 @@ async function handleJoplinIconClick() {
     return;
   }
 
-  // For Joplin, always send the raw HTML snippet.
-  const contentToSend =
-    Highlighter.getSelectedElement()?.outerHTML || lastSelectedDomSnippet;
-  // Unconditionally set isHtmlContent to true for Joplin.
-  const isHtmlContent = true;
+  // For Joplin, get the HTML snippet and sanitize it
+  const rawContent = Highlighter.getSelectedElement()?.outerHTML || lastSelectedDomSnippet;
 
-  if (!contentToSend || contentToSend.trim() === "") {
+  if (!rawContent || rawContent.trim() === "") {
     showError("No content available to send to Joplin.", true, 3000);
     if (DEBUG)
       console.error("[LLM Content] No content (HTML) to send to Joplin.");
     return;
   }
 
+  // Apply sanitization for Joplin content
+  const contentToSend = sanitizeHtml(rawContent, {
+    debug: DEBUG
+  });
+
+  // Check if sanitization left any content
+  if (!contentToSend || contentToSend.trim() === "" || contentToSend.trim() === "<div></div>") {
+    console.warn("[LLM Content] JOPLIN FALLBACK TRIGGERED - Sanitization removed all content");
+    console.log("[LLM Content] Original content length:", rawContent.length);
+    console.log("[LLM Content] Original content preview:", rawContent.substring(0, 300));
+    console.log("[LLM Content] Sanitized content:", contentToSend);
+    console.log("[LLM Content] Sanitized content length:", contentToSend ? contentToSend.length : 0);
+    // Fallback to quick clean (only remove extension classes) if full sanitization removes everything
+    const fallbackContent = quickCleanHtml(rawContent);
+    if (!fallbackContent || fallbackContent.trim() === "") {
+      showError("Content became empty after cleaning. Cannot send to Joplin.", true, 3000);
+      if (DEBUG) console.error("[LLM Content] Even fallback cleaning resulted in empty content.");
+      return;
+    }
+    // Use fallback content
+    await JoplinManager.fetchAndShowNotebookSelection(
+      joplinToken,
+      fallbackContent,
+      pageURL,
+      true // isHtmlContent
+    );
+    return;
+  }
+
+  // Unconditionally set isHtmlContent to true for Joplin.
+  const isHtmlContent = true;
+
   const pageURL = window.location.href; // Get current page URL
   if (DEBUG)
     console.log(
-      "[LLM Content] Initiating Joplin note creation with HTML content and URL:",
+      "[LLM Content] Initiating Joplin note creation with cleaned HTML content and URL:",
       contentToSend.substring(0, 100),
       pageURL,
     );
@@ -795,16 +853,12 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   return handleMessage(req, sender, sendResponse);
 });
 
-// Helper to remove highlight classes from HTML string
+// --- DOM Sanitization and Cleanup Functions ---
+// Note: Main sanitization logic moved to js/htmlSanitizer.js for better modularity
+
+// Helper to remove highlight classes from HTML string (legacy function for backward compatibility)
 function cleanHtmlForNewsblur(htmlString) {
-  const tempDiv = document.createElement("div");
-  tempDiv.innerHTML = htmlString;
-  tempDiv
-    .querySelectorAll(".llm-highlight, .llm-highlight-preview")
-    .forEach((el) => {
-      el.classList.remove("llm-highlight", "llm-highlight-preview");
-    });
-  return tempDiv.innerHTML;
+  return quickCleanHtml(htmlString);
 }
 
 // --- Callback Functions for NewsBlur ---
@@ -874,7 +928,8 @@ function handlePopupNewsblur(hasNewsblurToken) {
           .map((item) => `<li>${renderTextAsHtml(item)}</li>`)
           .join("") +
         "</ul>";
-      const cleanedHtmlContent = cleanHtmlForNewsblur(lastSelectedDomSnippet);
+      // Apply comprehensive sanitization for NewsBlur sharing
+      const cleanedHtmlContent = sanitizeForSharing(lastSelectedDomSnippet, DEBUG);
       const combinedContent = summaryHtml + "<hr>" + cleanedHtmlContent;
 
       chrome.runtime.sendMessage(

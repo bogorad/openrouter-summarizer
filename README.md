@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.7.10
+# OpenRouter Summarizer v3.7.13
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -27,6 +27,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 - **Keyboard Shortcuts:** Use `Ctrl/Cmd+Enter` to send messages in the chat window.
 - **Instant Results:** Summaries appear in a clean popup; chat happens in a dedicated tab.
 - **Secure & Private:** Your API key and options are stored locally in your browser storage. Chat context is stored temporarily in session storage. Nothing is sent anywhere except OpenRouter.ai when you request a summary or chat response.
+- **Smart Content Cleanup:** Automatically removes unwanted elements like ads, tracking scripts, navigation menus, social media widgets, and promotional content before processing, ensuring cleaner summaries and better LLM performance.
 - **Debug-Friendly:** Enable debug mode in `Options` for detailed console logging. The API key is filtered from the debug console messages.
 - **Joplin support:** Save to Joplin instead of summarizing.
 
@@ -55,7 +56,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     - <kbd>ALT</kbd>+Click an element to select it (red solid outline). A floating icon (💡) appears.
 3.  **Summarize:**
     - Click the floating icon (💡), _or_ right-click and choose "Send to LLM".
-    - The extension extracts the selected element's HTML, converts it to Markdown to save money and improve LLM's job, then sends it and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model for summarization.
+    - The extension extracts the selected element's HTML, applies comprehensive sanitization to remove unwanted content (ads, tracking, navigation elements), converts it to Markdown to save money and improve LLM's job, then sends it and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model for summarization.
 4.  **Review Summary:**
     - The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (`json ... `) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
     - **Click the "Chat" button to open the chat tab.**

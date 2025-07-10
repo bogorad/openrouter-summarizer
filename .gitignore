@@ -6,3 +6,4 @@ package-lock.json
 .direnv/
 .vscode/
 repomix-output.xml
+*-testpage.html
