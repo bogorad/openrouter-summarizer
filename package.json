@@ -1,6 +1,6 @@
 {
   "name": "openrouter-summarizer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "**Summarize any web page content and chat with the context using OpenRouter.ai APIs** _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_",
   "main": "background.js",
   "directories": {
@@ -32,3 +32,4 @@
     "turndown": "^7.2.0"
   }
 }
+

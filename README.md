@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.7.13
+# OpenRouter Summarizer v3.7.16
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,6 +7,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New
 
+- **Fixed highlight contamination in shared content:** Sharing to NewsBlur and Joplin now uses clean content without red selection highlights.
 - **Optimized `Copy` button for sharing:** now it returns proper rich-text and the current URL at the end.
 - **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
 - **Added NewsBlur sharing:** See options, you'll need your NewsBlur Token.
@@ -100,3 +101,4 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 ## 🏷️ Tags
 
 `Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`
+

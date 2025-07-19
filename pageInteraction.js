@@ -76,17 +76,13 @@ function processSelectedElement() {
     return;
   }
 
-  lastSelectedDomSnippet = selectedElement.outerHTML;
-  if (DEBUG)
-    console.log(
-      "[LLM Content] Stored selected element snippet for chat context:",
-      lastSelectedDomSnippet.substring(0, 200) +
-        (lastSelectedDomSnippet.length > 200 ? "..." : ""),
-    );
-
+  // Remove highlight FIRST to get clean content
   Highlighter.removeSelectionHighlight();
-
+  
+  // THEN capture clean HTML for BOTH LLM processing AND sharing
   const rawHtml = selectedElement.outerHTML;
+  lastSelectedDomSnippet = rawHtml; // Both use the same clean content
+
   if (!rawHtml || rawHtml.trim() === "") {
     if (DEBUG)
       console.warn(
@@ -1131,3 +1127,6 @@ async function initialize() {
 
 // --- Start Initialization ---
 initialize();
+
+
+
