@@ -24,11 +24,11 @@ const POPUP_TEMPLATE_HTML = `
     </div>
     <div class="${POPUP_BODY_CLASS}"></div>
     <div class="${POPUP_ACTIONS_CLASS}">
-        <button class="${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}">Copy</button>
+        <button class="${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}">Cop[y]</button>
         <!-- Single Chat Button -->
-        <button class="${POPUP_BTN_CLASS} ${POPUP_CHAT_BTN_CLASS}">Chat</button>
+        <button class="${POPUP_BTN_CLASS} ${POPUP_CHAT_BTN_CLASS}">[C]hat</button>
         <!-- New: NewsBlur Button -->
-        <button class="${POPUP_BTN_CLASS} ${POPUP_NEWSBLUR_BTN_CLASS}">↔ NewsBlur</button>
+        <button class="${POPUP_BTN_CLASS} ${POPUP_NEWSBLUR_BTN_CLASS}">↔ [N]ewsBlur</button>
         <!-- End NewsBlur Button -->
         <!-- End Single Chat Button -->
         <button class="${POPUP_BTN_CLASS} ${POPUP_CLOSE_BTN_CLASS}">Close</button>
@@ -53,7 +53,7 @@ let currentOriginalMarkdownArray = null; // To store the array of original Markd
 let currentPageURL = null; // To store the page URL
 let currentPageTitle = null; // To store the page title
 let isErrorState = false; // To track if the popup is in an error state
-let handleEscapeKey = null; // To hold the reference to our keydown handler
+let handlePopupKeydown = null; // To hold the reference to our keydown handler
 
 // Helper function to escape HTML special characters
 function escapeHTML(str) {
@@ -309,16 +309,54 @@ export function showPopup(
     document.body.appendChild(popup);
     if (DEBUG) console.log("[LLM Popup] Popup added to page from template.");
 
-    // Define and add the Escape key listener
-    handleEscapeKey = (event) => {
-      if (event.key === "Escape") {
+    // Define and add the keydown listener for multiple hotkeys
+    handlePopupKeydown = (event) => {
+      const key = event.key.toLowerCase();
+
+      // Check if any of our hotkeys were pressed
+      const isHotkeyPressed = ['escape', 'y', 'c', 'n'].includes(key);
+
+      if (isHotkeyPressed) {
+        // Stop the event from reaching any other listeners (on the host page or in other scripts)
         event.preventDefault();
-        if (popupCallbacks.onClose) {
-          popupCallbacks.onClose();
+        event.stopPropagation();
+
+        switch (key) {
+          case "escape":
+            if (popupCallbacks.onClose) {
+              popupCallbacks.onClose();
+            }
+            break;
+
+          case "y":
+            // Trigger copy button click
+            const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
+            if (copyBtn) {
+              copyBtn.click();
+            }
+            break;
+
+          case "c":
+            // Trigger chat button click if enabled
+            const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
+            if (chatBtn && !chatBtn.disabled) {
+              chatBtn.click();
+            }
+            break;
+
+          case "n":
+            // Trigger NewsBlur button click if visible
+            const newsblurBtn = popup.querySelector(
+              `.${POPUP_NEWSBLUR_BTN_CLASS}`,
+            );
+            if (newsblurBtn && newsblurBtn.style.display !== "none") {
+              newsblurBtn.click();
+            }
+            break;
         }
       }
     };
-    document.addEventListener("keydown", handleEscapeKey);
+    document.addEventListener("keydown", handlePopupKeydown, true);
 
     popup.style.display = "flex";
     requestAnimationFrame(() => {
@@ -357,10 +395,10 @@ export function hidePopup() {
     copyTimeoutId = null;
     isErrorState = false;
 
-    // Remove the Escape key listener
-    if (handleEscapeKey) {
-      document.removeEventListener("keydown", handleEscapeKey);
-      handleEscapeKey = null;
+    // Remove the keydown listener
+    if (handlePopupKeydown) {
+      document.removeEventListener("keydown", handlePopupKeydown, true);
+      handlePopupKeydown = null;
     }
 
     popupElement.classList.remove("visible");

@@ -2,3 +2,5 @@ icons/
 media/
 dist/
 country-flags/
+*.md
+LICENSE

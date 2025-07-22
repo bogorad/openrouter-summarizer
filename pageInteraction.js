@@ -440,8 +440,10 @@ function handleElementSelected(element, clickX, clickY) {
     clickY,
     handleIconClick,
     handleIconDismiss,
-    handleJoplinIconClick, // New: Pass a handler for the Joplin icon
-    !!joplinToken, // New: Pass the boolean indicating if Joplin token is set
+    handleJoplinIconClick, // Pass a handler for the Joplin icon
+    !!joplinToken, // Pass the boolean indicating if Joplin token is set
+    handleCopyHtmlIconClick, // Pass a handler for the Copy HTML icon
+    true, // Always show the Copy HTML icon
   );
 }
 
@@ -472,6 +474,57 @@ function handleIconDismiss() {
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
   lastProcessedMarkdown = null;
+}
+
+// New handler function for the Copy HTML icon click
+async function handleCopyHtmlIconClick() {
+  if (DEBUG) console.log("[LLM Content] handleCopyHtmlIconClick called.");
+
+  // Get the currently selected element
+  const selectedElement = Highlighter.getSelectedElement();
+  if (!selectedElement) {
+    showError("No element selected to copy.", false, 2000);
+    if (DEBUG) console.error("[LLM Content] No element selected for HTML copy.");
+    return;
+  }
+
+  try {
+    // Get the full HTML of the selected element
+    const rawHtml = selectedElement.outerHTML;
+
+    // Sanitize the HTML before copying
+    const sanitizedHtml = sanitizeHtml(rawHtml, { debug: DEBUG });
+
+    if (!sanitizedHtml || sanitizedHtml.trim() === "") {
+      showError("Element HTML became empty after cleaning.", false, 2000);
+      if (DEBUG) console.error("[LLM Content] HTML sanitization resulted in empty content.");
+      return;
+    }
+
+    // Copy to clipboard with both HTML and plain text formats
+    const textContent = selectedElement.textContent || selectedElement.innerText || "";
+    const htmlBlob = new Blob([sanitizedHtml], { type: "text/html" });
+    const textBlob = new Blob([textContent], { type: "text/plain" });
+
+    const clipboardItem = new ClipboardItem({
+      "text/html": htmlBlob,
+      "text/plain": textBlob,
+    });
+
+    await navigator.clipboard.write([clipboardItem]);
+
+    // Show success message
+    showError("Element HTML copied to clipboard.", false, 2000);
+    if (DEBUG) console.log("[LLM Content] Element HTML copied successfully.");
+
+  } catch (error) {
+    console.error("[LLM Content] Failed to copy element HTML:", error);
+    showError("Failed to copy element HTML to clipboard.", false, 3000);
+  } finally {
+    // Clean up - remove floating icon, highlight, and deselect element
+    FloatingIcon.removeFloatingIcon();
+    Highlighter.removeSelectionHighlight();
+  }
 }
 
 // New handler function for the Joplin icon click

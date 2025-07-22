@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.7.16
+# OpenRouter Summarizer v3.7.17
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
@@ -7,25 +7,32 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 
 ## ✨ What's New
 
+- **Added keyboard shortcuts for summary popup:** Use **Y** to copy, **C** to chat, **N** for NewsBlur, and **Escape** to close.
+- **New Copy HTML icon:** Third icon in the floating menu to copy the complete HTML of selected elements to clipboard.
+- **Enhanced Joplin integration:** Use **Enter** to save and **Escape** to close in the notebook selection dialog.
 - **Fixed highlight contamination in shared content:** Sharing to NewsBlur and Joplin now uses clean content without red selection highlights.
 - **Optimized `Copy` button for sharing:** now it returns proper rich-text and the current URL at the end.
 - **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
 - **Added NewsBlur sharing:** See options, you'll need your NewsBlur Token.
 - **Added Joplin archiving:** See options, you'll need your Joplin Token.
-- **Chagned default Claude Sonnet model:** from 3.7 to 4.
+- **Changed default Claude Sonnet model:** from 3.7 to 4.
 
 ---
 
 ## 🚀 Features
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
+- **Copy HTML:** Use the new Copy HTML icon (📄) in the floating menu to copy complete element HTML to clipboard.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
 - **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
 - **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the last message.
 - **Languages can now be reordered** by dragging them in the Options list.
 - **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section.
 - **Configurable Summary:** Choose the approximate number of summary points (3-8) for the initial summary prompt.
-- **Keyboard Shortcuts:** Use `Ctrl/Cmd+Enter` to send messages in the chat window.
+- **Keyboard Shortcuts:**
+  - **Summary popup:** `Y` to copy, `C` to chat, `N` for NewsBlur, `Escape` to close
+  - **Joplin dialog:** `Enter` to save, `Escape` to close
+  - **Chat window:** `Ctrl/Cmd+Enter` to send messages
 - **Instant Results:** Summaries appear in a clean popup; chat happens in a dedicated tab.
 - **Secure & Private:** Your API key and options are stored locally in your browser storage. Chat context is stored temporarily in session storage. Nothing is sent anywhere except OpenRouter.ai when you request a summary or chat response.
 - **Smart Content Cleanup:** Automatically removes unwanted elements like ads, tracking scripts, navigation menus, social media widgets, and promotional content before processing, ensuring cleaner summaries and better LLM performance.
@@ -54,14 +61,23 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
     - Review default models/languages/settings. **Save Options**.
 2.  **Select Content:**
     - On any webpage, hold <kbd>ALT</kbd> + Hover to preview highlightable elements (blue dashed outline).
-    - <kbd>ALT</kbd>+Click an element to select it (red solid outline). A floating icon (💡) appears.
-3.  **Summarize:**
-    - Click the floating icon (💡), _or_ right-click and choose "Send to LLM".
+    - <kbd>ALT</kbd>+Click an element to select it (red solid outline). A floating menu appears with up to 3 icons:
+      - **💡 Summarize:** Main summarization icon
+      - **✂️ Joplin:** Save to Joplin (if token configured)
+      - **📄 Copy HTML:** Copy element's complete HTML to clipboard
+3.  **Choose Action:**
+    - **Summarize:** Click the main icon (💡), _or_ right-click and choose "Send to LLM".
+    - **Copy HTML:** Click the Copy HTML icon (📄) to copy sanitized element HTML to clipboard.
+    - **Save to Joplin:** Click the Joplin icon (✂️) to save content to a Joplin notebook.
     - The extension extracts the selected element's HTML, applies comprehensive sanitization to remove unwanted content (ads, tracking, navigation elements), converts it to Markdown to save money and improve LLM's job, then sends it and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model for summarization.
 4.  **Review Summary:**
     - The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (`json ... `) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
-    - **Click the "Chat" button to open the chat tab.**
-    - Use **Copy** or **Close**.
+    - **Use keyboard shortcuts for quick actions:**
+      - **Y** - Copy summary to clipboard
+      - **C** - Open chat interface (if enabled)
+      - **N** - Share to NewsBlur (if token configured)
+      - **Escape** - Close the popup
+    - **Or use buttons:** **Copy**, **Chat**, **NewsBlur**, or **Close**.
     - Use **[NewsBlur](https://www.newsblur.com/)** to share the summary and the selected HTML snippet.
 5.  **Chat (Optional):**
     - Click **Chat** on the summary popup to chat about the summary.
@@ -100,5 +116,5 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## 🏷️ Tags
 
-`Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`
+`Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`, `Keyboard Shortcuts`, `Copy HTML`, `Hotkeys`
 

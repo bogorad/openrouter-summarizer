@@ -1,3 +1,4 @@
+- **Version 3.7.17:** Added keyboard shortcuts for summary popup (Y/C/N/Escape) and new Copy HTML icon in floating menu for copying complete element HTML to clipboard. Enhanced Joplin dialog with Enter/Escape hotkeys. Improved error handling robustness.
 - **Version 3.7.10:** Added max_tokens=4096 to OR call in `chat` so that more expensive models don't fail.
 - **Version 3.7.9:** Force popup window to use fonts from CSS.
 - **Version 3.7.8:** Remember the last used Joplin notbook.

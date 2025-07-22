@@ -52,14 +52,17 @@ function handleIconKeyDown(e) {
  * @param {function} onIconDismiss - Callback function when the main icon is dismissed (e.g., via Escape key).
  * @param {function} onJoplinClick - Callback function when the Joplin icon is clicked.
  * @param {boolean} showJoplinIcon - Whether to display the Joplin icon.
+ * @param {function} onCopyHtmlClick - Callback function when the Copy HTML icon is clicked.
+ * @param {boolean} showCopyHtmlIcon - Whether to display the Copy HTML icon.
  */
-export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, onJoplinClick, showJoplinIcon) {
+export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, onJoplinClick, showJoplinIcon, onCopyHtmlClick, showCopyHtmlIcon) {
   removeFloatingIcon(); // Ensure any old icon is removed first
 
   if (
     typeof onIconClick !== "function" ||
     typeof onIconDismiss !== "function" ||
-    typeof onJoplinClick !== "function" // Ensure joplin callback is a function
+    typeof onJoplinClick !== "function" || // Ensure joplin callback is a function
+    typeof onCopyHtmlClick !== "function" // Ensure copy HTML callback is a function
   ) {
     console.error(
       "[LLM FloatingIcon] createFloatingIcon failed: Required callbacks missing.",
@@ -84,11 +87,14 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
   // Apply conditional styling for the container shape and background
   floatingIcon.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
   floatingIcon.style.boxShadow = "0 2px 5px rgba(0,0,0,0.2)";
-  
-  if (showJoplinIcon) {
-    floatingIcon.style.gap = "8px"; // Spacing when two icons are present
-    floatingIcon.style.borderRadius = "30px"; // Oval shape for two icons
-    floatingIcon.style.padding = "8px 16px"; // Adjust padding for oval to accommodate two icons
+
+  // Calculate number of visible icons
+  let iconCount = 1 + (showJoplinIcon ? 1 : 0) + (showCopyHtmlIcon ? 1 : 0);
+
+  if (iconCount > 1) {
+    floatingIcon.style.gap = "8px"; // Spacing when multiple icons are present
+    floatingIcon.style.borderRadius = "30px"; // Oval shape for multiple icons
+    floatingIcon.style.padding = "8px 16px"; // Adjust padding for oval to accommodate multiple icons
   } else {
     floatingIcon.style.gap = "0px"; // No gap needed for a single icon
     floatingIcon.style.borderRadius = "50%"; // Circular shape for single icon
@@ -189,16 +195,64 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
     floatingIcon.appendChild(joplinIconWrapper); // Append the Joplin icon wrapper
   }
 
+  // Add Copy HTML icon if requested
+  if (showCopyHtmlIcon) {
+    const copyHtmlIconWrapper = document.createElement("div");
+    copyHtmlIconWrapper.id = "llm-copy-html-icon-wrapper";
+    copyHtmlIconWrapper.className = "llm-floating-icon-item"; // A class for styling individual icons
+    copyHtmlIconWrapper.setAttribute("role", "button");
+    copyHtmlIconWrapper.setAttribute("tabindex", "0");
+    copyHtmlIconWrapper.title = "Copy element HTML"; // Tooltip for the new icon
+    copyHtmlIconWrapper.style.cursor = "pointer"; // Indicate it's clickable
+    copyHtmlIconWrapper.style.backgroundColor = "transparent";
+    copyHtmlIconWrapper.style.borderRadius = "50%";
+    copyHtmlIconWrapper.style.width = "32px"; // Match main icon size for consistency
+    copyHtmlIconWrapper.style.height = "32px"; // Match main icon size for consistency
+    copyHtmlIconWrapper.style.display = "flex";
+    copyHtmlIconWrapper.style.justifyContent = "center";
+    copyHtmlIconWrapper.style.alignItems = "center";
+    copyHtmlIconWrapper.style.boxShadow = "none";
+
+    const copyHtmlIconImg = document.createElement("img");
+    copyHtmlIconImg.src = chrome.runtime.getURL("icons/copy-html.svg"); // Path to copy-html.svg
+    copyHtmlIconImg.alt = "Copy HTML";
+    copyHtmlIconImg.style.width = "24px"; // Retain original size
+    copyHtmlIconImg.style.height = "24px"; // Retain original size
+    copyHtmlIconImg.style.pointerEvents = "none"; // Ensures clicks go to the parent wrapper
+
+    copyHtmlIconWrapper.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (DEBUG) console.log("[LLM FloatingIcon] Copy HTML icon clicked.");
+      if (onCopyHtmlClick) {
+        onCopyHtmlClick();
+      }
+    };
+    copyHtmlIconWrapper.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (DEBUG) console.log("[LLM FloatingIcon] Copy HTML icon activated via keyboard.");
+        if (onCopyHtmlClick) {
+          onCopyHtmlClick();
+        }
+      }
+    };
+
+    copyHtmlIconWrapper.appendChild(copyHtmlIconImg);
+    floatingIcon.appendChild(copyHtmlIconWrapper); // Append the Copy HTML icon wrapper
+  }
+
   // Positioning logic (accounts for dynamic width due to multiple icons)
   floatingIcon.style.whiteSpace = "nowrap"; // Prevent icon wrapping
   
-  // Before appending, define default size based on single icon
+  // Before appending, define default size based on number of icons
   // This ensures the bounding box calculation for initial positioning is accurate
   let defaultWidth = 32 + (8 * 2); // icon size + padding
   let defaultHeight = 32 + (8 * 2); // icon size + padding
 
-  if (showJoplinIcon) {
-    defaultWidth = (32 * 2) + 8 + (16 * 2); // two icons + gap + padding
+  if (iconCount > 1) {
+    defaultWidth = (32 * iconCount) + (8 * (iconCount - 1)) + (16 * 2); // multiple icons + gaps + padding
   }
 
   floatingIcon.style.width = `${defaultWidth}px`;
