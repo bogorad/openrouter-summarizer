@@ -8,7 +8,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 ## ✨ What's New in v3.8.0
 
 - **🔔 Fixed Notification System:** "Sending note to Joplin..." messages now properly clear and don't persist indefinitely.
-- **🌐 Improved Language Detection:** Enhanced logging shows exactly when and how language detection occurs.
+- **🌐 Improved Language Detection:** Enhanced language detection accuracy and support for US-English-only to speed things up.
 
 ---
 
@@ -16,14 +16,13 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
 - **Native HTML Summaries:** LLM returns properly formatted HTML bullet lists with preserved formatting (bold text, etc.).
-- **Copy HTML:** Use the new Copy HTML icon (📄) in the floating menu to copy complete element HTML to clipboard.
-- **Enhanced Copy Function:** Copy button preserves bold formatting in both rich text (HTML) and plain text (markdown) formats.
+- **Copy:** Use Copy HTML icon (📄) in the floating menu to copy complete element HTML to clipboard.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
 - **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
-- **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the last message.
+- **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the latest message.
 - **Languages can now be reordered** by dragging them in the Options list.
-- **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section. Supports `$$$language$$$` and `$$$bulletCount$$$` placeholders.
-- **Fully Functional Summary Configuration:** Choose the number of summary points (3-8) - this setting now actually works and dynamically updates the prompt.
+- **Customizable Prompt:** Modify the formatting instructions sent to the LLM via the Advanced Options section.
+- **Fully Functional Summary Configuration:** Choose the number of summary points (3-8) - this setting dynamically updates the prompt.
 - **Keyboard Shortcuts:**
   - **Summary popup:** `Y` to copy, `C` to chat, `N` for NewsBlur, `Escape` to close
   - **Joplin dialog:** `Enter` to save, `Escape` to close
@@ -32,7 +31,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 - **Secure & Private:** Your API key and options are stored locally in your browser storage. Chat context is stored temporarily in session storage. Nothing is sent anywhere except OpenRouter.ai when you request a summary or chat response.
 - **Smart Content Cleanup:** Automatically removes unwanted elements like ads, tracking scripts, navigation menus, social media widgets, and promotional content before processing, ensuring cleaner summaries and better LLM performance.
 - **Comprehensive Debug Logging:** Enable debug mode in `Options` for detailed console logging throughout all processes including language detection, summary processing, and API calls. The API key is filtered from debug messages.
-- **Joplin support:** Save to Joplin instead of summarizing.
+- **Joplin support:** Save to Joplin instead of/in addition to summarizing.
 
 ---
 
@@ -61,7 +60,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
     - The Options page opens on first install. Enter your [OpenRouter.ai API Key](https://openrouter.ai/keys).
     - Review default models/languages/settings. **Save Options**.
 2.  **Select Content:**
-    - On any webpage, hold <kbd>ALT</kbd> + Hover to preview highlightable elements (blue dashed outline).
+    - On any webpage, hold <kbd>ALT</kbd> + hover mouse to preview highlightable elements (blue dashed outline).
     - <kbd>ALT</kbd>+Click an element to select it (red solid outline). A floating menu appears with up to 3 icons:
       - **💡 Summarize:** Main summarization icon
       - **✂️ Joplin:** Save to Joplin (if token configured)
@@ -80,11 +79,11 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
       - **Escape** - Close the popup
     - **Or use buttons:** **Copy**, **Chat**, **NewsBlur**, or **Close**.
     - Use **[NewsBlur](https://www.newsblur.com/)** to share the summary and the selected HTML snippet.
-5.  **Chat (Optional):**
-    - Click **Chat** on the summary popup to chat about the summary.
-    - A new browser tab opens. An info banner confirms context is available.
+5.  **Chat ("talk to the page"):**
+    - Click **Chat** on the summary popup to chat about the article.
+    - A new browser tab opens. This page has access to both the original HTML snippet and the summary.
     - The original HTML snippet and the raw/processed JSON string are stored. For _every_ message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
-    - **Language flags are now available in the chat interface.** Click a flag to request a translation of the _last assistant message_ into that language. **While the LLM is processing a request, these flags will be visually dimmed and show a "busy" tooltip.**
+    - **Language flags are available in the chat interface.** Click a flag to request a translation of the _latest assistant message_ into that language. **While the LLM is processing a request, these flags will be visually dimmed and show a "busy" tooltip.**
     - Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send using any of the configured models.
     - LLM responses are rendered with via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
     - Use **Copy MD**, **Download MD**, or **Download JSON** to save the chat.
@@ -106,9 +105,6 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
   - **No Analytics:** No tracking or ads.
 - **Security:**
   - Renders HTML list/Markdown. Does **not** execute scripts or load external resources from LLM responses. Relies on `marked` for chat rendering. Static assets like SVGs and dynamically imported JS modules are loaded securely from within the extension bundle via `chrome.runtime.getURL`.
-
-**Q: Why aren't all my configured flags showing in the popup?**
-A: The flags have been moved to the chat interface for better organization and to avoid cluttering the summary popup.
 
 **Q: How are flags chosen for languages?**
 A: The extension attempts to use an SVG flag file (`[language_code].svg`) from the `country-flags/svg/` directory based on the <a href="https://en.wikipedia.org/wiki/ISO_639-1" target="_blank">ISO 639-1</a> code associated with that language in the `languages.json` file. If a flag file for a specific language code is not available in the extension bundle, a generic placeholder flag will be displayed.
