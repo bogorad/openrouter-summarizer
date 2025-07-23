@@ -38,79 +38,64 @@ export function tryParseJson(text, logWarningOnFail = true) {
 
 /**
  * Displays an error message in the UI.
+ * Uses the dedicated notification container if available, otherwise falls back to the #errorDisplay element.
  * @param {string} message - The error message to display.
- * @param {boolean} [isFatal=true] - Determines if chat functionality should be disabled (only applies to chat input/send button).
+ * @param {boolean} [isFatal=true] - Determines if chat functionality should be disabled.
  * @param {number} [duration=0] - Duration in milliseconds to show the message. 0 means persistent.
  */
 export function showError(message, isFatal = true, duration = 0) {
-  let errorDisplay = document.getElementById("errorDisplay");
-  if (!errorDisplay) {
-    errorDisplay = document.createElement("div");
-    errorDisplay.id = "errorDisplay";
-    errorDisplay.style.display = "none";
-    const chatContainer = document.querySelector(".chat-container");
-    if (chatContainer) {
-      chatContainer.insertBefore(errorDisplay, chatContainer.firstChild);
-    } else {
-      document.body.insertBefore(errorDisplay, document.body.firstChild);
+  // First, try to use the new notification container system
+  const notificationContainer = document.getElementById("llm-notification-container");
+  if (notificationContainer) {
+    // Clear any existing messages before showing the new one
+    notificationContainer.innerHTML = "";
+
+    const errorElement = document.createElement("div");
+    errorElement.className = "llm-notification-message";
+    errorElement.textContent = message;
+    notificationContainer.appendChild(errorElement);
+
+    if (duration > 0) {
+      setTimeout(() => {
+        if (errorElement && notificationContainer.contains(errorElement)) {
+          notificationContainer.removeChild(errorElement);
+        }
+      }, duration);
+    }
+  } else {
+    // Fallback to the old system for pages without the container (chat.html, options.html)
+    let errorDisplay = document.getElementById("errorDisplay");
+    if (!errorDisplay) {
+      console.error("No error display element found on this page. Cannot show error:", message);
+      return;
+    }
+
+    errorDisplay.textContent = message;
+    errorDisplay.style.display = "block";
+
+    // Clear any existing timeout
+    if (errorTimeoutId) {
+      clearTimeout(errorTimeoutId);
+    }
+
+    if (duration > 0) {
+      errorTimeoutId = setTimeout(() => {
+        errorDisplay.textContent = "";
+        errorDisplay.style.display = "none";
+      }, duration);
     }
   }
 
-  // Clear any existing timeout before setting a new message
-  if (errorTimeoutId) {
-    clearTimeout(errorTimeoutId);
-    errorTimeoutId = null;
-  }
-
-  errorDisplay.textContent = message;
-  errorDisplay.style.cssText =
-    "display: block; color: red; background-color: #ffebee; padding: 10px; border: 1px solid red; border-radius: 4px; margin: 10px auto; width: 80vw; max-width: 800px;";
-
-  // Only disable chat input/send button if isFatal is true
+  // The logic to disable chat inputs remains relevant for the chat page context
   if (isFatal) {
     const chatInput = document.getElementById("chatInput");
-    const sendButton = document.querySelector(
-      '#chatForm button[type="submit"]',
-    );
+    const sendButton = document.querySelector('#chatForm button[type="submit"]');
     if (chatInput) chatInput.disabled = true;
     if (sendButton) sendButton.disabled = true;
-  } else {
-    // If not fatal, ensure they are enabled (unless another fatal error is active)
-    // This is a simplification; a more robust system would track fatal state separately.
-    // For now, we assume non-fatal calls don't override fatal state.
-    // The main chat logic should handle enabling/disabling based on streaming state.
-  }
-
-  if (duration > 0) {
-    errorTimeoutId = setTimeout(() => {
-      errorDisplay.style.display = "none";
-      errorDisplay.textContent = ""; // Clear text
-      errorTimeoutId = null;
-      // Note: We don't re-enable input/send button here, as the main chat logic
-      // manages their state based on the 'streaming' flag.
-    }, duration);
-  } else {
-    // For persistent errors, ensure no timeout is active
-    errorTimeoutId = null;
   }
 }
 
-/**
- * Clears the currently displayed error message.
- */
-export function clearError() {
-  let errorDisplay = document.getElementById("errorDisplay");
-  if (errorDisplay) {
-    errorDisplay.style.display = "none";
-    errorDisplay.textContent = "";
-  }
-  if (errorTimeoutId) {
-    clearTimeout(errorTimeoutId);
-    errorTimeoutId = null;
-  }
-  // Note: This function does NOT re-enable the chat input/send button.
-  // Their state is managed by the main chat logic based on the 'streaming' flag.
-}
+
 
 /**
  * Renders text content as HTML using marked if available, or as plain text with line breaks.
@@ -148,25 +133,4 @@ export function renderTextAsHtml(text) {
   }
 }
 
-/**
- * Cleans unprintable characters from a string.
- * @param {string} text - The text to clean.
- * @returns {string} - The cleaned text.
- */
-export function cleanUnprintableChars(text) {
-  // Spec: Removes unprintable characters like ZWSP from text.
-  // Arguments: text (string) - The input text to clean.
-  // Called from: summaryPopup.js for Slack markdown output.
-  // Returns: string - The text with unprintable characters removed.
-  // Dependencies: None.
-  // State changes: None.
-  // Error handling: Returns empty string if input is not a string.
-  // Side effects: None.
 
-  if (typeof text !== 'string') {
-    console.warn("[LLM Utils] cleanUnprintableChars received non-string input:", text);
-    return "";
-  }
-  // Remove unprintable characters, including Zero-Width Space (ZWSP)
-  return text.replace(/[\u200B-\u200D\uFEFF]/g, '');
-}

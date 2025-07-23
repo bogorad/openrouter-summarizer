@@ -4,406 +4,364 @@ import {
   STORAGE_KEY_SUMMARY_MODEL_ID,
   STORAGE_KEY_BULLET_COUNT,
   STORAGE_KEY_LANGUAGE_INFO,
-  PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-  PROMPT_STORAGE_KEY_PREAMBLE,
-  PROMPT_STORAGE_KEY_POSTAMBLE,
-  PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
+  STORAGE_KEY_PROMPT_TEMPLATE,
+  STORAGE_KEY_ALWAYS_USE_US_ENGLISH,
   STORAGE_KEY_MODELS,
   DEFAULT_MODEL_OPTIONS,
-  DEFAULT_BULLET_COUNT_NUM, // Use the correct constant for the number
-  DEFAULT_FORMAT_INSTRUCTIONS, // Assuming this is also in constants.js
-  DEFAULT_PREAMBLE_TEMPLATE, // Assuming this is also in constants.js
-  DEFAULT_POSTAMBLE_TEXT, // Assuming this is also in constants.js
+  DEFAULT_XML_PROMPT_TEMPLATE,
+  OPENROUTER_API_URL,
 } from "../constants.js";
 
-import {
-  isTabClosedError,
-  extractStringsFromMalformedJson,
-  normalizeMarkdownInStrings,
-  getSystemPrompt,
-} from "./backgroundUtils.js"; // Utilities are now in a separate file
+import { isTabClosedError, getSystemPrompt } from "./backgroundUtils.js";
 
-export function handleRequestSummary(request, sender, sendResponse, DEBUG = false) {
+// Helper function to detect language of content
+async function detectLanguage(apiKey, contentSnippet, DEBUG = false) {
+  try {
+    const payload = {
+      model: "google/gemini-2.5-flash-lite",
+      messages: [
+        {
+          role: "user",
+          content: `Determine the language of this fragment. If you can not determine the language, the fallback language is US English. Respond with a "ISO 639-2" code, provide only three characters. You are forbidden from responding with anything else!!!\n\n---\n\n${contentSnippet}`,
+        },
+      ],
+    };
+
+    if (DEBUG)
+      console.log(
+        "[LLM Summary Handler] Sending language detection API request with payload:",
+        payload,
+      );
+
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": chrome.runtime.getURL(""),
+        "X-Title": "OpenRouter Summarizer Extension",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.warn(
+        `[LLM Summary Handler] Language detection API error: ${response.status}`,
+      );
+      return "eng"; // ISO 639-2 code for English
+    }
+
+    const responseData = await response.json();
+    if (DEBUG)
+      console.log(
+        "[LLM Summary Handler] Language detection API response:",
+        responseData,
+      );
+
+    if (responseData.choices && responseData.choices.length > 0) {
+      const detectedCode = responseData.choices[0].message.content.trim();
+      if (DEBUG)
+        console.log(
+          "[LLM Summary Handler] Raw detected language code:",
+          detectedCode,
+        );
+
+      // Ensure we have a valid 3-character code, fallback to English if not
+      const finalCode = detectedCode.length === 3 ? detectedCode : "eng";
+      if (DEBUG)
+        console.log(
+          "[LLM Summary Handler] Final language code after validation:",
+          finalCode,
+        );
+      return finalCode;
+    } else {
+      console.warn(
+        "[LLM Summary Handler] No language detection response received",
+      );
+      return "eng"; // ISO 639-2 code for English
+    }
+  } catch (error) {
+    console.warn("[LLM Summary Handler] Language detection failed:", error);
+    return "eng"; // ISO 639-2 code for English
+  }
+}
+
+export async function handleRequestSummary(
+  request,
+  sender,
+  sendResponse,
+  DEBUG = false,
+) {
   if (DEBUG) {
     console.log(
       "[LLM Summary Handler] Handling requestSummary for ID:",
       request.requestId,
       "with hasNewsblurToken:",
-      request.hasNewsblurToken, // Log the received token status
+      request.hasNewsblurToken,
     );
   }
-  chrome.storage.sync.get(
-    [
+
+  try {
+    const data = await chrome.storage.sync.get([
       STORAGE_KEY_API_KEY,
       STORAGE_KEY_SUMMARY_MODEL_ID,
       STORAGE_KEY_BULLET_COUNT,
       STORAGE_KEY_LANGUAGE_INFO,
-      PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-      PROMPT_STORAGE_KEY_PREAMBLE,
-      PROMPT_STORAGE_KEY_POSTAMBLE,
-      PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
+      STORAGE_KEY_PROMPT_TEMPLATE,
+      STORAGE_KEY_ALWAYS_USE_US_ENGLISH,
       STORAGE_KEY_MODELS,
-    ],
-    (data) => {
-      if (DEBUG) {
-        console.log(
-          "[LLM Summary Handler] Data retrieved for summary request:",
-          {
-            ...data,
-            [STORAGE_KEY_API_KEY]: data[STORAGE_KEY_API_KEY]
-              ? "[API Key Hidden]"
-              : "undefined",
-          },
-        );
-      }
+    ]);
 
-      const apiKey = data[STORAGE_KEY_API_KEY];
-      const summaryModelId = data[STORAGE_KEY_SUMMARY_MODEL_ID];
-      const language_info = Array.isArray(data[STORAGE_KEY_LANGUAGE_INFO])
-        ? data[STORAGE_KEY_LANGUAGE_INFO]
-        : [];
-      let models = DEFAULT_MODEL_OPTIONS;
-      if (
-        Array.isArray(data[STORAGE_KEY_MODELS]) &&
-        data[STORAGE_KEY_MODELS].length > 0 &&
-        data[STORAGE_KEY_MODELS].every(
-          (m) =>
-            typeof m === "object" && m !== null && typeof m.id === "string",
-        )
-      ) {
-        models = data[STORAGE_KEY_MODELS].map((m) => ({ id: m.id }));
-      }
-      const modelIds = models.map((m) => m.id);
+    if (DEBUG) {
+      console.log("[LLM Summary Handler] Data retrieved for summary request:", {
+        ...data,
+        [STORAGE_KEY_API_KEY]: data[STORAGE_KEY_API_KEY]
+          ? "[API Key Hidden]"
+          : "undefined",
+      });
+    }
 
-      // Extract hasNewsblurToken from the request (passed by pageInteraction.js)
-      const hasNewsblurTokenStatus = request.hasNewsblurToken || false;
+    const apiKey = data[STORAGE_KEY_API_KEY];
+    const summaryModelId = data[STORAGE_KEY_SUMMARY_MODEL_ID];
+    const language_info = Array.isArray(data[STORAGE_KEY_LANGUAGE_INFO])
+      ? data[STORAGE_KEY_LANGUAGE_INFO]
+      : [];
+    let models = DEFAULT_MODEL_OPTIONS;
+    if (
+      Array.isArray(data[STORAGE_KEY_MODELS]) &&
+      data[STORAGE_KEY_MODELS].length > 0 &&
+      data[STORAGE_KEY_MODELS].every(
+        (m) => typeof m === "object" && m !== null && typeof m.id === "string",
+      )
+    ) {
+      models = data[STORAGE_KEY_MODELS].map((m) => ({ id: m.id }));
+    }
+    const modelIds = models.map((m) => m.id);
+    const hasNewsblurTokenStatus = request.hasNewsblurToken || false;
 
-      if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
-        console.error(
-          "[LLM Summary Handler] API key is missing or invalid for summary request.",
-        );
-        const errorMsg =
-          "API key is required and must be a non-empty string.";
-        sendResponse({ status: "error", message: errorMsg }); // Send response to original caller
-        if (sender.tab?.id) {
-          chrome.tabs.sendMessage(
-            sender.tab.id,
-            {
-              action: "summaryResult",
-              requestId: request.requestId,
-              error: errorMsg,
-              language_info: language_info,
-              hasNewsblurToken: hasNewsblurTokenStatus, // Pass NewsBlur token status on error
-            },
-            () => {
-              if (
-                chrome.runtime.lastError &&
-                DEBUG &&
-                !isTabClosedError(chrome.runtime.lastError)
-              ) {
-                console.error(
-                  `[LLM Summary Handler] Error sending API key error to tab ${sender.tab.id}: ${chrome.runtime.lastError.message}`,
-                );
-              }
-            },
-          );
-        }
-        return;
-      }
-      if (
-        !summaryModelId ||
-        typeof summaryModelId !== "string" ||
-        summaryModelId.trim() === "" ||
-        !modelIds.includes(summaryModelId)
-      ) {
-        console.error(
-          `[LLM Summary Handler] Default summary model is missing, invalid, or not in configured list. Value: "${summaryModelId}". Available:`,
-          modelIds,
-        );
-        const errorMsg = `Default Summary Model ("${summaryModelId || "None"}") is not selected or is invalid.`;
-        sendResponse({ status: "error", message: errorMsg }); // Send response to original caller
-        if (sender.tab?.id) {
-          chrome.tabs.sendMessage(
-            sender.tab.id,
-            {
-              action: "summaryResult",
-              requestId: request.requestId,
-              error: errorMsg,
-              language_info: language_info,
-              hasNewsblurToken: hasNewsblurTokenStatus, // Pass NewsBlur token status on error
-            },
-            () => {
-              if (
-                chrome.runtime.lastError &&
-                DEBUG &&
-                !isTabClosedError(chrome.runtime.lastError)
-              ) {
-                console.error(
-                  `[LLM Summary Handler] Error sending model error to tab ${sender.tab.id}: ${chrome.runtime.lastError.message}`,
-                );
-              }
-            },
-          );
-        }
-        return;
-      }
-
-      const bulletCount = parseInt(
-        data[STORAGE_KEY_BULLET_COUNT] || DEFAULT_BULLET_COUNT_NUM,
-        10,
+    if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
+      const errorMsg = "API key is required and must be a non-empty string.";
+      console.error(
+        "[LLM Summary Handler] API key is missing or invalid for summary request.",
       );
-      const systemPrompt = getSystemPrompt(
-        bulletCount,
-        data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] ||
-          data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] ||
-          DEFAULT_FORMAT_INSTRUCTIONS,
-        data[PROMPT_STORAGE_KEY_PREAMBLE] || DEFAULT_PREAMBLE_TEMPLATE,
-        data[PROMPT_STORAGE_KEY_POSTAMBLE] || DEFAULT_POSTAMBLE_TEXT,
-        data[PROMPT_STORAGE_KEY_DEFAULT_FORMAT] ||
-          DEFAULT_FORMAT_INSTRUCTIONS,
-      );
-
-      const payload = {
-        model: summaryModelId,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: request.selectedHtml },
-        ],
-        structured_outputs: "true",
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "list_of_strings",
-            strict: true,
-            schema: {
-              type: "array",
-              items: { type: "string" },
-              minItems: 3,
-              maxItems: bulletCount + 1,
-            },
-          },
-        },
-        provider: {
-          ignore: ["Chutes"],
-        },
-      };
-
-      if (DEBUG) {
-        console.log(
-          "[LLM Summary Handler] Sending payload to OpenRouter for summary:",
-          payload,
-        );
+      sendResponse({ status: "error", message: errorMsg });
+      if (sender.tab?.id) {
+        chrome.tabs.sendMessage(sender.tab.id, {
+          action: "summaryResult",
+          requestId: request.requestId,
+          error: errorMsg,
+          language_info: language_info,
+          hasNewsblurToken: hasNewsblurTokenStatus,
+        });
       }
+      return;
+    }
 
-      fetch("https://openrouter.ai/api/v1/chat/completions", {
+    if (
+      !summaryModelId ||
+      typeof summaryModelId !== "string" ||
+      summaryModelId.trim() === "" ||
+      !modelIds.includes(summaryModelId)
+    ) {
+      const errorMsg = `Default Summary Model ("${summaryModelId || "None"}") is not selected or is invalid.`;
+      console.error(`[LLM Summary Handler] ${errorMsg} Available:`, modelIds);
+      sendResponse({ status: "error", message: errorMsg });
+      if (sender.tab?.id) {
+        chrome.tabs.sendMessage(sender.tab.id, {
+          action: "summaryResult",
+          requestId: request.requestId,
+          error: errorMsg,
+          language_info: language_info,
+          hasNewsblurToken: hasNewsblurTokenStatus,
+        });
+      }
+      return;
+    }
+
+    const alwaysUseUsEnglish = data[STORAGE_KEY_ALWAYS_USE_US_ENGLISH] ?? true;
+    let targetLanguage;
+
+    if (alwaysUseUsEnglish) {
+      targetLanguage = "eng";
+      if (DEBUG)
+        console.log(
+          "[LLM Summary Handler] Using forced US English language setting:",
+          targetLanguage,
+        );
+    } else {
+      const snippet = request.selectedHtml.substring(0, 1024);
+      if (DEBUG)
+        console.log(
+          "[LLM Summary Handler] Detecting language for snippet:",
+          snippet.substring(0, 80) + "...",
+        );
+      targetLanguage = await detectLanguage(apiKey, snippet, DEBUG);
+      if (DEBUG)
+        console.log(
+          "[LLM Summary Handler] Detected language code:",
+          targetLanguage,
+        );
+    }
+
+    const promptTemplate =
+      data[STORAGE_KEY_PROMPT_TEMPLATE] || DEFAULT_XML_PROMPT_TEMPLATE;
+    const bulletCount = data[STORAGE_KEY_BULLET_COUNT] || "5";
+    const systemPrompt = getSystemPrompt(
+      promptTemplate,
+      targetLanguage,
+      bulletCount,
+    );
+
+    const payload = {
+      model: summaryModelId,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: request.selectedHtml },
+      ],
+    };
+
+    if (DEBUG) {
+      console.log(
+        "[LLM Summary Handler] Sending payload to OpenRouter for summary:",
+        payload,
+      );
+    }
+
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer":
-            "https://github.com/bogorad/openrouter-summarizer",
+          "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
           "X-Title": "OR-Summ",
         },
         body: JSON.stringify(payload),
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response.text().then((text) => {
-                throw new Error(
-                  `HTTP error! status: ${response.status} - ${text}`,
-                );
-              }),
-        )
-        .then((responseData) => { // Renamed 'data' to 'responseData' to avoid conflict
-          if (DEBUG) {
-            console.log(
-              "[LLM Summary Handler] Received raw summary response data:",
-              responseData,
-            );
-          }
+      },
+    );
 
-          if (responseData && responseData.error && responseData.error.code && responseData.error.message) {
-            const errorMsg = `ERROR: ${responseData.error.code} ${responseData.error.message}`;
-            console.error(
-              "[LLM Summary Handler] API returned an error during summary:",
-              responseData.error,
-            );
-            if (sender.tab?.id) {
-              chrome.tabs.sendMessage(
-                sender.tab.id,
-                {
-                  action: "summaryResult",
-                  requestId: request.requestId,
-                  error: errorMsg,
-                  language_info: language_info,
-                  hasNewsblurToken: hasNewsblurTokenStatus, // Pass NewsBlur token status on API error
-                },
-                () => {
-                  if (
-                    chrome.runtime.lastError &&
-                    DEBUG &&
-                    !isTabClosedError(chrome.runtime.lastError)
-                  ) {
-                    console.error(
-                      `[LLM Summary Handler] Error sending API error (summary) to tab ${sender.tab.id}: ${chrome.runtime.lastError.message}`,
-                    );
-                  }
-                },
-              );
-            }
-            return;
-          }
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`HTTP error! status: ${response.status} - ${text}`);
+    }
 
-          const modelOutput = responseData.choices?.[0]?.message?.content?.trim();
-          if (!modelOutput) {
-            throw new Error("No response content received from LLM.");
-          }
+    const responseData = await response.json();
 
-          let summaryContent = modelOutput;
-          let processedStrings = [];
-          try {
-            const parsedJson = JSON.parse(modelOutput);
-            if (Array.isArray(parsedJson)) {
-              processedStrings = normalizeMarkdownInStrings(parsedJson, DEBUG);
-              summaryContent = JSON.stringify(processedStrings);
-              if (DEBUG) {
-                console.log(
-                  "[LLM Summary Handler] Response is valid JSON array, normalized markdown.",
-                  processedStrings,
-                );
-              }
-            } else {
-              throw new Error("Response is not an array.");
-            }
-          } catch (parseError) {
+    if (DEBUG) {
+      console.log(
+        "[LLM Summary Handler] Received raw summary response data:",
+        responseData,
+      );
+    }
+
+    if (responseData?.error?.message) {
+      const errorMsg = `ERROR: ${responseData.error.message}`;
+      console.error(
+        "[LLM Summary Handler] API returned an error during summary:",
+        responseData.error,
+      );
+      if (sender.tab?.id) {
+        chrome.tabs.sendMessage(sender.tab.id, {
+          action: "summaryResult",
+          requestId: request.requestId,
+          error: errorMsg,
+          language_info: language_info,
+          hasNewsblurToken: hasNewsblurTokenStatus,
+        });
+      }
+      return;
+    }
+
+    const modelOutput = responseData.choices?.[0]?.message?.content?.trim();
+    if (!modelOutput) {
+      throw new Error("No response content received from LLM.");
+    }
+
+    // Strip markdown code blocks if present before sending to content script
+    let summaryContent = modelOutput.trim();
+
+    // Handle any markdown code block fences (e.g., ```html, ```json, ```)
+    if (summaryContent.startsWith("```")) {
+      summaryContent = summaryContent
+        .replace(/^```[a-z]*\s*/, "")
+        .replace(/\s*```$/, "")
+        .trim();
+      if (DEBUG)
+        console.log(
+          "[LLM Summary Handler] Stripped markdown code block wrapper.",
+        );
+    }
+
+    if (DEBUG) {
+      console.log(
+        "[LLM Summary Handler] Cleaned summary content:",
+        summaryContent.substring(0, 200) + "...",
+      );
+    }
+
+    if (DEBUG) {
+      console.log(
+        "[LLM Summary Handler] Received HTML summary content:",
+        summaryContent,
+      );
+    }
+
+    const completeResponse = {
+      action: "summaryResult",
+      requestId: request.requestId,
+      summary: summaryContent,
+      model: responseData.model || responseData.model_id || summaryModelId,
+      language_info: language_info,
+      hasNewsblurToken: hasNewsblurTokenStatus,
+      fullResponse: DEBUG ? responseData : "[Debug data omitted for brevity]",
+    };
+
+    if (DEBUG) {
+      console.log(
+        "[LLM Summary Handler] Complete response being sent to content script:",
+        completeResponse,
+      );
+    }
+
+    if (sender.tab?.id) {
+      chrome.tabs.sendMessage(sender.tab.id, completeResponse, () => {
+        if (chrome.runtime.lastError) {
+          if (isTabClosedError(chrome.runtime.lastError)) {
             if (DEBUG) {
               console.log(
-                "[LLM Summary Handler] JSON parse failed, attempting manual extraction:",
-                parseError.message,
+                `[LLM Summary Handler] Tab ${sender.tab.id} closed before summary response could be sent.`,
+                chrome.runtime.lastError.message,
               );
             }
-            const extractedStrings = extractStringsFromMalformedJson(modelOutput, DEBUG);
-            if (extractedStrings.length > 0) {
-              processedStrings = normalizeMarkdownInStrings(extractedStrings, DEBUG);
-              summaryContent = JSON.stringify(processedStrings);
-              if (DEBUG) {
-                console.log(
-                  "[LLM Summary Handler] Extracted strings from malformed JSON, normalized markdown:",
-                  processedStrings,
-                );
-              }
-            } else {
-              if (DEBUG) {
-                console.log(
-                  "[LLM Summary Handler] No strings extracted, using raw output as fallback.",
-                );
-              }
-              processedStrings = normalizeMarkdownInStrings([modelOutput], DEBUG);
-              summaryContent = JSON.stringify(processedStrings);
-            }
-          }
-
-          const completeResponse = {
-            action: "summaryResult",
-            requestId: request.requestId,
-            summary: summaryContent,
-            model: responseData.model || responseData.model_id || summaryModelId,
-            language_info: language_info,
-            hasNewsblurToken: hasNewsblurTokenStatus, // Pass NewsBlur token status on success
-            fullResponse: DEBUG ? responseData : "[Debug data omitted for brevity]",
-          };
-          if (DEBUG) {
-            console.log(
-              "[LLM Summary Handler] Complete response being sent to content script:",
-              completeResponse,
-            );
-          }
-
-          if (sender.tab?.id) {
-            chrome.tabs.sendMessage(sender.tab.id, completeResponse, () => {
-              if (chrome.runtime.lastError) {
-                if (isTabClosedError(chrome.runtime.lastError)) {
-                  if (DEBUG) {
-                    console.log(
-                      `[LLM Summary Handler] Tab ${sender.tab.id} closed before summary response could be sent.`,
-                      chrome.runtime.lastError.message,
-                    );
-                  }
-                } else {
-                  console.error(
-                    `[LLM Summary Handler] Error sending summary response to tab ${sender.tab.id}:`,
-                    chrome.runtime.lastError.message,
-                  );
-                }
-              }
-            });
           } else {
-            if (DEBUG) {
-              console.warn(
-                "[LLM Summary Handler] No tab ID available to send summary response.",
-              );
-            }
-          }
-        })
-        .catch((error) => {
-          if (DEBUG) {
             console.error(
-              "[LLM Summary Handler] Error in fetch for summary:",
-              error,
+              `[LLM Summary Handler] Error sending summary response to tab ${sender.tab.id}:`,
+              chrome.runtime.lastError.message,
             );
           }
-          const errorResponse = {
-            action: "summaryResult",
-            requestId: request.requestId,
-            error: error.message,
-            language_info: language_info,
-            hasNewsblurToken: hasNewsblurTokenStatus, // Pass Newsblur token status on error
-            fullResponse: DEBUG
-              ? { error: error.message }
-              : "[Debug data omitted for brevity]",
-          };
-          if (DEBUG) {
-            console.log(
-              "[LLM Summary Handler] Complete error response being sent to content script:",
-              errorResponse,
-            );
-          }
-
-          if (sender.tab?.id) {
-            chrome.tabs.sendMessage(sender.tab.id, errorResponse, () => {
-              if (chrome.runtime.lastError) {
-                if (isTabClosedError(chrome.runtime.lastError)) {
-                  if (DEBUG) {
-                    console.log(
-                      `[LLM Summary Handler] Tab ${sender.tab.id} closed before summary error response could be sent.`,
-                      chrome.runtime.lastError.message,
-                    );
-                  }
-                } else {
-                  console.error(
-                    `[LLM Summary Handler] Error sending summary error response to tab ${sender.tab.id}:`,
-                    chrome.runtime.lastError.message,
-                  );
-                }
-              }
-            });
-          } else {
-            if (DEBUG) {
-              console.warn(
-                "[LLM Summary Handler] No tab ID available to send summary response.",
-              );
-            }
-          }
-        });
-
+        }
+      });
+    } else {
       if (DEBUG) {
-        console.log(
-          "[LLM Summary Handler] Sending requestSummary response - OK (processing).",
+        console.warn(
+          "[LLM Summary Handler] No tab ID available to send summary response.",
         );
       }
-      // Send initial response to the original caller indicating processing has started
-      sendResponse({ status: "processing" });
-    },
-  );
+    }
+
+    if (DEBUG) {
+      console.log(
+        "[LLM Summary Handler] Sending requestSummary response - OK (processing).",
+      );
+    }
+
+    sendResponse({ status: "processing" });
+  } catch (error) {
+    console.error(
+      "[LLM Summary Handler] Error in handleRequestSummary:",
+      error,
+    );
+    sendResponse({ status: "error", message: error.message });
+  }
 }

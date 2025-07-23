@@ -64,6 +64,10 @@
           <label for="debug">Enable Debug Logging (requires DevTools console)</label>
         </div>
       </div>
+      <div class="option-group checkbox-group">
+        <input type="checkbox" id="alwaysUseUsEnglish">
+        <label for="alwaysUseUsEnglish">Always use US English for summary</label>
+      </div>
     </div>
 
     <div class="tab-content" id="models-tab" role="tabpanel" aria-labelledby="models-tab-btn">
@@ -151,31 +155,27 @@
           Advanced Options
         </h2>
         <div id="advancedOptionsContent">
-          <!-- Content moved inside here -->
-          <h3>Prompt Customization</h3>
-          <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle
-            formatting instructions section.</p>
-          <div class="prompt-display-area">
-            <div class="prompt-label">Intro:</div>
-            <div class="prompt-part prompt-preamble" id="promptPreamble">
-              <!-- Preamble text will be loaded by JS -->
-            </div>
+          <!-- New Prompt Customization Area -->
+          <div class="section">
+              <h2>Prompt Customization</h2>
+              <p>The system prompt sent to the LLM is constructed from the parts below. You can customize the middle "User Formatting" section. The <code>$$$language$$$</code> and <code>$$$bulletCount$$$</code> placeholders will be replaced automatically with the detected language and configured bullet count.</p>
 
-            <div class="prompt-label">Outro:</div>
-            <div class="prompt-part prompt-postamble" id="promptPostamble">
-              <!-- Postamble text will be loaded by JS -->
-            </div>
+              <!-- Part 1: Read-only Prefix -->
+              <div class="prompt-display-area">
+                  <div class="prompt-label">Start of prompt (read-only):</div>
+                  <pre class="prompt-part" id="promptPrefixReadonly"></pre>
+              </div>
+
+              <!-- Part 2: Editable User Section -->
+              <h3 style="margin-top: 25px;">User Formatting Instructions (Editable)</h3>
+              <textarea id="promptUserFormattingEditable" rows="12" cols="70" class="prompt-part" spellcheck="true"></textarea>
+
+              <!-- Part 3: Read-only Suffix -->
+              <div class="prompt-display-area" style="margin-top: 15px;">
+                  <div class="prompt-label">End of prompt (read-only):</div>
+                  <pre class="prompt-part" id="promptSuffixReadonly"></pre>
+              </div>
           </div>
-          <p class="note">The preamble and postamble are fixed. The initial summary is generated in the <b>first
-              configured language</b> based on the preamble. It replaces US English.</p>
-
-          <!-- Custom Instructions Input -->
-          <h3 style="margin-top: 25px;">Formatting Instructions</h3>
-          <p>Customize the core instructions for how the summary points should be formatted. Keep it concise.</p>
-          <textarea id="promptFormatInstructions" rows="6" class="prompt-part prompt-editable" spellcheck="false">
-            <!-- Editable instructions loaded/defaulted by JS -->
-          </textarea>
-          <p class="note">This text is inserted between the intro and the outro.</p>
         </div>
       </div>
       <!-- End Advanced Options Section -->

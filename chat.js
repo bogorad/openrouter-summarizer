@@ -23,8 +23,6 @@ let selectedModelId = ""; // The ID selected in the dropdown for sending request
 let chatContext = { domSnippet: null, summary: null }; // Removed chatTargetLanguage here, context is simpler
 let messages = []; // Array of {role: string, content: string | string[], model?: string}
 let streaming = false;
-let currentStreamMsgSpan = null; // Not currently used for streaming display, but kept for potential future use
-let currentStreamRawContent = ""; // Not currently used
 let currentStreamModel = ""; // Stores the model ID used for the *current* stream
 let DEBUG = false; // Updated by getSettings response
 let chatMessagesInnerDiv = null;
@@ -181,34 +179,19 @@ function initializeChat() {
       modelUsedForSummary = contextResponse.modelUsedForSummary || ""; // Model ID used for the summary
 
       // Process and display the initial summary message
-      if (contextResponse.summary !== undefined && contextResponse.summary !== null) {
-           let initialContent;
-           let parseError = false;
-           if (typeof contextResponse.summary === 'string' && contextResponse.summary.trim()) {
-               const parsedInitialSummary = tryParseJson(contextResponse.summary, false);
-               if (Array.isArray(parsedInitialSummary)) {
-                   initialContent = parsedInitialSummary.map(item => String(item)); // Store as array of strings
-               } else {
-                   initialContent = contextResponse.summary; // Fallback to raw string
-                   parseError = true;
-               }
-           } else {
-               initialContent = "(No initial summary provided)";
-               parseError = true;
-           }
+      if (typeof contextResponse.summary === 'string' && contextResponse.summary.trim()) {
+        // The summary is now always an HTML string. No parsing is needed.
+        const initialContent = contextResponse.summary;
 
-           messages = [{
-               role: "assistant",
-               content: initialContent, // Array of strings or raw string
-               model: modelUsedForSummary || "Unknown" // Show model used for summary
-           }];
-
-           if (parseError) {
-               showError("Failed to parse initial summary. Displaying raw data.", false);
-           }
+        messages.push({
+          role: "assistant",
+          content: initialContent, // This will be the raw HTML string
+          model: modelUsedForSummary || "Unknown"
+        });
       } else {
-           console.warn("[LLM Chat] Initial summary content missing in context.");
-           messages = []; // Start empty if no summary
+        // Handle cases where the summary might be missing
+        console.warn("[LLM Chat] Initial summary content missing or invalid in context.");
+        messages = []; // Start empty if no summary
       }
 
       renderMessages(); // Render initial message (or empty state)
@@ -356,44 +339,9 @@ function sendChatRequestToBackground(userText) {
   streamContainer.className = "msg assistant";
   streamContainer.innerHTML = `<span class="assistant-inner" id="activeStreamSpan">(...)</span>`;
   wrap.appendChild(streamContainer);
-  currentStreamMsgSpan = streamContainer.querySelector("#activeStreamSpan");
   scrollToBottom();
 
-  const apiMessages = [{ role: "system", content: CHAT_SYSTEM_PROMPT_TEMPLATE }];
-  const userMessageCount = messages.filter(m => m.role === 'user').length;
-  const isFirstUserTurn = userMessageCount === 1;
-
-  if (isFirstUserTurn && chatContext.domSnippet && chatContext.summary !== undefined && chatContext.summary !== null) {
-    const summaryString = Array.isArray(chatContext.summary) ? chatContext.summary.join("\n") : String(chatContext.summary);
-    const contextContent = CHAT_USER_CONTEXT_TEMPLATE
-      .replace("${domSnippet}", chatContext.domSnippet)
-      .replace("${summary}", summaryString);
-    apiMessages.push({ role: "user", content: contextContent });
-    apiMessages.push({ role: "user", content: userText });
-  } else {
-    const recentHistory = messages
-      .slice(0, messages.length - 1)
-      .slice(1)
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .slice(-10)
-      .map(msg => ({
-          role: msg.role,
-          content: Array.isArray(msg.content) ? msg.content.join("\n") : String(msg.content)
-      }));
-
-    if (chatContext.domSnippet) {
-      let snippetForContext = chatContext.domSnippet;
-      if (snippetForContext.length > SNIPPET_TRUNCATION_LIMIT) {
-        snippetForContext = snippetForContext.substring(0, SNIPPET_TRUNCATION_LIMIT) + "[...truncated]";
-      }
-      const contextContent = CHAT_USER_CONTEXT_TEMPLATE
-        .replace("${domSnippet}", snippetForContext)
-        .replace("\n\nInitial Summary:\n${summary}", "");
-      apiMessages.push({ role: "user", content: contextContent });
-    }
-    apiMessages.push(...recentHistory);
-    apiMessages.push({ role: "user", content: userText });
-  }
+  const apiMessages = buildApiMessages(userText, messages, chatContext);
 
   // --- MODIFIED: Send request to background (no change here, background handles format) ---
   chrome.runtime.sendMessage(
@@ -448,6 +396,55 @@ function sendChatRequestToBackground(userText) {
   );
 }
 
+/**
+ * Builds the array of messages to be sent to the API.
+ * It includes the page context for the first user message and then the recent chat history for subsequent messages.
+ * @param {string} userText - The latest message from the user.
+ * @param {Array} messages - The entire history of chat messages.
+ * @param {object} chatContext - An object containing the domSnippet and summary.
+ * @returns {Array} The array of message objects for the API request.
+ */
+function buildApiMessages(userText, messages, chatContext) {
+  const apiMessages = [{ role: "system", content: CHAT_SYSTEM_PROMPT_TEMPLATE }];
+  const userMessageCount = messages.filter(m => m.role === 'user').length;
+
+  if (userMessageCount === 1) {
+    // This is the first user message in the chat. Include the full context.
+    if (DEBUG) console.log("[LLM Chat] First user message. Building request with full context.");
+    const summaryString = Array.isArray(chatContext.summary) ? chatContext.summary.join("\n") : String(chatContext.summary);
+    const contextContent = CHAT_USER_CONTEXT_TEMPLATE
+      .replace("${domSnippet}", chatContext.domSnippet)
+      .replace("${summary}", summaryString);
+    apiMessages.push({ role: "user", content: contextContent });
+    apiMessages.push({ role: "user", content: userText });
+  } else {
+    // This is a follow-up message. Include recent chat history.
+    if (DEBUG) console.log("[LLM Chat] Follow-up message. Building request with recent history.");
+    const recentHistory = messages
+      .slice(0, messages.length - 1) // Exclude the latest user message (it's added separately)
+      .slice(1) // Exclude the initial summary message from the assistant
+      .filter(m => m.role === 'user' || m.role === 'assistant') // Only include user and assistant messages
+      .slice(-10) // Get the last 10 messages to keep the context relevant
+      .map(msg => ({
+        role: msg.role,
+        content: Array.isArray(msg.content) ? msg.content.join("\n") : String(msg.content)
+      }));
+
+    // Add a condensed context message for follow-up requests
+    let snippetForContext = chatContext.domSnippet || "";
+    if (snippetForContext.length > SNIPPET_TRUNCATION_LIMIT) {
+      snippetForContext = snippetForContext.substring(0, SNIPPET_TRUNCATION_LIMIT) + "[...truncated]";
+    }
+    const followUpContextContent = CHAT_USER_CONTEXT_TEMPLATE
+      .replace("${domSnippet}", snippetForContext)
+      .replace("\n\nInitial Summary:\n${summary}", ""); // Remove summary part for follow-ups
+    apiMessages.push({ role: "user", content: followUpContextContent });
+
+    apiMessages.push(...recentHistory);
+    apiMessages.push({ role: "user", content: userText });
+  }
+  return apiMessages;
+}
 
 /**
  * Populates the model dropdown with available models.

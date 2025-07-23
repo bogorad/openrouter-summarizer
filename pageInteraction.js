@@ -772,117 +772,100 @@ function handleMessage(req, sender, sendResponse) {
       return false;
     }
   } else if (req.action === "summaryResult") {
-    if (DEBUG)
-      console.log(
-        "[LLM Content] Received summary result from background:",
-        req.requestId,
-        "Raw Summary:",
-        req.summary,
-      );
-
-    lastModelUsed = req.model || "Unknown";
-    const pageURL = window.location.href;
-    // Get NewsBlur and Joplin token status passed from background script,
-    // assuming it comes from getSettings message prior to summary request.
-    // However, for simplicity here, we assume if the flag is true at module level,
-    // the value is available via joplinToken variable.
-    const pageTitle = document.title; // ADDED: Get page title
-    const hasNewsblurTokenFromBackground = req.hasNewsblurToken || false;
-
-    if (!SummaryPopup || !renderTextAsHtml) {
-      console.error(
-        "[LLM Content] SummaryPopup or renderTextAsHtml not available for summaryResult",
-      );
-      lastSummary = `Error: UI components not ready.`;
-      return true;
-    }
-
-    if (req.error) {
-      lastSummary = `Error: ${req.error}`;
-      showError(`Error: ${req.error}`);
-      SummaryPopup.updatePopupContent(
-        `Error: ${req.error}`,
-        null,
-        pageURL,
-        pageTitle, // ADDED: Pass pageTitle
-        true,
-        hasNewsblurTokenFromBackground, // Pass along the actual token status with the error
-      );
-      SummaryPopup.enableChatButton(false);
-    } else if (req.summary && typeof req.summary === "string") {
-      const rawSummaryString = req.summary;
-      let combinedSummaryArray = [];
-      let summaryHtml = "";
-
-      try {
-        const parsed = JSON.parse(rawSummaryString);
-        if (Array.isArray(parsed)) {
-          combinedSummaryArray = parsed.map(String);
-        } else {
-          throw new Error("Response is not an array.");
-        }
-
-        if (combinedSummaryArray.length > 0) {
-          summaryHtml =
-            "<ul>" +
-            combinedSummaryArray
-              .map((item) => `<li>${renderTextAsHtml(item)}</li>`)
-              .join("") +
-            "</ul>";
-          lastSummary = JSON.stringify(combinedSummaryArray);
-          SummaryPopup.updatePopupContent(
-            summaryHtml,
-            combinedSummaryArray,
-            pageURL,
-            pageTitle, // ADDED: Pass pageTitle
-            false, // errorState false
-            hasNewsblurTokenFromBackground, // Pass token status on success
-          );
-          SummaryPopup.enableChatButton(true);
-          if (DEBUG)
-            console.log(
-              "[LLM Content] Successfully processed summary. Stored valid JSON string for chat context:",
-              lastSummary,
-            );
-        } else {
-          throw new Error(
-            "No valid JSON arrays found or parsed from summary string.",
-          );
-        }
-      } catch (e) {
-        console.error(
-          `[LLM Content] Error processing summary string: ${e.message}. Raw: ${rawSummaryString.substring(0, 100)}`,
-        );
-        showError(`Error processing summary: ${e.message}`);
-        summaryHtml = renderTextAsHtml(rawSummaryString);
-        SummaryPopup.updatePopupContent(
-          summaryHtml +
-            "<br><small>(Raw response shown due to parsing error)</small>",
-          null, // parsedSummary
-          pageURL,
-          pageTitle, // ADDED: Pass pageTitle
-          true, // errorState true
-          hasNewsblurTokenFromBackground, // Pass token status if parsing failed, as NewsBlur might still be usable
-        );
-        lastSummary = "Error: Could not parse summary response."; // Store explicit error for chat context
-        SummaryPopup.enableChatButton(false); // Chat button is disabled in error state
-      }
-    } else {
-      lastSummary = "Error: No summary data received or invalid format.";
-      showError("Error: No summary data received or invalid format.");
-      SummaryPopup.updatePopupContent(
-        "Error: No summary data received or invalid format.",
-        null,
-        pageURL,
-        pageTitle, // ADDED: Pass pageTitle
-        true,
-        hasNewsblurTokenFromBackground, // Pass token status for general error state
-      );
-      SummaryPopup.enableChatButton(false);
-    }
+    displaySummary(req);
     return true;
   }
   return false;
+}
+
+/**
+ * Handles the successful summary response from the background script.
+ * It parses the summary, updates the popup content, and enables the chat button.
+ * @param {object} response - The message object received from the background script.
+ */
+function displaySummary(response) {
+  if (DEBUG)
+    console.log(
+      "[LLM Content] Received summary result from background:",
+      response.requestId,
+      "Raw Summary:",
+      response.summary,
+    );
+
+  lastModelUsed = response.model || "Unknown";
+  const pageURL = window.location.href;
+  const pageTitle = document.title;
+  const hasNewsblurTokenFromBackground = response.hasNewsblurToken || false;
+
+  if (!SummaryPopup) {
+    console.error(
+      "[LLM Content] SummaryPopup not available for summaryResult",
+    );
+    lastSummary = `Error: UI components not ready.`;
+    return;
+  }
+
+  if (response.error) {
+    lastSummary = `Error: ${response.error}`;
+    showError(`Error: ${response.error}`);
+    SummaryPopup.updatePopupContent(
+      `Error: ${response.error}`,
+      null,
+      pageURL,
+      pageTitle,
+      true,
+      hasNewsblurTokenFromBackground,
+    );
+    SummaryPopup.enableChatButton(false);
+  } else if (response.summary && typeof response.summary === "string") {
+    const rawSummaryString = response.summary;
+
+    if (!rawSummaryString || rawSummaryString.trim() === "") {
+      showError("Error: No summary data received from the API.");
+      SummaryPopup.enableChatButton(false);
+      return;
+    }
+
+    // The summary is now expected to be a direct HTML string (e.g., "<ul>...</ul>")
+    const summaryHtml = rawSummaryString;
+
+    // Store the HTML string directly for the chat context.
+    // The chat context logic can handle raw HTML.
+    lastSummary = summaryHtml;
+
+    // The summary is ready, so enable the chat button.
+    SummaryPopup.enableChatButton(true);
+
+    // Update the popup.
+    // We pass `null` for `originalMarkdownArray` because we no longer generate it from JSON.
+    // The popup's copy function has a fallback that will correctly use the `summaryHtml`.
+    SummaryPopup.updatePopupContent(
+      summaryHtml,
+      null,
+      pageURL,
+      pageTitle,
+      false,
+      hasNewsblurTokenFromBackground,
+    );
+
+    if (DEBUG)
+      console.log(
+        "[LLM Content] Successfully processed HTML summary. Stored HTML for chat context:",
+        lastSummary.substring(0, 100) + "...",
+      );
+  } else {
+    lastSummary = "Error: No summary data received or invalid format.";
+    showError("Error: No summary data received or invalid format.");
+    SummaryPopup.updatePopupContent(
+      "Error: No summary data received or invalid format.",
+      null,
+      pageURL,
+      pageTitle,
+      true,
+      hasNewsblurTokenFromBackground,
+    );
+    SummaryPopup.enableChatButton(false);
+  }
 }
 
 // --- Message Listener from Background ---
@@ -954,29 +937,11 @@ function handlePopupNewsblur(hasNewsblurToken) {
       const alsoSendToJoplin =
         settings[constants.STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ?? false;
 
-      let parsedSummary = [];
-      try {
-        parsedSummary = JSON.parse(lastSummary);
-        if (!Array.isArray(parsedSummary)) {
-          throw new Error("Last summary is not a valid JSON array.");
-        }
-      } catch (e) {
-        console.error(
-          "[LLM Content] Error parsing lastSummary for sharing:",
-          e,
-        );
-        showError("Failed to prepare summary for sharing.");
-        return;
-      }
+      // lastSummary is now already the HTML string we need. No parsing required.
+      const summaryHtml = lastSummary;
 
       const title = document.title;
       const story_url = window.location.href;
-      const summaryHtml =
-        "<ul>" +
-        parsedSummary
-          .map((item) => `<li>${renderTextAsHtml(item)}</li>`)
-          .join("") +
-        "</ul>";
       // Apply comprehensive sanitization for NewsBlur sharing
       const cleanedHtmlContent = sanitizeForSharing(lastSelectedDomSnippet, DEBUG);
       const combinedContent = summaryHtml + "<hr>" + cleanedHtmlContent;
@@ -1144,6 +1109,15 @@ async function initialize() {
     modulesInitialized = true; // Set after all essential initializations
     if (DEBUG)
       console.log("[LLM Content] Modules initialized flag set to true.");
+
+    // --- Create a dedicated container for notifications ---
+    if (!document.getElementById("llm-notification-container")) {
+      const notificationContainer = document.createElement("div");
+      notificationContainer.id = "llm-notification-container";
+      notificationContainer.className = "llm-notification-container";
+      document.body.appendChild(notificationContainer);
+    }
+    // --- End notification container creation ---
 
     // Process message queue if any
     if (messageQueue.length > 0) {

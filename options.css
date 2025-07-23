@@ -1,660 +1,960 @@
-/* options.css */
+/* options.css - Claude.ai Inspired Design */
+
+/* --- Claude.ai Color Palette --- */
+:root {
+  /* Primary Colors - Warm Oranges */
+  --primary-50: #fef7ed;
+  --primary-100: #fdebd0;
+  --primary-200: #fbd5a5;
+  --primary-300: #f8b770;
+  --primary-400: #f59238;
+  --primary-500: #f37316;
+  --primary-600: #e4570c;
+  --primary-700: #bd450c;
+  --primary-800: #973811;
+  --primary-900: #7c2f12;
+
+  /* Surface Colors - Warm Neutrals */
+  --surface-50: #fefdfb;
+  --surface-100: #f8f6f0;
+  --surface-200: #f1ede4;
+  --surface-300: #e8e1d5;
+  --surface-400: #d4c8b8;
+  --surface-500: #a8998a;
+  --surface-600: #8b7d6b;
+  --surface-700: #6b5f52;
+  --surface-800: #4a4139;
+  --surface-900: #2d2822;
+
+  /* Text Colors */
+  --text-primary: #2d2822;
+  --text-secondary: #6b5f52;
+  --text-disabled: #a8998a;
+  --text-hint: #d4c8b8;
+
+  /* Semantic Colors */
+  --success-main: #16a34a;
+  --success-light: #dcfce7;
+  --success-dark: #15803d;
+  --warning-main: #f59e0b;
+  --warning-light: #fef3c7;
+  --error-main: #dc2626;
+  --error-light: #fef2f2;
+  --info-main: #3b82f6;
+  --info-light: #eff6ff;
+
+  /* Shadows - Softer, warmer shadows */
+  --shadow-1:
+    0 1px 3px rgba(45, 40, 34, 0.08), 0 1px 2px rgba(45, 40, 34, 0.12);
+  --shadow-2: 0 4px 6px rgba(45, 40, 34, 0.07), 0 2px 4px rgba(45, 40, 34, 0.1);
+  --shadow-3:
+    0 10px 15px rgba(45, 40, 34, 0.08), 0 4px 6px rgba(45, 40, 34, 0.12);
+  --shadow-4:
+    0 20px 25px rgba(45, 40, 34, 0.1), 0 10px 10px rgba(45, 40, 34, 0.08);
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+}
 
 /* --- General Body & Layout --- */
 body {
-    /* font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, */
-    /*              Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif; */
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Emoji", Roboto,
-                 Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", "Noto Color Emoji", sans-serif;
-    margin: 0;
-    padding: 20px;
-    background-color: #f4f7f9;
-    color: #333;
-    min-width: 500px; /* Prevent excessive shrinking */
-    font-size: 1.2rem
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  margin: 0;
+  padding: var(--spacing-lg);
+  background: linear-gradient(
+    135deg,
+    var(--surface-50) 0%,
+    var(--surface-100) 100%
+  );
+  color: var(--text-primary);
+  min-width: 500px;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
 }
 
 .container {
-    max-width: 700px;
-    margin: 20px auto;
-    background-color: #ffffff;
-    padding: 25px 35px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  max-width: 900px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-50) 100%);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+  border: 1px solid var(--surface-200);
 }
 
 /* --- Tab Navigation --- */
 .tab-navigation {
-    display: flex;
-    justify-content: center; /* Center the tabs */
-    margin-bottom: 25px; /* Space between tabs and content */
-    border-bottom: 2px solid #e0e0e0;
-    padding-bottom: 5px;
-    flex-wrap: wrap; /* Allow tabs to wrap on smaller screens */
-    gap: 8px; /* Space between tab buttons */
+  display: flex;
+  background: linear-gradient(
+    90deg,
+    var(--surface-100) 0%,
+    var(--surface-50) 100%
+  );
+  border-bottom: 2px solid var(--surface-200);
+  padding: var(--spacing-sm);
+  gap: var(--spacing-xs);
 }
 
 .tab-button {
-    background-color: #f7f7f7;
-    border: 1px solid #ddd;
-    border-bottom: none; /* Remove bottom border for a cleaner look */
-    padding: 10px 18px;
-    cursor: pointer;
-    font-size: 1em;
-    color: #555;
-    border-radius: 8px 8px 0 0; /* Rounded top corners */
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-    flex-shrink: 0; /* Prevent buttons from shrinking too much */
+  background: var(--surface-100);
+  border: 1px solid var(--surface-300);
+  padding: var(--spacing-md) var(--spacing-lg);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex: 1;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tab-button:hover {
-    background-color: #e9e9e9;
-    color: #333;
+  background: linear-gradient(135deg, #ffffff 0%, var(--primary-50) 100%);
+  color: var(--primary-600);
+  border-color: var(--primary-200);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2);
 }
 
 .tab-button.active {
-    background-color: #ffffff;
-    color: #3498db; /* Active tab blue */
-    border-color: #3498db; /* Blue border for active tab */
-    border-bottom: 2px solid #ffffff; /* Override and create illusion of sitting on content */
-    font-weight: 600;
+  background: linear-gradient(
+    135deg,
+    var(--primary-500) 0%,
+    var(--primary-600) 100%
+  );
+  color: #ffffff;
+  border-color: var(--primary-600);
+  box-shadow: var(--shadow-2);
+  font-weight: 600;
 }
 
 .tab-button:focus-visible {
-    outline: 2px solid #3498db;
-    outline-offset: 2px;
-    box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.3);
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
 }
 
 /* --- Tab Content --- */
 .tab-content {
-    display: none; /* Hidden by default - re-enabled */
+  display: none;
+  padding: var(--spacing-xxl);
 }
 
 .tab-content.active {
-    display: block; /* Show active tab content */
+  display: block;
 }
 
-/* Adjust section headers inside tab content to remove top margin if it's the first element */
-.tab-content .section:first-of-type h2 {
-    margin-top: 0;
-}
-
+/* --- Typography --- */
 h1 {
-    text-align: center;
-    color: #2c3e50;
-    margin-bottom: 30px;
-    font-weight: 600;
-    line-height: 1.3; /* Adjust line-height for two lines */
+  text-align: center;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-xxl) 0;
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: -0.5px;
+  background: linear-gradient(
+    135deg,
+    var(--text-primary) 0%,
+    var(--primary-600) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 h2 {
-    color: #2c3e50; /* Darker color */
-    border-bottom: 2px solid #3498db; /* Blue border */
-    padding-bottom: 10px; /* Increased padding */
-    margin-top: 35px; /* Slightly more top margin */
-    margin-bottom: 25px; /* Slightly more bottom margin */
-    font-size: 1.4em; /* Larger font */
-    font-weight: 600; /* Bolder */
-    letter-spacing: 0.5px; /* Subtle spacing */
+  color: var(--text-primary);
+  margin: var(--spacing-xl) 0 var(--spacing-lg) 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.25px;
+  position: relative;
+  padding-bottom: var(--spacing-md);
 }
-/* Add more top margin to the first h2 */
-.section:first-of-type h2 {
-    margin-top: 10px;
+
+h2::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--primary-500) 0%,
+    var(--primary-300) 100%
+  );
+  border-radius: 2px;
+}
+
+h2:first-of-type {
+  margin-top: 0;
+}
+
+h3 {
+  color: var(--text-primary);
+  margin: var(--spacing-lg) 0 var(--spacing-md) 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
 }
 
 .section {
-    margin-bottom: 30px;
+  margin-bottom: var(--spacing-xxl);
 }
 
 .section p {
-    margin-top: 5px;
-    margin-bottom: 15px;
-    line-height: 1.6;
-    color: #555;
+  margin: var(--spacing-md) 0;
+  color: var(--text-secondary);
+  line-height: 1.7;
 }
 
 .section p.note {
-    font-size: 0.9em;
-    color: #777;
-    background-color: #f8f9fa;
-    padding: 8px 12px;
-    border-radius: 4px;
-    border-left: 3px solid #bdc3c7;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: linear-gradient(
+    135deg,
+    var(--surface-100) 0%,
+    var(--surface-50) 100%
+  );
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--primary-400);
+  margin: var(--spacing-lg) 0;
+  box-shadow: var(--shadow-1);
 }
 
 .section p.note code {
-    background-color: #e9ecef;
-    padding: 2px 5px;
-    border-radius: 3px;
-    font-family: monospace;
+  background-color: var(--surface-200);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 12px;
+  color: var(--primary-700);
+  font-weight: 500;
 }
 
 a {
-    color: #3498db;
-    text-decoration: none;
+  color: var(--primary-600);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 a:hover {
-    text-decoration: underline;
+  color: var(--primary-700);
 }
 
-/* --- Input Fields & Selects --- */
-/* Base styles for inputs, selects, textareas */
+a::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--primary-500);
+  transition: width 0.3s ease;
+}
+
+a:hover::after {
+  width: 100%;
+}
+
+/* --- Form Elements --- */
 input[type="text"],
 input[type="password"],
 select,
 textarea {
-    padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px;
-    font-size: 1em; font-family: inherit;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-sizing: border-box; vertical-align: middle;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 2px solid var(--surface-300);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-family: inherit;
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-50) 100%);
+  color: var(--text-primary);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+  outline: none;
 }
+
+input[type="text"]:hover,
+input[type="password"]:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--primary-300);
+  background: #ffffff;
+}
+
 input[type="text"]:focus,
 input[type="password"]:focus,
 select:focus,
 textarea:focus {
-    border-color: #3498db; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2); outline: none;
+  border-color: var(--primary-500);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(243, 115, 22, 0.1);
 }
-input.wide-input { width: 100%; }
 
+input.wide-input {
+  width: 100%;
+}
 
-/* --- Option Groups (General) --- */
+/* --- Option Groups --- */
 .option-group {
-    margin-bottom: 15px; display: flex; align-items: center; gap: 10px;
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--surface-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-200);
 }
+
 .option-group input[type="radio"],
 .option-group input[type="checkbox"] {
-    margin-right: 5px; flex-shrink: 0; cursor: pointer; vertical-align: middle; width: auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--primary-500);
 }
+
 .option-group label {
-    cursor: pointer; vertical-align: middle; display: inline-flex; align-items: center; width: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: var(--text-primary);
+  user-select: none;
 }
 
-/* --- Price KB Table Styling --- */
+/* --- Tables --- */
 .price-kb-table {
-    border-collapse: collapse;
-    margin-bottom: 10px;
-    width: auto;
+  border-collapse: collapse;
+  margin-bottom: var(--spacing-lg);
+  width: 100%;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-2);
+  border: 1px solid var(--surface-200);
 }
-.price-kb-table th, .price-kb-table td {
-    border: 1px solid #ddd;
-    padding: 8px 12px;
-    text-align: center;
-}
-.price-kb-table th {
-    background-color: #f0f0f0;
-    font-weight: bold;
-    color: #555;
-}
+
+.price-kb-table th,
 .price-kb-table td {
-    background-color: #fafafa;
+  padding: var(--spacing-lg);
+  text-align: center;
+  border-bottom: 1px solid var(--surface-200);
 }
+
+.price-kb-table th {
+  background: linear-gradient(
+    135deg,
+    var(--surface-100) 0%,
+    var(--surface-50) 100%
+  );
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.price-kb-table td {
+  background: #ffffff;
+  color: var(--text-secondary);
+}
+
 .price-kb-table input[type="number"] {
-    border: none;
-    background: transparent;
-    text-align: center;
-    padding: 2px 4px;
-    font-size: 1em;
-    width: 80px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  padding: var(--spacing-sm);
+  font-size: 14px;
+  width: 100px;
+  color: var(--text-primary);
+  font-weight: 500;
 }
+
 .price-kb-table input[type="number"]:focus {
-    border: 1px solid #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-    outline: none;
+  border: 2px solid var(--primary-500);
+  border-radius: var(--radius-sm);
+  background: var(--surface-50);
+  box-shadow: 0 0 0 3px rgba(243, 115, 22, 0.1);
 }
 
-/* --- Language Specific Option Groups & Autocomplete --- */
-/* The main container for each language row */
+/* --- Language Options Cards --- */
 .language-option {
-    display: flex; /* Use flex for the main language option div */
-    align-items: center;
-    gap: 10px; /* Space between grab handle, label, and remove button */
-    margin-bottom: 15px;
-    cursor: default; /* Default cursor for the row */
-    transition: opacity 0.2s ease; /* Smooth opacity change */
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-50) 100%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--surface-200);
+  position: relative;
+  overflow: hidden;
 }
 
-/* The label wrapping the flag and input */
-.language-option label.language-input-wrapper {
-    flex: 1 1 auto; /* Allow label to take available space */
-    display: flex; /* Use flex for img and input alignment */
-    align-items: center;
-    gap: 8px; /* Space between flag and input */
-    min-width: 150px;
-    padding: 0; /* Remove padding from label itself */
-    position: relative; /* Needed for positioning the dropdown */
-    /* REMOVED: Styles that made the label look like an input field */
-    border: none;
-    border-radius: 0;
-    transition: none;
-    box-shadow: none;
+.language-option::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--primary-500) 0%,
+    var(--primary-300) 100%
+  );
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
 }
 
-/* The actual text input field */
-.language-option input[type="text"] {
-    flex: 1 1 auto; /* Allow input to grow */
-    min-width: 100px; /* Ensure input doesn't disappear */
-    margin: 0; /* Remove margin from input */
-    /* ADDED: Styles to make the input field look like an input field */
-    padding: 10px 12px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    background-color: #fff;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: none; /* Ensure no default input shadow */
-    outline: none; /* Ensure no default input outline */
+.language-option:hover {
+  box-shadow: var(--shadow-3);
+  transform: translateY(-2px);
+  border-color: var(--primary-200);
 }
 
-/* Focus styles applied directly to the input */
-.language-option input[type="text"]:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-    outline: none;
+.language-option:hover::before {
+  transform: scaleX(1);
 }
 
-
-.language-label-static {
-    /* Styles for the "No translation needed" label */
-    padding: 10px 12px; font-style: italic; color: #555; flex: 1 1 auto;
-    min-width: 150px; display: inline-block; line-height: 1.3; vertical-align: middle;
-    border: 1px solid transparent; border-radius: 6px;
-}
-
-/* Style for the flag image */
-img.language-flag {
-    line-height: 1; /* Ensure img doesn't add extra height */
-    vertical-align: middle;
-    flex-shrink: 0; /* Prevent img from shrinking */
-    width: 1.6em; /* Width for img element */
-    height: auto; /* Maintain aspect ratio */
-    border: 1px solid #ccc; /* Add a subtle border around the flag */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Subtle shadow */
-    background-color: #eee; /* Background for transparency issues */
-    object-fit: contain; /* Ensure the entire flag is visible */
-    border-radius: 3px; /* Slightly round corners */
-}
-
-/* Remove margin from the flag inside the input wrapper label */
-.language-input-wrapper img.language-flag {
-     margin-right: 0; /* Gap is handled by the flex container on the label */
-}
-
-
-/* Autocomplete Dropdown Styles */
-.autocomplete-dropdown {
-    position: absolute; /* Positioned relative to the body */
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    max-height: 200px; /* Limit dropdown height */
-    overflow-y: auto; /* Add scrollbar if needed */
-    z-index: 1000; /* Ensure it's above other content */
-    width: auto; /* Will be set by JS to match input wrapper width */
-    display: none; /* Hidden by default */
-}
-
-/* Autocomplete Item Styles */
-.autocomplete-item {
-    padding: 8px 12px;
-    cursor: pointer;
-    display: flex; /* Arrange flag img and text */
-    align-items: center;
-    gap: 8px; /* Space between flag img and text */
-    font-size: 1em;
-    color: #333;
-}
-
-/* Style flag image within autocomplete item */
-.autocomplete-item img.language-flag {
-    width: 1.4em; /* Slightly smaller flag in dropdown */
-    height: auto;
-    border: none; /* No border in dropdown */
-    box-shadow: none; /* No shadow in dropdown */
-    background: none; /* No background */
-}
-
-.autocomplete-item .language-name, .autocomplete-item .model-name { /* Style for the name text in dropdown */
-    flex-grow: 1; /* Allow name to take space */
-    white-space: nowrap; /* Prevent wrapping */
-    overflow: hidden; /* Hide overflow */
-    text-overflow: ellipsis; /* Show ellipsis for long names */
-}
-
-
-.autocomplete-item:hover,
-.autocomplete-item.selected {
-    background-color: #e9ecef; /* Highlight on hover/selection */
-    color: #000;
-}
-
-.no-translate-option .remove-button { display: none; width: 30px; visibility: hidden; }
-
-
-/* --- Bullet Point Radio Group --- */
-/* This is the radio group for Summary Options, NOT model selection */
-.section .radio-group { display: flex; gap: 15px; flex-wrap: wrap; margin-left: 10px; }
-.section .radio-group label { display: flex; align-items: center; }
-.section .radio-group input[type="radio"] { margin-right: 5px; }
-
-/* --- Checkbox Group (Debug) --- */
-.checkbox-group { gap: 5px; }
-
-
-
-/* --- Prompt Customization Area --- */
-.collapsible-content h3 { /* Style header inside collapsible */
-    margin-top: 0; /* Reset default h3 margin */
-    margin-bottom: 15px;
-    font-size: 1.1em;
-    color: #34495e;
-}
-/* Adjust top margin for subsequent h3s within collapsible */
-.collapsible-content h3 + .prompt-display-area + h3 {
-    margin-top: 25px;
-}
-
-
-.prompt-display-area {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    background-color: #fdfdfd;
-    padding: 10px;
-    font-family: monospace;
-    font-size: 0.95em;
-    line-height: 1.5;
-    /* white-space: pre-wrap; */
-}
-
-.prompt-label {
-    font-size: 0.85em; font-weight: 600; color: #555;
-    margin-bottom: 4px; margin-top: 8px; text-transform: uppercase;
-    letter-spacing: 0.5px; font-family: system-ui, sans-serif;
-}
-.prompt-display-area .prompt-label:first-of-type { margin-top: 0; }
-
-.prompt-part {
-    padding: 8px 10px; margin-bottom: 3px; border-radius: 4px;
-}
-.prompt-part:last-child { margin-bottom: 0; }
-
-.prompt-preamble, .prompt-postamble { background-color: #f0f0f0; color: #444; }
-
-/* Textarea for editable prompt part */
-textarea#promptFormatInstructions {
-    background-color: #ffffff; border: 1px solid #3498db; color: #333; /* Changed to solid border */
-    width: 100%; resize: vertical; min-height: 80px;
-    padding: 8px 10px; margin-bottom: 3px; margin-top: 0; /* Added margin-top: 0 */
-    box-sizing: border-box;
-    /* Removed border, shadow, outline properties previously on prompt-editable */
-}
-textarea#promptFormatInstructions:focus {
-    border-color: #3498db; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2); outline: none;
-}
-
-
-.prompt-translation-preview {
-    background-color: #e7f3fe; color: #1a73e8; font-style: italic;
-    border: 1px dashed #a0c3e8; min-height: 1.5em;
-}
-.prompt-translation-preview:empty { display: none; }
-
-
-/* --- Buttons --- */
-.button {
-    padding: 10px 20px; border: none; border-radius: 6px; font-size: 1em;
-    cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease;
-    margin: 0 5px; vertical-align: middle; flex-shrink: 0;
-}
-.save-button { background-color: #2ecc71; color: white; font-weight: 500; }
-.save-button:hover { background-color: #27ae60; transform: translateY(-1px); }
-.reset-button { background-color: #f39c12; color: white; font-weight: 500; }
-.reset-button:hover { background-color: #e67e22; transform: translateY(-1px); }
-
-/* Original Add Button Style (keep for language button) */
-.add-button { background-color: #3498db; color: white; font-size: 0.9em; padding: 8px 15px; margin-top: 5px; }
-.add-button:hover { background-color: #2980b9; transform: translateY(-1px); }
-
-/* Original Remove Button Style (keep for language button) */
-.remove-button { background-color: #e74c3c; color: white; font-size: 0.8em; padding: 4px 8px; line-height: 1; border-radius: 4px; flex-shrink: 0; margin-left: 5px; height: fit-content; width: auto; }
-.remove-button:hover { background-color: #c0392b; }
-
-/* --- Actions Area & Status Message --- */
-.actions { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
-.status-message { display: inline-block; margin-left: 15px; font-weight: 500; padding: 5px 10px; border-radius: 4px; min-height: 1.5em; vertical-align: middle; }
-.status-message.success { color: #27ae60; background-color: #eafaf1; }
-.status-message.error { color: #c0392b; background-color: #fbeae8; }
-
-/* --- Drag and Drop Styles for Language Options --- */
-/* Removed cursor: grab from .language-option */
 .language-option.dragging {
-    opacity: 0.5; /* Reduce opacity of the dragged item */
+  opacity: 0.8;
+  transform: rotate(1deg) scale(1.02);
+  box-shadow: var(--shadow-4);
+  z-index: 1000;
 }
 
-/* Visual indicator for drop target */
 .language-option.drag-over-top {
-    border-top: 2px dashed #3498db; /* Blue dashed line at the top */
+  border-top: 3px solid var(--primary-500);
 }
 
 .language-option.drag-over-bottom {
-    border-bottom: 2px dashed #3498db; /* Blue dashed line at the bottom */
+  border-bottom: 3px solid var(--primary-500);
 }
 
-/* Ensure the label wrapper doesn't interfere with drag styles on the parent div */
-/* REMOVED: Re-apply border/shadow on focus-within to the wrapper */
 .language-option label.language-input-wrapper {
-    border: none; /* Ensure no border on the label */
-    box-shadow: none; /* Ensure no shadow on the label */
-    padding: 0; /* Ensure no padding on the label */
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 200px;
+  padding: 0;
+  border: none;
+  background: none;
 }
 
+.language-option input[type="text"] {
+  flex: 1;
+  min-width: 120px;
+  margin: 0;
+  border: 2px solid var(--surface-300);
+  border-radius: var(--radius-md);
+  background: var(--surface-50);
+  font-weight: 500;
+}
 
-/* --- Grab Handle Styles --- */
+.language-option input[type="text"]:focus {
+  background: #ffffff;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(243, 115, 22, 0.1);
+}
+
+img.language-flag {
+  width: 28px;
+  height: 21px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--surface-300);
+  box-shadow: var(--shadow-1);
+  background: var(--surface-100);
+  object-fit: cover;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.language-option:hover img.language-flag {
+  border-color: var(--primary-300);
+  box-shadow: var(--shadow-2);
+}
+
+/* --- Autocomplete --- */
+.autocomplete-dropdown {
+  position: absolute;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-50) 100%);
+  box-shadow: var(--shadow-4);
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+  border: 1px solid var(--surface-200);
+}
+
+.autocomplete-item {
+  padding: var(--spacing-md) var(--spacing-lg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.autocomplete-item img.language-flag {
+  width: 24px;
+  height: 18px;
+  border: 1px solid var(--surface-300);
+}
+
+.autocomplete-item .language-name,
+.autocomplete-item .model-name {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+  background: linear-gradient(
+    135deg,
+    var(--primary-50) 0%,
+    var(--primary-100) 100%
+  );
+  color: var(--primary-700);
+}
+
+/* --- Radio Groups --- */
+.radio-group {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+  background: var(--surface-50);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.radio-group label:hover {
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.checkbox-group {
+  gap: var(--spacing-md);
+  background: var(--surface-50);
+}
+
+/* --- Buttons --- */
+.button {
+  padding: var(--spacing-md) var(--spacing-xl);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+
+.button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.button:hover::before {
+  left: 100%;
+}
+
+.save-button {
+  background: linear-gradient(135deg, var(--success-main) 0%, #22c55e 100%);
+  color: white;
+}
+
+.save-button:hover {
+  background: linear-gradient(
+    135deg,
+    var(--success-dark) 0%,
+    var(--success-main) 100%
+  );
+  box-shadow: var(--shadow-3);
+  transform: translateY(-2px);
+}
+
+.reset-button {
+  background: linear-gradient(135deg, var(--warning-main) 0%, #fbbf24 100%);
+  color: white;
+}
+
+.reset-button:hover {
+  background: linear-gradient(135deg, #d97706 0%, var(--warning-main) 100%);
+  box-shadow: var(--shadow-3);
+  transform: translateY(-2px);
+}
+
+.add-button {
+  background: linear-gradient(
+    135deg,
+    var(--primary-500) 0%,
+    var(--primary-600) 100%
+  );
+  color: white;
+  margin-top: var(--spacing-md);
+}
+
+.add-button:hover {
+  background: linear-gradient(
+    135deg,
+    var(--primary-600) 0%,
+    var(--primary-700) 100%
+  );
+  box-shadow: var(--shadow-3);
+  transform: translateY(-2px);
+}
+
+.remove-button {
+  background: linear-gradient(135deg, var(--error-main) 0%, #ef4444 100%);
+  color: white;
+  font-size: 16px;
+  padding: var(--spacing-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.remove-button:hover {
+  background: linear-gradient(135deg, #b91c1c 0%, var(--error-main) 100%);
+  box-shadow: var(--shadow-3);
+  transform: scale(1.1);
+}
+
+/* --- Grab Handle --- */
 .grab-handle {
-    width: 20px; /* Width of the handle area */
-    height: 100%; /* Match height of the row */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: grab; /* Indicate draggable handle */
-    flex-shrink: 0; /* Prevent handle from shrinking */
-    padding: 0 5px; /* Add some padding around the dots */
-    /* background-color: #eee; /* Optional: background for handle area */
-    /* border-right: 1px solid #ccc; /* Optional: separator */
+  width: 28px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  flex-shrink: 0;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.grab-handle:hover {
+  background: var(--surface-100);
+  box-shadow: var(--shadow-1);
 }
 
 .grab-handle:active {
-    cursor: grabbing; /* Indicate dragging in progress */
+  cursor: grabbing;
 }
 
 .grab-handle-dots {
-    display: flex;
-    flex-direction: column; /* Keep vertical arrangement for horizontal lines */
-    gap: 3px; /* Space between lines */
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .grab-handle-dot {
-    width: 16px; /* Make them wider */
-    height: 2px; /* Make them thin lines */
-    background-color: #888; /* Color of the lines */
-    border-radius: 1px; /* Optional: slight rounding */
+  width: 5px;
+  height: 5px;
+  background: var(--surface-500);
+  border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
+.grab-handle:hover .grab-handle-dot {
+  background: var(--primary-500);
+}
 
-/* ======================================== */
-/* NEW Model Selection Styles (Adapted)     */
-/* ======================================== */
-
-/* Apply container styling directly to the JS-controlled area */
+/* --- Model Selection --- */
 #modelSelectionArea {
   display: flex;
   flex-direction: column;
-  gap: 8px; /* Gap between model rows */
-  margin-bottom: 15px; /* Space below the model list */
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 
-/* Style the dynamically generated rows (.option-group.model-option) */
 #modelSelectionArea .option-group.model-option {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #e0e0e0;
-  background-color: #f9f9f9;
-  gap: 16px; /* Adjust gap between elements: model info, radios, remove btn */
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-50) 100%);
+  border: 2px solid var(--surface-200);
+  box-shadow: var(--shadow-2);
+  gap: var(--spacing-lg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+#modelSelectionArea .option-group.model-option::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--info-main) 0%,
+    var(--primary-500) 100%
+  );
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
 }
 
 #modelSelectionArea .option-group.model-option:hover {
-  background-color: #f0f0f0;
+  box-shadow: var(--shadow-3);
+  border-color: var(--primary-300);
+  transform: translateY(-1px);
 }
 
-/* Style the wrapper for the ID input (Direct child of model-option row) */
+#modelSelectionArea .option-group.model-option:hover::before {
+  transform: scaleX(1);
+}
+
 #modelSelectionArea .option-group.model-option > .model-info {
-  /* Tells this container to grow and shrink to fill available space */
   flex: 1;
-  /* Allows shrinking below natural content size if needed */
   min-width: 0;
-  /* Ensures content within aligns (though only one input now) */
   display: flex;
   align-items: center;
 }
 
-/* Style the JS-generated text input for Model ID */
 #modelSelectionArea input[id^="modelText_"] {
-  font-family: monospace;
-  color: #555;
-  padding: 4px 8px;
-  background-color: #e8e8e8;
-  border-radius: 4px;
-  font-size: 14px;
-  border: 1px solid #e8e8e8;
-  box-shadow: none;
-  margin: 0;
-  height: auto;
-  line-height: normal;
-
-  /* --- UPDATED FOR WIDER INPUT --- */
-  /* Make input fill its parent (.model-info) */
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: var(--text-primary);
+  padding: var(--spacing-md);
+  background: linear-gradient(
+    135deg,
+    var(--surface-50) 0%,
+    var(--surface-100) 100%
+  );
+  border: 2px solid var(--surface-300);
+  border-radius: var(--radius-md);
+  font-size: 13px;
   width: 100%;
-  /* Include padding/border in width calculation */
   box-sizing: border-box;
-  /* Set a minimum width */
-  min-width: 150px;
-  /* REMOVED flex: 1; from here */
-  /* --- END WIDER INPUT UPDATE --- */
+  min-width: 250px;
+  transition: all 0.3s ease;
+  font-weight: 500;
 }
+
 #modelSelectionArea input[id^="modelText_"]:focus {
-    border-color: #3498db;
-    background-color: #fff;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  border-color: var(--info-main);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-
-/* --- Styles for the TWO Radio Button Layout --- */
-/* Container for BOTH radio groups (Summary + Chat) */
 .model-radios {
   display: flex;
-  gap: 16px; /* Space between "Summary" group and "Chat" group */
+  gap: var(--spacing-xl);
   align-items: center;
-  /* Prevent this section from shrinking */
   flex-shrink: 0;
+  background: var(--surface-50);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
 }
 
-/* Container for a SINGLE radio button + its label */
-.radio-group { /* This selector now specifically targets the model radios */
+.model-radios .radio-group {
   display: flex;
   align-items: center;
-  gap: 6px; /* Space between radio and its label */
+  gap: var(--spacing-sm);
+  background: none;
+  padding: 0;
 }
 
-/* Style the radio button itself within the model section */
 .model-radios input[type="radio"] {
-  margin: 0; /* Reset margin */
+  margin: 0;
   cursor: pointer;
+  accent-color: var(--primary-500);
 }
 
-/* Style the label text next to the radio button */
 .radio-label {
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
-  user-select: none; /* Prevent text selection */
+  user-select: none;
+  font-weight: 500;
 }
-/* --- End Styles for TWO Radio Button Layout --- */
 
-
-/* Style the Remove Button (JS generates .button.remove-button) */
 #modelSelectionArea .button.remove-button {
-  background-color: #f44336;
+  background: linear-gradient(135deg, var(--error-main) 0%, #ef4444 100%);
   color: white;
   border: none;
-  border-radius: 4px;
-  width: 28px; /* Fixed size */
-  height: 28px;
-  font-size: 16px; /* Make '✕' bigger */
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
   cursor: pointer;
-  display: flex; /* Center the '✕' */
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0; /* Override default button padding */
-  margin: 0; /* Reset margin */
-  margin-left: 8px; /* Add specific margin */
-  /* Prevent the button from shrinking */
+  padding: 0;
+  margin: 0;
   flex-shrink: 0;
-  line-height: 1; /* Ensure '✕' is centered */
-  transition: background-color 0.2s ease; /* Add transition */
-}
-#modelSelectionArea .button.remove-button:hover {
-   background-color: #d32f2f; /* Darker red on hover */
-   transform: none; /* Override default button transform */
+  line-height: 1;
+  border-radius: 50%;
+  box-shadow: var(--shadow-2);
 }
 
-
-/* Style the Add Model Button */
 #addModelBtn {
-  background-color: #2196f3;
+  background: linear-gradient(135deg, var(--info-main) 0%, #60a5fa 100%);
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-lg);
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 500;
-  display: inline-flex; /* Use inline-flex to align icon and text */
+  display: inline-flex;
   align-items: center;
-  gap: 8px; /* Use gap if supported, otherwise use margin on SVG */
-  margin-top: 10px; /* Add some space above */
-  /* Override any conflicting base .button styles */
-  margin-left: 0;
-  margin-right: 0;
-  transition: background-color 0.2s ease;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+  box-shadow: var(--shadow-2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #addModelBtn:hover {
-  background-color: #0b7dda;
-   transform: none; /* Override default button transform */
+  background: linear-gradient(135deg, #2563eb 0%, var(--info-main) 100%);
+  box-shadow: var(--shadow-3);
+  transform: translateY(-2px);
 }
 
-/* Adjust the Section Title and Paragraph for Model Selection */
-.container > .section:nth-child(3) > h2 { /* Target the Model Selection H2 specifically */
-   /* Using existing h2 style for now */
+/* --- Prompt Customization --- */
+.prompt-display-area {
+  border: 2px solid var(--surface-300);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    135deg,
+    var(--surface-50) 0%,
+    var(--surface-100) 100%
+  );
+  padding: var(--spacing-lg);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  box-shadow: inset 0 2px 4px rgba(45, 40, 34, 0.1);
 }
 
-.container > .section:nth-child(3) > p:first-of-type { /* Target first p after h2 */
-    color: #666; /* Match new design paragraph color */
-    margin-bottom: 20px; /* Match new design paragraph margin */
+.prompt-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-disabled);
+  margin-bottom: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-family: "Inter", sans-serif;
 }
 
-/* --- Accessibility --- */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
+.prompt-label:first-of-type {
+  margin-top: 0;
 }
+
+.prompt-part {
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+  border-radius: var(--radius-md);
+}
+
+.prompt-part:last-child {
+  margin-bottom: 0;
+}
+
+.prompt-preamble,
+.prompt-postamble {
+  background: linear-gradient(
+    135deg,
+    var(--surface-100) 0%,
+    var(--surface-200) 100%
+  );
+  color: var(--text-secondary);
+  border: 1px solid var(--surface-300);
+}
+
+textarea#promptFormatInstructions,
+textarea#promptUserFormattingEditable {
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-50) 100%);
+  border: 3px solid var(--primary-300);
+  color: var(--text-primary);
+  width: 100%;
+  resize: vertical;
+  min-height: 140px;
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+  margin-top: 0;
+  box-sizing: border-box;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+}
+
+textarea#promptFormatInstructions: focus, textarea#promptUserForm;

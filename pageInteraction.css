@@ -166,11 +166,7 @@
 .summarizer-btn.newsblur-btn { background-color: #8B4513; color: #ffffff; padding: 8px 20px; } /* SaddleBrown */
 .summarizer-btn.newsblur-btn:hover:not(:disabled) { background-color: #652a0d; } /* Darker shade for hover */
 
-/* REMOVED: Style for the NewsBlur symbol */
-/* .newsblur-symbol {
-  font-size: 1.2em;
-  margin-right: 0.25em;
-} */
+
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 780px) {
@@ -391,4 +387,43 @@
 .joplin-autocomplete-item:hover,
 .joplin-autocomplete-item.selected {
     background-color: #f0f0f0;
+}
+
+/* ======================================== */
+/* Notification Container Styles            */
+/* ======================================== */
+.llm-notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2147483647; /* Max z-index to stay on top */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none; /* Allows clicking through the container */
+  max-width: 350px;
+}
+
+.llm-notification-message {
+  background-color: #fff;
+  color: #c0392b; /* Error Red */
+  padding: 12px 18px;
+  border-radius: 6px;
+  border: 1px solid #f5c6cb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  pointer-events: auto; /* Make individual messages clickable if needed */
+  animation: llm-fade-in 0.3s ease-out;
+}
+
+@keyframes llm-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }

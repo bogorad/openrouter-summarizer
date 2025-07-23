@@ -1,19 +1,17 @@
 // options.js
 
 import {
-  PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-  PROMPT_STORAGE_KEY_PREAMBLE,
-  PROMPT_STORAGE_KEY_POSTAMBLE,
-  PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
-  DEFAULT_PREAMBLE_TEMPLATE,
-  DEFAULT_POSTAMBLE_TEXT,
-  DEFAULT_FORMAT_INSTRUCTIONS,
+  STORAGE_KEY_PROMPT_TEMPLATE,
+  DEFAULT_XML_PROMPT_TEMPLATE,
+  STORAGE_KEY_ALWAYS_USE_US_ENGLISH,
   DEFAULT_MODEL_OPTIONS,
   DEFAULT_MAX_REQUEST_PRICE,
   STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
   DEFAULT_CACHE_EXPIRY_DAYS,
   STORAGE_KEY_NEWSBLUR_TOKEN,
   STORAGE_KEY_JOPLIN_TOKEN, // New: Import Joplin token storage key
+  DEBOUNCE_DELAY,
+  TOKENS_PER_KB,
 } from "./constants.js";
 import { showError } from "./utils.js";
 
@@ -36,11 +34,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
   const resetButton = document.getElementById("resetDefaultsBtn");
   const statusMessage = document.getElementById("status");
-  const promptPreambleDiv = document.getElementById("promptPreamble");
-  const promptFormatInstructionsTextarea = document.getElementById(
-    "promptFormatInstructions",
+  const promptPrefixReadonly = document.getElementById("promptPrefixReadonly");
+  const promptUserFormattingEditable = document.getElementById(
+    "promptUserFormattingEditable",
   );
-  const promptPostambleDiv = document.getElementById("promptPostamble");
+  const promptSuffixReadonly = document.getElementById("promptSuffixReadonly");
+  const alwaysUseUsEnglishCheckbox = document.getElementById("alwaysUseUsEnglish");
   const maxKbDisplay = document.getElementById("maxKbDisplay");
   const updatePricingBtn = document.getElementById("updatePricingBtn");
   const pricingNotification = document.getElementById("pricingNotification");
@@ -61,9 +60,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const MAX_MODELS = 7;
   const MAX_LANGUAGES = 5;
-  const TOKENS_PER_KB = 227.56; // Approximation based on 4.5 characters per token and 1024 characters per KB
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
-  const DEBOUNCE_DELAY = 300; // ms delay for input processing
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
 
   function maskToken(token) {
@@ -91,7 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let allLanguages = []; // For autocomplete suggestions for languages
   let allModels = []; // For autocomplete suggestions for models
 
-  let currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
+  let currentPromptTemplate = DEFAULT_XML_PROMPT_TEMPLATE;
 
   let activeAutocompleteInput = null;
   let autocompleteDropdown = null;
@@ -968,24 +965,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   // --- End Language Selection ---
 
-  // --- Prompt Preview & Collapsible (Unchanged) ---
-  function updatePromptPreview() {
-    let bulletCount = DEFAULT_BULLET_COUNT;
-    document.querySelectorAll('input[name="bulletCount"]').forEach((radio) => {
-      if (radio.checked) bulletCount = radio.value;
-    });
-    const bulletWord = NUM_TO_WORD[bulletCount] || "five";
-    if (promptPreambleDiv)
-      promptPreambleDiv.textContent = DEFAULT_PREAMBLE_TEMPLATE.replace(
-        "${bulletWord}",
-        bulletWord,
-      );
-    if (promptPostambleDiv)
-      promptPostambleDiv.textContent = DEFAULT_POSTAMBLE_TEXT;
-    if (promptFormatInstructionsTextarea)
-      promptFormatInstructionsTextarea.value = currentCustomFormatInstructions;
-  }
-  // --- End Prompt Preview ---
+
 
   // --- Pricing Data Check and Update Functions ---
   /**
@@ -1165,7 +1145,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         "debug",
         "bulletCount",
         "language_info",
-        PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
+        STORAGE_KEY_PROMPT_TEMPLATE,
+        STORAGE_KEY_ALWAYS_USE_US_ENGLISH,
         STORAGE_KEY_MAX_REQUEST_PRICE,
         STORAGE_KEY_MAX_PRICE_BEHAVIOR,
         STORAGE_KEY_NEWSBLUR_TOKEN,
@@ -1190,6 +1171,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (alsoSendToJoplinCheckbox) {
         alsoSendToJoplinCheckbox.checked = alsoSendToJoplin;
         updateJoplinCheckboxState();
+      }
+
+      // Load language detection setting (default to true = always use US English)
+      const alwaysUseUsEnglish = data[STORAGE_KEY_ALWAYS_USE_US_ENGLISH] ?? true;
+      if (alwaysUseUsEnglishCheckbox) {
+        alwaysUseUsEnglishCheckbox.checked = alwaysUseUsEnglish;
       }
 
       let countValue = data.bulletCount || DEFAULT_BULLET_COUNT;
@@ -1266,11 +1253,25 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.log("[LLM Options] No languages loaded, applying defaults.");
       }
 
-      currentCustomFormatInstructions =
-        data[PROMPT_STORAGE_KEY_CUSTOM_FORMAT] || DEFAULT_FORMAT_INSTRUCTIONS;
-      if (promptFormatInstructionsTextarea)
-        promptFormatInstructionsTextarea.value =
-          currentCustomFormatInstructions;
+      // Load and parse XML prompt template
+      currentPromptTemplate = data[STORAGE_KEY_PROMPT_TEMPLATE] || DEFAULT_XML_PROMPT_TEMPLATE;
+
+      // Parse the XML template to extract the three parts
+      const startTag = '<user_formatting>';
+      const endTag = '</user_formatting>';
+      const startIndex = currentPromptTemplate.indexOf(startTag);
+      const endIndex = currentPromptTemplate.indexOf(endTag);
+
+      if (startIndex !== -1 && endIndex !== -1) {
+        const prefix = currentPromptTemplate.substring(0, startIndex + startTag.length);
+        const editableContent = currentPromptTemplate.substring(startIndex + startTag.length, endIndex);
+        const suffix = currentPromptTemplate.substring(endIndex);
+
+        // Populate the UI elements
+        if (promptPrefixReadonly) promptPrefixReadonly.textContent = prefix;
+        if (promptUserFormattingEditable) promptUserFormattingEditable.value = editableContent;
+        if (promptSuffixReadonly) promptSuffixReadonly.textContent = suffix;
+      }
 
       currentMaxRequestPrice =
         data[STORAGE_KEY_MAX_REQUEST_PRICE] || DEFAULT_MAX_REQUEST_PRICE;
@@ -1324,10 +1325,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentSummaryModelId = firstDefaultId;
       currentChatModelId = firstDefaultId;
       language_info = [];
-      currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
-      if (promptFormatInstructionsTextarea)
-        promptFormatInstructionsTextarea.value =
-          currentCustomFormatInstructions;
+
+      // Reset to default XML prompt template
+      currentPromptTemplate = DEFAULT_XML_PROMPT_TEMPLATE;
+      const startTag = '<user_formatting>';
+      const endTag = '</user_formatting>';
+      const startIndex = currentPromptTemplate.indexOf(startTag);
+      const endIndex = currentPromptTemplate.indexOf(endTag);
+
+      if (startIndex !== -1 && endIndex !== -1) {
+        const prefix = currentPromptTemplate.substring(0, startIndex + startTag.length);
+        const editableContent = currentPromptTemplate.substring(startIndex + startTag.length, endIndex);
+        const suffix = currentPromptTemplate.substring(endIndex);
+
+        if (promptPrefixReadonly) promptPrefixReadonly.textContent = prefix;
+        if (promptUserFormattingEditable) promptUserFormattingEditable.value = editableContent;
+        if (promptSuffixReadonly) promptSuffixReadonly.textContent = suffix;
+      }
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
       currentMaxPriceBehavior = DEFAULT_MAX_PRICE_BEHAVIOR;
       // Input field is handled in calculateKbLimitForSummary
@@ -1340,7 +1354,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     renderModelOptions();
     renderLanguageOptions();
-    updatePromptPreview();
     calculateKbLimitForSummary();
     checkModelAndPricingData(); // Check pricing data on load
   }
@@ -1354,9 +1367,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.querySelectorAll('input[name="bulletCount"]').forEach((radio) => {
       if (radio.checked) bulletCount = radio.value;
     });
-    const customFormatInstructionsToSave = promptFormatInstructionsTextarea
-      ? promptFormatInstructionsTextarea.value
-      : currentCustomFormatInstructions;
+    // Reassemble the XML prompt template with user's editable content
+    const userEditableContent = promptUserFormattingEditable
+      ? promptUserFormattingEditable.value
+      : "";
+
+    // Get the original template to ensure we have clean structure
+    const originalTemplate = currentPromptTemplate || DEFAULT_XML_PROMPT_TEMPLATE;
+    const reassembledTemplate = originalTemplate.replace(
+      /<user_formatting>[\s\S]*?<\/user_formatting>/,
+      '<user_formatting>\n' + userEditableContent + '\n</user_formatting>'
+    );
+
+    const alwaysUseUsEnglish = alwaysUseUsEnglishCheckbox
+      ? alwaysUseUsEnglishCheckbox.checked
+      : true;
 
     // Filter models: keep only valid IDs, limit count, store only {id: string}
     const modelsToSave = currentModels
@@ -1416,10 +1441,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       debug,
       bulletCount,
       language_info: language_infoToSave,
-      [PROMPT_STORAGE_KEY_CUSTOM_FORMAT]: customFormatInstructionsToSave,
-      [PROMPT_STORAGE_KEY_PREAMBLE]: DEFAULT_PREAMBLE_TEMPLATE,
-      [PROMPT_STORAGE_KEY_POSTAMBLE]: DEFAULT_POSTAMBLE_TEXT,
-      [PROMPT_STORAGE_KEY_DEFAULT_FORMAT]: DEFAULT_FORMAT_INSTRUCTIONS,
+      [STORAGE_KEY_PROMPT_TEMPLATE]: reassembledTemplate,
+      [STORAGE_KEY_ALWAYS_USE_US_ENGLISH]: alwaysUseUsEnglish,
       [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice,
       [STORAGE_KEY_MAX_PRICE_BEHAVIOR]: currentMaxPriceBehavior,
       [STORAGE_KEY_NEWSBLUR_TOKEN]: newsblurTokenInput
@@ -1536,10 +1559,27 @@ document.addEventListener("DOMContentLoaded", async () => {
       bulletCountRadios.forEach((radio) => {
         radio.checked = radio.value === DEFAULT_BULLET_COUNT;
       });
-      currentCustomFormatInstructions = DEFAULT_FORMAT_INSTRUCTIONS;
-      if (promptFormatInstructionsTextarea)
-        promptFormatInstructionsTextarea.value =
-          currentCustomFormatInstructions;
+      // Reset to default XML prompt template
+      currentPromptTemplate = DEFAULT_XML_PROMPT_TEMPLATE;
+      const startTag = '<user_formatting>';
+      const endTag = '</user_formatting>';
+      const startIndex = currentPromptTemplate.indexOf(startTag);
+      const endIndex = currentPromptTemplate.indexOf(endTag);
+
+      if (startIndex !== -1 && endIndex !== -1) {
+        const prefix = currentPromptTemplate.substring(0, startIndex + startTag.length);
+        const editableContent = currentPromptTemplate.substring(startIndex + startTag.length, endIndex);
+        const suffix = currentPromptTemplate.substring(endIndex);
+
+        if (promptPrefixReadonly) promptPrefixReadonly.textContent = prefix;
+        if (promptUserFormattingEditable) promptUserFormattingEditable.value = editableContent;
+        if (promptSuffixReadonly) promptSuffixReadonly.textContent = suffix;
+      }
+
+      // Reset language detection checkbox to default (true = always use US English)
+      if (alwaysUseUsEnglishCheckbox) {
+        alwaysUseUsEnglishCheckbox.checked = true;
+      }
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
       // Input field is handled in calculateKbLimitForSummary
 
@@ -1550,7 +1590,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       renderModelOptions();
       renderLanguageOptions();
-      updatePromptPreview();
       calculateKbLimitForSummary();
       // Reset the radio button for max price behavior
       document.querySelector(
@@ -1900,9 +1939,32 @@ document.addEventListener("DOMContentLoaded", async () => {
               `[LLM Options] Bullet Count changed to: ${radio.value}`,
             );
           saveSettings();
-          updatePromptPreview();
         });
       });
+
+      // Add event listener for the language detection checkbox
+      if (alwaysUseUsEnglishCheckbox) {
+        alwaysUseUsEnglishCheckbox.addEventListener("change", () => {
+          if (DEBUG)
+            console.log(
+              `[LLM Options] Always use US English changed to: ${alwaysUseUsEnglishCheckbox.checked}`,
+            );
+          saveSettings();
+        });
+      } else {
+        console.error("[LLM Options] Always use US English checkbox not found.");
+      }
+
+      // Add event listener for the editable prompt section
+      if (promptUserFormattingEditable) {
+        promptUserFormattingEditable.addEventListener("input", () => {
+          if (DEBUG)
+            console.log("[LLM Options] User formatting instructions changed");
+          saveSettings();
+        });
+      } else {
+        console.error("[LLM Options] User formatting editable textarea not found.");
+      }
       if (addLangBtn) {
         addLangBtn.addEventListener("click", addLanguage);
       } else {

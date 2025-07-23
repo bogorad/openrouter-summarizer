@@ -18,12 +18,12 @@ export const STORAGE_KEY_CHAT_MODEL_ID = "chatModelId";
 export const STORAGE_KEY_DEBUG = "debug";
 export const STORAGE_KEY_BULLET_COUNT = "bulletCount";
 export const STORAGE_KEY_LANGUAGE_INFO = "language_info";
-export const STORAGE_KEY_SUMMARY_HISTORY = "summaryHistory"; // Keep if used elsewhere
 export const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
 export const STORAGE_KEY_KNOWN_MODELS_AND_PRICES = "knownModelsAndPrices";
 export const STORAGE_KEY_NEWSBLUR_TOKEN = "newsblurToken";
 export const STORAGE_KEY_JOPLIN_TOKEN = "joplinToken"; // New: Joplin Token
 export const STORAGE_KEY_ALSO_SEND_TO_JOPLIN = "alsoSendToJoplin";
+export const STORAGE_KEY_ALWAYS_USE_US_ENGLISH = "alwaysUseUsEnglish";
 
 // --- Joplin API ---
 export const JOPLIN_API_BASE_URL = "http://localhost:41184";
@@ -31,42 +31,44 @@ export const JOPLIN_API_FOLDERS_ENDPOINT = "/folders";
 export const JOPLIN_API_NOTES_ENDPOINT = "/notes";
 
 // --- Prompt Storage Keys ---
-export const PROMPT_STORAGE_KEY_CUSTOM_FORMAT =
-  "prompt_custom_format_instructions";
-export const PROMPT_STORAGE_KEY_PREAMBLE = "prompt_preamble_template";
-export const PROMPT_STORAGE_KEY_POSTAMBLE = "prompt_postamble_text";
-export const PROMPT_STORAGE_KEY_DEFAULT_FORMAT =
-  "prompt_default_format_instructions";
+export const STORAGE_KEY_PROMPT_TEMPLATE = "promptTemplate";
 
-// --- Default Prompt Templates ---
-export const DEFAULT_PREAMBLE_TEMPLATE = `
-Treat input as Markdown text.
-First, determine the language the input is written in.
-Second, prepare a summary of input containing no more than \${bulletWord} points
-in the language you determined.
-Third, use a JSON array of strings to return the summary.
-Each JSON array element, which is a string, should represent a single bullet point.
- `;
+// --- Default XML Prompt Template ---
+export const DEFAULT_XML_PROMPT_TEMPLATE = `
+<instructions>
 
-export const DEFAULT_FORMAT_INSTRUCTIONS = `Each bullet point should be a concise markdown string,
-starting with a bold tag-like marker and a colon,
+<explanation>
+input is an html framgent.
+your role is an objective commenter.
+</explanation>
+
+<actions_do>
+use the input fragment as an objective source of truth.
+in the following "user_formatting" section, follow only the formatting instructions.
+using language code (ISO 639-2) "$$$language$$$",
+prepare a summary of input in $$$bulletCount$$$ bullet points.
+format the result as HTML, using only ul/li tags, you may use <b> tags for emphasis.
+</actions_do>
+
+<prohibitions>
+you are prohibited from adding any comments, explaiations or descriptions.
+you are prohibited from outputting your deliberations.
+you are prohibited from using phrases "the article/author discusses/criticizes/says/thinks/argues".
+you are prohibited from commenting on authors' attitudes.
+you are prohibited from editorializing!!!
+</prohibitions>
+
+<user_formatting>
+each bullet point should be a concise string,
+starting with a bold tag-like idea and a colon,
 and followed by description.
 
 After providing bullet points for article summary,
 add a bonus bullet point - your insights, assessment and comments,
 and what should a mindful reader notice about this.
 Call it **Summarizer Insight:**
-
-Do not use phrases "The article discusses", just exlain.
-Do not comment on authors' attitudes! Just relay the summaries.
-Do not editorialize!
-`;
-
-export const DEFAULT_POSTAMBLE_TEXT = `
-Ensure the response is ONLY the JSON array.
-Do not include any other text or formatting outside the JSON array.
-You may use ONLY markdown for emphasis.
-For example: "**Some bold text:** The market showed **significant** growth in Q3."
+</user_formatting>
+</instructions>
 `;
 
 // --- Chat Prompt Templates ---
@@ -93,12 +95,12 @@ export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Translate the following text t
 
 // --- Default Models (Labels Removed) ---
 export const DEFAULT_MODEL_OPTIONS = [
-  { id: "google/gemini-2.0-flash-lite-001" },
+  { id: "google/gemini-2.5-flash-lite" },
+  { id: "google/gemini-2.5-pro" },
   { id: "anthropic/claude-sonnet-4" },
   { id: "deepseek/deepseek-r1" },
   { id: "openai/gpt-4.1-nano" },
-  { id: "x-ai/grok-3-mini-beta" },
-  { id: "google/gemini-2.5-flash-preview" },
+  { id: "x-ai/grok-3-mini" },
 ];
 
 // --- Default Languages for Pre-population ---
@@ -157,3 +159,4 @@ export const ERROR_SERVER_ERROR =
 // --- Additional Constants for pageInteraction.js ---
 export const MIN_MARKDOWN_LENGTH = 50; // Minimum length for markdown content
 export const TOKENS_PER_CHAR = 227.56 / 1024; // Approximation for token estimation based on characters
+export const TOKENS_PER_KB = 227.56; // Approximation based on 4.5 characters per token and 1024 characters per KB

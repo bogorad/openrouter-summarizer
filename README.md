@@ -1,34 +1,36 @@
-# OpenRouter Summarizer v3.7.17
+# OpenRouter Summarizer v3.8.0
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
-_Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_
+_Featuring interactive chat, native HTML summaries, flexible options, and comprehensive debug logging!_
 
 ---
 
-## ✨ What's New
+## ✨ What's New in v3.8.0
 
-- **Added keyboard shortcuts for summary popup:** Use **Y** to copy, **C** to chat, **N** for NewsBlur, and **Escape** to close.
-- **New Copy HTML icon:** Third icon in the floating menu to copy the complete HTML of selected elements to clipboard.
-- **Enhanced Joplin integration:** Use **Enter** to save and **Escape** to close in the notebook selection dialog.
-- **Fixed highlight contamination in shared content:** Sharing to NewsBlur and Joplin now uses clean content without red selection highlights.
-- **Optimized `Copy` button for sharing:** now it returns proper rich-text and the current URL at the end.
-- **Added cost control:** now you can set a maximum price for each summary request. Default/minimum is $0.001, should be enough for most cheaper models.
-- **Added NewsBlur sharing:** See options, you'll need your NewsBlur Token.
-- **Added Joplin archiving:** See options, you'll need your Joplin Token.
-- **Changed default Claude Sonnet model:** from 3.7 to 4.
+- **🎯 Native HTML Summary Format:** LLM now returns properly formatted HTML bullet lists directly, eliminating JSON parsing errors and improving reliability.
+- **🔧 Dynamic Bullet Count Configuration:** The bullet count setting (3-8) now actually works! Uses `$$$bulletCount$$$` placeholder in prompt templates.
+- **📋 Enhanced Copy Functionality:** Preserves bold formatting in both rich text (HTML) and plain text (markdown) when copying summaries.
+- **💬 Fixed Chat Integration:** Chat window now properly handles HTML summaries without parsing errors.
+- **📤 Fixed NewsBlur Sharing:** Sharing to NewsBlur now works correctly with the new HTML format.
+- **🔔 Fixed Notification System:** "Sending note to Joplin..." messages now properly clear and don't persist indefinitely.
+- **🐛 Comprehensive Debug Logging:** Added extensive debug logging throughout the codebase, especially for language detection and summary processing.
+- **🌐 Improved Language Detection:** Enhanced logging shows exactly when and how language detection occurs.
+- **⚡ Streamlined Code Architecture:** Simplified data flow eliminates unnecessary JSON parsing and HTML rebuilding.
 
 ---
 
 ## 🚀 Features
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
+- **Native HTML Summaries:** LLM returns properly formatted HTML bullet lists with preserved formatting (bold text, etc.).
 - **Copy HTML:** Use the new Copy HTML icon (📄) in the floating menu to copy complete element HTML to clipboard.
+- **Enhanced Copy Function:** Copy button preserves bold formatting in both rich text (HTML) and plain text (markdown) formats.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
 - **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
 - **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the last message.
 - **Languages can now be reordered** by dragging them in the Options list.
-- **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section.
-- **Configurable Summary:** Choose the approximate number of summary points (3-8) for the initial summary prompt.
+- **Customizable Prompt:** Modify the core formatting instructions sent to the LLM via the Advanced Options section. Supports `$$$language$$$` and `$$$bulletCount$$$` placeholders.
+- **Fully Functional Summary Configuration:** Choose the number of summary points (3-8) - this setting now actually works and dynamically updates the prompt.
 - **Keyboard Shortcuts:**
   - **Summary popup:** `Y` to copy, `C` to chat, `N` for NewsBlur, `Escape` to close
   - **Joplin dialog:** `Enter` to save, `Escape` to close
@@ -36,7 +38,7 @@ _Featuring interactive chat, reliable HTML summaries, flexible options, and chat
 - **Instant Results:** Summaries appear in a clean popup; chat happens in a dedicated tab.
 - **Secure & Private:** Your API key and options are stored locally in your browser storage. Chat context is stored temporarily in session storage. Nothing is sent anywhere except OpenRouter.ai when you request a summary or chat response.
 - **Smart Content Cleanup:** Automatically removes unwanted elements like ads, tracking scripts, navigation menus, social media widgets, and promotional content before processing, ensuring cleaner summaries and better LLM performance.
-- **Debug-Friendly:** Enable debug mode in `Options` for detailed console logging. The API key is filtered from the debug console messages.
+- **Comprehensive Debug Logging:** Enable debug mode in `Options` for detailed console logging throughout all processes including language detection, summary processing, and API calls. The API key is filtered from debug messages.
 - **Joplin support:** Save to Joplin instead of summarizing.
 
 ---

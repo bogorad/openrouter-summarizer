@@ -1,12 +1,5 @@
 // background.js
 import {
-  DEFAULT_PREAMBLE_TEMPLATE,
-  DEFAULT_POSTAMBLE_TEXT,
-  DEFAULT_FORMAT_INSTRUCTIONS,
-  PROMPT_STORAGE_KEY_CUSTOM_FORMAT,
-  PROMPT_STORAGE_KEY_PREAMBLE,
-  PROMPT_STORAGE_KEY_POSTAMBLE,
-  PROMPT_STORAGE_KEY_DEFAULT_FORMAT,
   CHAT_SYSTEM_PROMPT_TEMPLATE,
   CHAT_USER_CONTEXT_TEMPLATE,
   // Constants for new storage keys
@@ -18,10 +11,8 @@ import {
   STORAGE_KEY_BULLET_COUNT,
   STORAGE_KEY_LANGUAGE_INFO,
   STORAGE_KEY_MAX_REQUEST_PRICE,
-  // STORAGE_KEY_KNOWN_MODELS_AND_PRICES, // No longer directly used in background.js
-  // Assuming these will be added to constants.js, defining them here for now
-  // MAX_PRICING_RETRIES,
-  // PRICING_RETRY_DELAY_MS,
+  STORAGE_KEY_PROMPT_TEMPLATE,
+  DEFAULT_XML_PROMPT_TEMPLATE,
 } from "./constants.js";
 import * as constants from "./constants.js"; // Import all constants as an object to resolve potential redeclaration issues
 const JOPLIN_API_BASE_URL = constants.JOPLIN_API_BASE_URL;
@@ -30,8 +21,6 @@ const JOPLIN_API_NOTES_ENDPOINT = constants.JOPLIN_API_NOTES_ENDPOINT;
 
 import {
   isTabClosedError,
-  extractStringsFromMalformedJson,
-  normalizeMarkdownInStrings,
   getSystemPrompt,
 } from "./js/backgroundUtils.js";
 import {
@@ -51,7 +40,7 @@ import {
 import { handleOpenChatTab, handleOpenOptionsPage } from "./js/uiActions.js";
 
 console.log(
-  `[LLM Background] Service Worker Start (v3.4.7 - Pricing Retry Logic)`,
+  `[LLM Background] Service Worker Start (v3.8.0 - HTML Summary Format)`,
 ); // Updated version
 
 let DEBUG = false;
@@ -77,6 +66,7 @@ chrome.runtime.onInstalled.addListener(() => {
       STORAGE_KEY_CHAT_MODEL_ID,
       STORAGE_KEY_BULLET_COUNT,
       STORAGE_KEY_MAX_REQUEST_PRICE,
+      STORAGE_KEY_PROMPT_TEMPLATE,
     ],
     (data) => {
       DEBUG = !!data[STORAGE_KEY_DEBUG]; // Update DEBUG status from settings
@@ -105,6 +95,60 @@ chrome.runtime.onInstalled.addListener(() => {
         initialSettings[STORAGE_KEY_MAX_REQUEST_PRICE] =
           constants.DEFAULT_MAX_REQUEST_PRICE;
       }
+
+      // Handle prompt template reset on extension load/update:
+      // - Preserve user's custom formatting in <user_formatting> section
+      // - Reset pre-prompt and post-prompt to current defaults
+      // This ensures system templates update while keeping user customizations
+      const currentPromptTemplate = data[STORAGE_KEY_PROMPT_TEMPLATE];
+      if (currentPromptTemplate) {
+        // Extract user's custom formatting section from existing template
+        const startTag = '<user_formatting>';
+        const endTag = '</user_formatting>';
+        const startIndex = currentPromptTemplate.indexOf(startTag);
+        const endIndex = currentPromptTemplate.indexOf(endTag);
+
+        let userFormattingContent = '';
+        if (startIndex !== -1 && endIndex !== -1) {
+          userFormattingContent = currentPromptTemplate.substring(
+            startIndex + startTag.length,
+            endIndex
+          );
+          if (DEBUG) {
+            console.log("[LLM Background] Extracted user formatting content for preservation");
+          }
+        }
+
+        // Create new template with preserved user formatting
+        const newDefaultTemplate = DEFAULT_XML_PROMPT_TEMPLATE;
+        const newStartIndex = newDefaultTemplate.indexOf(startTag);
+        const newEndIndex = newDefaultTemplate.indexOf(endTag);
+
+        if (newStartIndex !== -1 && newEndIndex !== -1 && userFormattingContent) {
+          const newTemplate =
+            newDefaultTemplate.substring(0, newStartIndex + startTag.length) +
+            userFormattingContent +
+            newDefaultTemplate.substring(newEndIndex);
+
+          initialSettings[STORAGE_KEY_PROMPT_TEMPLATE] = newTemplate;
+          if (DEBUG) {
+            console.log("[LLM Background] Reset prompt template with preserved user formatting");
+          }
+        } else {
+          // Fallback: use completely new default template
+          initialSettings[STORAGE_KEY_PROMPT_TEMPLATE] = DEFAULT_XML_PROMPT_TEMPLATE;
+          if (DEBUG) {
+            console.log("[LLM Background] Reset prompt template to complete default (no user formatting preserved)");
+          }
+        }
+      } else {
+        // No existing template, set default
+        initialSettings[STORAGE_KEY_PROMPT_TEMPLATE] = DEFAULT_XML_PROMPT_TEMPLATE;
+        if (DEBUG) {
+          console.log("[LLM Background] Set default prompt template (first install)");
+        }
+      }
+
       // Only set if there are new initial settings to save
       if (Object.keys(initialSettings).length > 0) {
         chrome.storage.sync.set(initialSettings, () => {
@@ -315,13 +359,6 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
   payload.append("title", options.title);
   payload.append("content", options.content);
   payload.append("comments", options.comments);
-
-  if (options.feed_id) {
-    payload.append("feed_id", options.feed_id);
-  }
-  if (options.rss_url) {
-    payload.append("rss_url", options.rss_url);
-  }
 
   try {
     const response = await fetch(apiUrl, {

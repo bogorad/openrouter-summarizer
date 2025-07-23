@@ -105,15 +105,43 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
       );
   } else if (contentDiv && contentDiv.innerHTML.trim() !== "") {
     // Fallback: Use the innerHTML of the contentDiv for rich text
-    // and textContent for plain text
     htmlToCopy = contentDiv.innerHTML;
-    textToCopy = contentDiv.textContent.replace(/\u00A0/g, " ").trim() || "";
 
+    // For plain text, preserve bold formatting as markdown
     const listItems = contentDiv.querySelectorAll("li");
-    if (listItems.length > 0 && !textToCopy.includes("\n")) {
+    if (listItems.length > 0) {
       textToCopy = Array.from(listItems)
-        .map((li) => `* ${li.textContent.replace(/\u00A0/g, " ").trim()}`)
+        .map((li) => {
+          // Convert <b> tags to **bold** markdown in plain text
+          let itemText = li.innerHTML
+            .replace(/<b>/gi, "**")
+            .replace(/<\/b>/gi, "**")
+            .replace(/<[^>]*>/g, "") // Remove any other HTML tags
+            .replace(/\u00A0/g, " ")
+            .trim();
+          return `* ${itemText}`;
+        })
         .join("\n");
+    } else {
+      // Fallback for non-list content
+      textToCopy = contentDiv.innerHTML
+        .replace(/<b>/gi, "**")
+        .replace(/<\/b>/gi, "**")
+        .replace(/<[^>]*>/g, "")
+        .replace(/\u00A0/g, " ")
+        .trim() || "";
+    }
+
+    // Add source URL if available (consistent with originalMarkdownArray path)
+    if (currentPageURL) {
+      const linkText = currentPageTitle
+        ? escapeHTML(currentPageTitle)
+        : escapeHTML(currentPageURL);
+      htmlToCopy += `<br><p>Source: <a href="${escapeHTML(currentPageURL)}">${linkText}</a></p>`;
+      textToCopy += `\n\nSource: ${currentPageURL}`;
+      if (currentPageTitle) {
+        textToCopy += ` (${currentPageTitle})`;
+      }
     }
 
     if (DEBUG)
