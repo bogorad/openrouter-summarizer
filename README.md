@@ -7,15 +7,8 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 
 ## ✨ What's New in v3.8.0
 
-- **🎯 Native HTML Summary Format:** LLM now returns properly formatted HTML bullet lists directly, eliminating JSON parsing errors and improving reliability.
-- **🔧 Dynamic Bullet Count Configuration:** The bullet count setting (3-8) now actually works! Uses `$$$bulletCount$$$` placeholder in prompt templates.
-- **📋 Enhanced Copy Functionality:** Preserves bold formatting in both rich text (HTML) and plain text (markdown) when copying summaries.
-- **💬 Fixed Chat Integration:** Chat window now properly handles HTML summaries without parsing errors.
-- **📤 Fixed NewsBlur Sharing:** Sharing to NewsBlur now works correctly with the new HTML format.
 - **🔔 Fixed Notification System:** "Sending note to Joplin..." messages now properly clear and don't persist indefinitely.
-- **🐛 Comprehensive Debug Logging:** Added extensive debug logging throughout the codebase, especially for language detection and summary processing.
 - **🌐 Improved Language Detection:** Enhanced logging shows exactly when and how language detection occurs.
-- **⚡ Streamlined Code Architecture:** Simplified data flow eliminates unnecessary JSON parsing and HTML rebuilding.
 
 ---
 
@@ -45,6 +38,10 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 
 ## Screenshots
 
+## ![Selection](media/selection.png)
+
+---
+
 ![Summary](media/summary.png)
 
 ---
@@ -54,6 +51,8 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 ---
 
 ## ![Models](media/models.png)
+
+---
 
 ## 🛠️ How It Works
 
@@ -119,4 +118,3 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 ## 🏷️ Tags
 
 `Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`, `Keyboard Shortcuts`, `Copy HTML`, `Hotkeys`
-
