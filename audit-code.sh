@@ -16,11 +16,15 @@ command -v awk >/dev/null 2>&1 || { echo >&2 "Error: 'awk' is not installed. Abo
 command -v jq >/dev/null 2>&1 || { echo >&2 "Error: 'jq' is not installed. Aborting."; exit 1; }
 
 # --- Environment Variable Handling ---
-# Source .env file if it exists. This allows variables in the file
-# to be used if they are not already set in the environment.
+# Source .env file if it exists.
 if [[ -f "./.env" ]]; then
   echo "Info: Sourcing variables from ./.env file." >&2
-  export $(grep -v '^#' ./.env | grep -E '^(OPENROUTER_API_KEY|CODE_AUDITOR_MODEL)=' | xargs)
+  # The `|| true` prevents `set -e` from exiting if grep finds no lines.
+  # We capture the output and only run export if there is something to export.
+  vars_to_export=$(grep -E '^(OPENROUTER_API_KEY|CODE_AUDITOR_MODEL)=' ./.env | grep -v '^#' || true)
+  if [[ -n "$vars_to_export" ]]; then
+      export $(echo "$vars_to_export" | xargs)
+  fi
 fi
 
 # Set the default model ONLY if it's still not set (from either the environment or the .env file).
@@ -36,7 +40,9 @@ fi
 echo "Info: API Key loaded. Using model: $CODE_AUDITOR_MODEL" >&2
 
 # --- Step 1: Define inline prompt ---
-read -r -d '' PROMPT_CONTENT <<'EOF'
+# Use command substitution with a here document for a robust, multi-line string assignment.
+# The quoted 'EOF' prevents shell expansion inside the block.
+PROMPT_CONTENT=$(cat <<'EOF'
 You are a world-class senior staff software engineer and cybersecurity expert specializing in [insert programming language or technology stack, e.g., Python, Java, web applications, etc.]. Your task is to perform a holistic audit of the following [insert type of application, e.g., web application, API, microservice, etc.] codebase, which has been packed into a single context for you.
 
 Your analysis must be thorough, deep, and actionable. Review the entire system for the following key areas:
@@ -73,6 +79,7 @@ Your response should be professional, concise, and focused on providing actionab
 
 Here is the codebase:
 EOF
+)
 
 echo "Info: Running repomix and sending to OpenRouter..." >&2
 echo "--- AI Response ---" >&2

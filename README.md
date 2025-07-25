@@ -1,18 +1,19 @@
-# OpenRouter Summarizer v3.8.0
+# OpenRouter Summarizer v3.8.1
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, native HTML summaries, flexible options, and comprehensive debug logging!_
 
 ---
 
-## ✨ What's New in v3.8.0
+## What's New in v3.8.1
 
-- **🔔 Fixed Notification System:** "Sending note to Joplin..." messages now properly clear and don't persist indefinitely.
-- **🌐 Improved Language Detection:** Enhanced language detection accuracy and support for US-English-only to speed things up.
+- **Fixed Notification System:** "Sending note to Joplin..." messages now properly clear and don't persist indefinitely.
+- **Improved Language Detection:** Enhanced language detection accuracy and support for US-English-only to speed things up.
+- **Fixed token calculation:** Using a more modern estimate of 0.32 instead of 0.22756.
 
 ---
 
-## 🚀 Features
+## Features
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
 - **Native HTML Summaries:** LLM returns properly formatted HTML bullet lists with preserved formatting (bold text, etc.).
@@ -53,7 +54,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 
 ---
 
-## 🛠️ How It Works
+## How It Works
 
 1.  **Install & Setup:**
     - Install the extension.
@@ -90,7 +91,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 
 ---
 
-## 🔒 Privacy & Permissions
+## Privacy & Permissions
 
 - **Permissions Used:**
   - `activeTab`, `scripting`: To interact with the page for selection and UI.
@@ -111,6 +112,6 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ---
 
-## 🏷️ Tags
+## Tags
 
 `Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`, `Keyboard Shortcuts`, `Copy HTML`, `Hotkeys`

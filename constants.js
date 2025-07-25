@@ -158,5 +158,5 @@ export const ERROR_SERVER_ERROR =
 
 // --- Additional Constants for pageInteraction.js ---
 export const MIN_MARKDOWN_LENGTH = 50; // Minimum length for markdown content
-export const TOKENS_PER_CHAR = 227.56 / 1024; // Approximation for token estimation based on characters
-export const TOKENS_PER_KB = 227.56; // Approximation based on 4.5 characters per token and 1024 characters per KB
+export const TOKENS_PER_CHAR = 320 / 1024; // Approximation for token estimation based on characters
+export const TOKENS_PER_KB = 320; // Approximation based on 4.5 characters per token and 1024 characters per KB
