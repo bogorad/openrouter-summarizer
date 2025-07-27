@@ -10,6 +10,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 - **Fixed Notification System:** "Sending note to Joplin..." messages now properly clear and don't persist indefinitely.
 - **Improved Language Detection:** Enhanced language detection accuracy and support for US-English-only to speed things up.
 - **Fixed token calculation:** Using a more modern estimate of 0.32 instead of 0.22756.
+- **Breaking change:** Update your API keys.
 
 ---
 
