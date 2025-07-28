@@ -18,8 +18,6 @@ if [[ -f "/run/secrets/api_keys/openrouter" ]]; then
   OPENROUTER_API_KEY=$(tr -d '[:space:]' < "/run/secrets/api_keys/openrouter")
   export OPENROUTER_API_KEY
   echo "Info: Loaded API key from secret file" >&2
-else
-  echo "Info: Secret file not found at /run/secrets/api_keys/openrouter" >&2
 fi
 
 # Check .env file
@@ -44,8 +42,6 @@ if [[ -f ".env" ]]; then
       echo "Info: Loaded $key from .env" >&2
     fi
   done < <(grep -v '^\s*#' .env | grep '=')
-else
-  echo "Info: .env file not found" >&2
 fi
 
 # Set defaults and validate
@@ -59,8 +55,8 @@ if [[ -z "$OPENROUTER_API_KEY" ]]; then
 fi
 
 #############################################################
-# --- Model Validation with Provider Order ---
-echo "Info: Testing model '$CODE_AUDITOR_MODEL' with provider order..." >&2
+# --- Model Validation
+echo "Info: Testing model '$CODE_AUDITOR_MODEL'..." >&2
 
 # Create temporary files for response handling
 ping_response_file=$(mktemp) || exit 1
@@ -78,7 +74,7 @@ PING_REQUEST_JSON=$(jq -nc \
     }
   }')
 
-# FIX #2: Simplified curl status handling - write body to file and capture status code directly
+# Simplified curl status handling - write body to file and capture status code directly
 HTTP_STATUS=$(curl -sS -o "$ping_response_file" -w "%{http_code}" \
   -X POST "https://openrouter.ai/api/v1/chat/completions" \
   -H "Authorization: Bearer $OPENROUTER_API_KEY" \
@@ -107,9 +103,20 @@ echo "Info: Model '$CODE_AUDITOR_MODEL' validated successfully" >&2
 
 # --- Define System Prompt ---
 PROMPT_CONTENT=$(cat <<'EOF'
-You are a world-class senior staff software engineer and cybersecurity expert specializing in multiple programming languages and technology stacks. Your task is to perform a holistic audit of the following software application codebase, which has been packed into a single context for you.
+You are a world-class senior staff software engineer and cybersecurity expert
+specializing in multiple programming languages and technology stacks. Your task
+is to perform a holistic audit of the following software application codebase,
+which has been packed into a single context for you.
 
-Your analysis must be thorough, deep, and actionable. Review the entire system for the following key areas:
+Your analysis must be thorough, deep, and actionable.
+
+**Severity Rubric**  
+- **[Critical]**: Immediate breach/RCE risk (e.g., SQLi in auth flow).  
+- **[High]**: Data leakage/privilege escalation (e.g., IDOR in order history).  
+- **[Medium]**: Functional failure (e.g., race condition causing payment dupe).  
+- **[Low]**: Low-risk (e.g., unused import).  
+
+**Audit Focus**
 
 1. **Security Vulnerabilities:** Scrutinize for any potential security flaws, such as SQL injection, cross-site scripting (XSS), insecure authentication, or improper access controls.
 2. **Architectural Issues:** Evaluate the overall design, looking for tight coupling, poor separation of concerns, scalability bottlenecks, or violations of design principles like SOLID, DRY, dead code, and defensive programming.
@@ -146,7 +153,7 @@ EOF
 )
 
 #############################################################
-# MAIN EXECUTION (clean pipeline)
+# MAIN EXECUTION
 #############################################################
 
 # Create temporary files with proper cleanup
