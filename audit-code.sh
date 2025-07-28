@@ -7,7 +7,6 @@ set -o pipefail
 # --- Dependency Checks ---
 command -v repomix >/dev/null 2>&1 || { echo >&2 "Error: 'repomix' is not installed. Aborting."; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo >&2 "Error: 'curl' is not installed. Aborting."; exit 1; }
-command -v awk >/dev/null 2>&1 || { echo >&2 "Error: 'awk' is not installed. Aborting."; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo >&2 "Error: 'jq' is not installed. Aborting."; exit 1; }
 
 #############################################################
@@ -25,24 +24,26 @@ fi
 
 # Check .env file
 if [[ -f ".env" ]]; then
+  # Read lines that are not comments and contain '='
   while IFS='=' read -r key value; do
-    [[ "$key" =~ ^# ]] && continue
+    # Skip empty keys
     [[ -z "$key" ]] && continue
     
-    case "$key" in
-      OPENROUTER_API_KEY|CODE_AUDITOR_MODEL)
-        value="${value%\"}"
-        value="${value#\"}"
-        value="${value%'}"
-        value="${value#'}"
-        
-        if [[ -z "${!key:-}" ]]; then
-          export "$key=$value"
-          echo "Info: Loaded $key from .env" >&2
-        fi
-        ;;
-    esac
-  done < <(grep -E '^(OPENROUTER_API_KEY|CODE_AUDITOR_MODEL)=' .env)
+    # Normalize key - trim whitespace and remove any potential comment suffix
+    key=$(echo "$key" | awk '{$1=$1};1')
+    
+    # Skip if key starts with # (comment)
+    [[ "$key" =~ ^# ]] && continue
+    
+    # Remove leading/trailing whitespace and quotes from the value
+    value_trimmed=$(echo "$value" | awk '{$1=$1};1' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//')
+    
+    # Only export if the variable is not already set from the environment
+    if [[ -z "${!key:-}" ]]; then
+      export "$key=$value_trimmed"
+      echo "Info: Loaded $key from .env" >&2
+    fi
+  done < <(grep -v '^\s*#' .env | grep '=')
 else
   echo "Info: .env file not found" >&2
 fi
@@ -58,39 +59,88 @@ if [[ -z "$OPENROUTER_API_KEY" ]]; then
 fi
 
 #############################################################
-# --- Model Validation ---
-echo "Info: Testing model '$CODE_AUDITOR_MODEL'..." >&2
+# --- Model Validation with Provider Order ---
+echo "Info: Testing model '$CODE_AUDITOR_MODEL' with provider order..." >&2
+
+# Create temporary files for response handling
+ping_response_file=$(mktemp) || exit 1
+trap 'rm -f "$ping_response_file"' EXIT
+
+# Build request with provider priority and metadata headers
 PING_REQUEST_JSON=$(jq -nc \
   --arg model "$CODE_AUDITOR_MODEL" \
-  '{ "model": $model, "max_tokens": 1, "messages": [{"role":"user","content":"ping"}] }')
+  '{
+    "model": $model,
+    "max_tokens": 1,
+    "messages": [{"role":"user","content":"ping"}],
+    "provider": {
+      "order": ["chutes", "deepinfra/fp8"]
+    }
+  }')
 
-# Capture full response with status code
-_RESPONSE=$(curl -sS -X POST "https://openrouter.ai/api/v1/chat/completions" \
+# FIX #2: Simplified curl status handling - write body to file and capture status code directly
+HTTP_STATUS=$(curl -sS -o "$ping_response_file" -w "%{http_code}" \
+  -X POST "https://openrouter.ai/api/v1/chat/completions" \
   -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+  -H "HTTP-Referer: https://bogorad.github.io/" \
+  -H "X-Title: AuditCode" \
   -H "Content-Type: application/json" \
-  -d "$PING_REQUEST_JSON" \
-  -w "\n%{http_code}")
+  -d "$PING_REQUEST_JSON")
 
-# Process response
-_HTTP_STATUS=$(tail -n1 <<< "${_RESPONSE}")
-_BODY=$(sed '$d' <<< "${_RESPONSE}")
-
-if [ "${_HTTP_STATUS}" != "200" ]; then
-  echo >&2 "Error: Model validation failed (HTTP ${_HTTP_STATUS})"
-  if [ -n "${_BODY}" ] && jq empty <<< "${_BODY}" 2>/dev/null; then
-    jq . >&2 <<< "${_BODY}"
+# Check for success (200 status)
+if [ "$HTTP_STATUS" != "200" ]; then
+  echo >&2 "Error: Model validation failed (HTTP $HTTP_STATUS)"
+  if [ -s "$ping_response_file" ]; then
+    echo "Response details:" >&2
+    if jq empty "$ping_response_file" 2>/dev/null; then
+      jq . >&2 "$ping_response_file"
+    else
+      cat "$ping_response_file" >&2
+    fi
   else
-    printf '%s\n' "${_BODY}" >&2
+    echo "No response body received" >&2
   fi
   exit 1
 fi
-echo "Info: Model '$CODE_AUDITOR_MODEL' is valid" >&2
+echo "Info: Model '$CODE_AUDITOR_MODEL' validated successfully" >&2
 #############################################################
 
 # --- Define System Prompt ---
 PROMPT_CONTENT=$(cat <<'EOF'
-You are a world-class senior staff software engineer and cybersecurity expert...
-[... same prompt content as before ...]
+You are a world-class senior staff software engineer and cybersecurity expert specializing in multiple programming languages and technology stacks. Your task is to perform a holistic audit of the following software application codebase, which has been packed into a single context for you.
+
+Your analysis must be thorough, deep, and actionable. Review the entire system for the following key areas:
+
+1. **Security Vulnerabilities:** Scrutinize for any potential security flaws, such as SQL injection, cross-site scripting (XSS), insecure authentication, or improper access controls.
+2. **Architectural Issues:** Evaluate the overall design, looking for tight coupling, poor separation of concerns, scalability bottlenecks, or violations of design principles like SOLID, DRY, dead code, and defensive programming.
+3. **Bugs and Logic Errors:** Identify potential bugs, race conditions, or flawed logic that could lead to incorrect behavior, crashes, or unexpected failures.
+4. **Code Quality and Maintainability:** Look for violations of best practices, "code smells," or areas where the code is difficult to read, maintain, or extend.
+
+Prioritize the most critical issues first, focusing on high-impact areas such as security vulnerabilities and architectural flaws.
+
+Your final output MUST be a well-structured Markdown document. For each issue you identify, you MUST provide the following:
+
+- A clear and descriptive title for the issue.
+- A severity rating: [Critical], [High], [Medium], or [Low].
+- A detailed paragraph explaining the problem and the risk it poses.
+- The exact file path and line number(s) where the issue can be found.
+- A specific, actionable code example demonstrating how to fix it.
+
+For example, an issue might be described as follows:
+
+**Issue Title**: SQL Injection Vulnerability
+**Severity**: [Critical]
+**Description**: The code uses string concatenation to build SQL queries, which can lead to SQL injection attacks. This poses a significant security risk as it allows attackers to execute arbitrary SQL commands.
+**Location**: /path/to/file.php, lines 45-50
+**Fix**: Use prepared statements to prevent SQL injection. Here is an example:
+
+```php
+$stmt = $pdo->prepare('SELECT * FROM users WHERE username = :username');
+$stmt->execute(['username' => $username]);
+```
+
+Your response should be professional, concise, and focused on providing actionable insights. Avoid unnecessary explanations or tangents. Do not begin your response with any pleasantries. Start directly with the first issue.
+
 Here is the codebase:
 EOF
 )
@@ -100,63 +150,61 @@ EOF
 #############################################################
 echo "--- AI Response ---" >&2
 
-# 1. Generate payload to tmp file
-payload_file=$(mktemp) || exit 1
-response_file=$(mktemp) || { rm -f "$payload_file"; exit 1; }
-trap 'rm -f "$payload_file" "$response_file"' EXIT
+# Create temporary files with proper cleanup
+codebase_file=$(mktemp) || exit 1
+payload_file=$(mktemp) || { rm -f "$codebase_file"; exit 1; }
+response_file=$(mktemp) || { rm -f "$codebase_file" "$payload_file"; exit 1; }
+trap 'rm -f "$codebase_file" "$payload_file" "$response_file"' EXIT
 
-# Build payload
-if ! repomix --stdout "$@" | awk -v model="$CODE_AUDITOR_MODEL" -v prompt="$PROMPT_CONTENT" '
-BEGIN {
-  printf "{\n"
-  printf "  \"model\": \"%s\",\n", model
-  printf "  \"messages\": [\n"
-  
-  # System message
-  printf "    {\n"
-  printf "      \"role\": \"system\",\n"
-  escaped_prompt = prompt
-  gsub(/\\/, "\\\\", escaped_prompt)
-  gsub(/"/, "\\\"", escaped_prompt)
-  gsub(/\n/, "\\n", escaped_prompt)
-  gsub(/\r/, "\\r", escaped_prompt)
-  gsub(/\t/, "\\t", escaped_prompt)
-  printf "      \"content\": \"%s\"\n", escaped_prompt
-  printf "    },\n"
-
-  # User message (start)
-  printf "    {\n"
-  printf "      \"role\": \"user\",\n"
-  printf "      \"content\": \""
-}
-{
-  gsub(/\\/, "\\\\")
-  gsub(/"/, "\\\"")
-  gsub(/\r/, "\\r")
-  gsub(/\t/, "\\t")
-  printf "%s\\n", $0
-}
-END {
-  printf "\"\n"
-  printf "    }\n"
-  printf "  ]\n"
-  printf "}\n"
-}' > "$payload_file"; then
-  echo >&2 "Error: Failed to generate request payload"
+# Run repomix to collect codebase
+echo "Info: Running repomix to collect codebase..." >&2
+if ! repomix --stdout "$@" > "$codebase_file"; then
+  echo >&2 "Error: repomix failed to generate codebase content"
   exit 1
 fi
 
-# 2. Send request and handle response
-if ! curl -sS -o "$response_file" -w "%{http_code}" \
+# FIX #1: Use jq to build payload correctly (no manual escaping)
+# This properly handles all JSON escaping automatically
+echo "Info: Constructing JSON payload safely with jq..." >&2
+if ! jq -nc \
+  --arg model "$CODE_AUDITOR_MODEL" \
+  --arg prompt "$PROMPT_CONTENT" \
+  --rawfile codebase "$codebase_file" \
+  '{
+    "model": $model,
+    "provider": {
+      "order": ["chutes", "deepinfra/fp8"]
+    },
+    "messages": [
+      {
+        "role": "system",
+        "content": $prompt
+      },
+      {
+        "role": "user",
+        "content": $codebase
+      }
+    ]
+  }' > "$payload_file"; then
+  echo >&2 "Error: Failed to generate request payload with jq"
+  exit 1
+fi
+
+# Send main request using simplified curl status handling (FIX #2)
+echo "Info: Sending request to OpenRouter with provider priority..." >&2
+HTTP_STATUS=$(curl -sS -o "$response_file" -w "%{http_code}" \
   -X POST "https://openrouter.ai/api/v1/chat/completions" \
   -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+  -H "HTTP-Referer: https://bogorad.github.io/" \
+  -H "X-Title: AuditCode" \
   -H "Content-Type: application/json" \
-  -d "@$payload_file" | { HTTP_STATUS=$(cat); test "$HTTP_STATUS" = "200"; }; then
-  
-  # Handle API errors
+  -d "@$payload_file")
+
+# Handle API response
+if [ "$HTTP_STATUS" != "200" ]; then
   echo >&2 "Error: API request failed (HTTP $HTTP_STATUS)"
   if [ -s "$response_file" ]; then
-    echo "Response:" >&2
+    echo "API Response:" >&2
     if jq empty "$response_file" 2>/dev/null; then
       jq . >&2 "$response_file"
     else
@@ -166,10 +214,11 @@ if ! curl -sS -o "$response_file" -w "%{http_code}" \
   exit 1
 fi
 
-# 3. Output ONLY model content to stdout (all else is stderr)
+# Output ONLY model content to stdout (all else is stderr)
+echo "Info: Extracting model response..." >&2
 jq -r '.choices[0].message.content' "$response_file"
 
 # Done notification (stderr)
 echo >&2
 echo "---" >&2
-echo "Info: Processing complete" >&2
+echo "Info: Processing complete (referenced in OR logs as 'AuditCode')" >&2
