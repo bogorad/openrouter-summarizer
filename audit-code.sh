@@ -148,7 +148,6 @@ EOF
 #############################################################
 # MAIN EXECUTION (clean pipeline)
 #############################################################
-echo "--- AI Response ---" >&2
 
 # Create temporary files with proper cleanup
 codebase_file=$(mktemp) || exit 1
