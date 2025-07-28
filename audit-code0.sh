@@ -5,7 +5,9 @@
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
-set -o pipefail  # Critical for pipeline error detection
+
+# --- Configuration ---
+OPENROUTER_URL="https://openrouter.ai/api/v1/chat/completions"
 
 # --- Dependency Checks ---
 command -v repomix >/dev/null 2>&1 || { echo >&2 "Error: 'repomix' is not installed. Aborting."; exit 1; }
@@ -13,9 +15,17 @@ command -v curl >/dev/null 2>&1 || { echo >&2 "Error: 'curl' is not installed. A
 command -v awk >/dev/null 2>&1 || { echo >&2 "Error: 'awk' is not installed. Aborting."; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo >&2 "Error: 'jq' is not installed. Aborting."; exit 1; }
 
-#############################################################
 # --- Environment Variable Handling ---
-# Source .env file if it exists. This overrides environment variables.
+# Source .env file if it exists.
+# if [[ -f "./.env" ]]; then
+#   echo "Info: Sourcing variables from ./.env file." >&2
+#   # The `|| true` prevents `set -e` from exiting if grep finds no lines.
+#   # We capture the output and only run export if there is something to export.
+#   vars_to_export=$(grep -E '^(OPENROUTER_API_KEY|CODE_AUDITOR_MODEL)=' ./.env | grep -v '^#' || true)
+#   if [[ -n "$vars_to_export" ]]; then
+#       export $(echo "$vars_to_export" | xargs)
+#   fi
+# fi
 if [[ -f ".env" ]]; then
   while IFS='=' read -r key value; do
     [[ "$key" =~ ^# ]] && continue  # Skip comments
@@ -32,7 +42,6 @@ if [[ -f ".env" ]]; then
   done < <(grep -E '^(OPENROUTER_API_KEY|CODE_AUDITOR_MODEL)=' .env)
 fi
 
-#############################################################
 # Set the default model ONLY if it's still not set (from either the environment or the .env file).
 CODE_AUDITOR_MODEL="${CODE_AUDITOR_MODEL:-qwen/qwen3-235b-a22b-2507:free}"
 
@@ -43,60 +52,18 @@ if [[ -z "$OPENROUTER_API_KEY" ]]; then
   exit 1
 fi
 
-#############################################################
-# --- Model Validation
-echo "Info: Testing model '$CODE_AUDITOR_MODEL' with a lightweight request..." >&2
-
-# Build a minimal request payload safely using jq
-PING_REQUEST_JSON=$(jq -nc \
-  --arg model "$CODE_AUDITOR_MODEL" \
-  '{
-    "model": $model,
-    "max_tokens": 40,
-    "messages": [
-      {"role": "user", "content": "ping"}
-    ]
-  }')
-
-# Send ping request and capture response with HTTP status
-RESPONSE=$(curl -s -X POST "https://openrouter.ai/api/v1/chat/completions" \
-  -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "$PING_REQUEST_JSON" \
-  -w "\n%{http_code}")
-
-# Split response into body and status
-HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
-BODY=$(echo "$RESPONSE" | sed '$d')
-
-# Check for success
-if [ "$HTTP_STATUS" != "200" ]; then
-  echo >&2 "Error: OpenRouter API returned HTTP status $HTTP_STATUS when testing model '$CODE_AUDITOR_MODEL'."
-  if [ -n "$BODY" ]; then
-    echo >&2 "Response body:"
-    # Format as JSON if possible, otherwise show raw
-    if echo "$BODY" | jq . >/dev/null 2>&1; then
-      echo "$BODY" | jq . >&2
-    else
-      echo "$BODY" | sed 's/^/  /' >&2
-    fi
-  fi
-  exit 1
-fi
-
-echo "Info: Model '$CODE_AUDITOR_MODEL' is valid and responsive." >&2
-#############################################################
-
 echo "Info: API Key loaded. Using model: $CODE_AUDITOR_MODEL" >&2
 
-# --- Step 1: Define inline prompt with GENERIC PLACEHOLDERS ---
+# --- Step 1: Define inline prompt ---
+# Use command substitution with a here document for a robust, multi-line string assignment.
+# The quoted 'EOF' prevents shell expansion inside the block.
 PROMPT_CONTENT=$(cat <<'EOF'
-You are a world-class senior staff software engineer and cybersecurity expert specializing in multiple programming languages and technology stacks. Your task is to perform a holistic audit of the following software application codebase, which has been packed into a single context for you.
+You are a world-class senior staff software engineer and cybersecurity expert specializing in [insert programming language or technology stack, e.g., Python, Java, web applications, etc.]. Your task is to perform a holistic audit of the following [insert type of application, e.g., web application, API, microservice, etc.] codebase, which has been packed into a single context for you.
 
 Your analysis must be thorough, deep, and actionable. Review the entire system for the following key areas:
 
 1. **Security Vulnerabilities:** Scrutinize for any potential security flaws, such as SQL injection, cross-site scripting (XSS), insecure authentication, or improper access controls.
-2. **Architectural Issues:** Evaluate the overall design, looking for tight coupling, poor separation of concerns, scalability bottlenecks, or violations of design principles like SOLID, DRY, dead code, and defensive programming.
+2. **Architectural Issues:** Evaluate the overall design, looking for tight coupling, poor separation of concerns, scalability bottlenecks, or violations of design principles like SOLID, DRY, and defensive programming.
 3. **Bugs and Logic Errors:** Identify potential bugs, race conditions, or flawed logic that could lead to incorrect behavior, crashes, or unexpected failures.
 4. **Code Quality and Maintainability:** Look for violations of best practices, "code smells," or areas where the code is difficult to read, maintain, or extend.
 
@@ -129,10 +96,14 @@ Here is the codebase:
 EOF
 )
 
-#############################################################
 echo "Info: Running repomix and sending to OpenRouter..." >&2
 echo "--- AI Response ---" >&2
 
+# --- Step 2 & 3: The Pipeline ---
+# 1. repomix runs with --stdout and any script arguments ("$@").
+# 2. Its output is piped to awk, which constructs the JSON payload.
+# 3. awk's output is piped to curl's stdin using -d @-.
+# 4. curl's JSON response is piped to jq, which extracts the message content.
 repomix --stdout "$@" | \
 awk -v model="$CODE_AUDITOR_MODEL" -v prompt="$PROMPT_CONTENT" '
 BEGIN {
@@ -151,8 +122,6 @@ BEGIN {
   gsub(/"/, "\\\"", escaped_prompt);
   gsub(/\n/, "\\n", escaped_prompt);
   gsub(/\r/, "\\r", escaped_prompt);
-  
-  # Preserve tabs instead of stripping (fixed control character handling)
   gsub(/\t/, "\\t", escaped_prompt);
   
   printf "      \"content\": \"%s\"\n", escaped_prompt;
@@ -165,11 +134,8 @@ BEGIN {
 }
 # Main block: process each line from repomix stdin
 {
-  # Escape in proper order (critical for JSON validity)
   gsub(/\\/, "\\\\");
   gsub(/"/, "\\\"");
-  gsub(/\r/, "\\r");
-  gsub(/\t/, "\\t");  # Preserve tabs instead of stripping
   printf "%s\\n", $0;
 }
 END {
@@ -180,7 +146,7 @@ END {
   printf "}\n";
 }
 ' | \
-curl -s -X POST "https://openrouter.ai/api/v1/chat/completions" \
+curl -s -X POST "$OPENROUTER_URL" \
   -H "Authorization: Bearer $OPENROUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d @- | \
