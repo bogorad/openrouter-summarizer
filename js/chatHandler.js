@@ -69,7 +69,7 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
           "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
-          "X-Title": "OpenRouter Summarizer",
+          "X-Title": "OR-Summ: Chat",
         },
         body: JSON.stringify(payload),
         signal: controller.signal,
@@ -180,4 +180,3 @@ export function handleAbortChatRequest(sendResponse, DEBUG = false) {
     }
   });
 }
-

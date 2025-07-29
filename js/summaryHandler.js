@@ -38,8 +38,8 @@ async function detectLanguage(apiKey, contentSnippet, DEBUG = false) {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": chrome.runtime.getURL(""),
-        "X-Title": "OpenRouter Summarizer Extension",
+        "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
+        "X-Title": "OR-Summary",
       },
       body: JSON.stringify(payload),
     });
@@ -235,7 +235,7 @@ export async function handleRequestSummary(
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
           "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
-          "X-Title": "OR-Summ",
+          "X-Title": "OR-Summ: Summary",
         },
         body: JSON.stringify(payload),
       },
