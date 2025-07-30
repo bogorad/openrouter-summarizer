@@ -18,11 +18,14 @@ import { isTabClosedError, getSystemPrompt } from "./backgroundUtils.js";
 async function detectLanguage(apiKey, contentSnippet, DEBUG = false) {
   try {
     const payload = {
-      model: "google/gemini-2.5-flash-lite",
+      model: "moonshotai/kimi-k2",
       messages: [
         {
           role: "user",
-          content: `Determine the language of this fragment. If you can not determine the language, the fallback language is US English. Respond with a "ISO 639-2" code, provide only three characters. You are forbidden from responding with anything else!!!\n\n---\n\n${contentSnippet}`,
+          content: `Determine the language that this fragment is written in. 
+          If you can not determine the language, the fallback language is US English. 
+          Respond with a "ISO 639-2" code, provide only three characters. 
+          You are forbidden from responding with anything else!!!\n\n---\n\n${contentSnippet}`,
         },
       ],
     };
@@ -39,7 +42,7 @@ async function detectLanguage(apiKey, contentSnippet, DEBUG = false) {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
-        "X-Title": "OR-Summary",
+        "X-Title": "OR-Summ: Language Detection",
       },
       body: JSON.stringify(payload),
     });
