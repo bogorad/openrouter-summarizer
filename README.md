@@ -1,16 +1,15 @@
-# OpenRouter Summarizer v3.8.1
+# OpenRouter Summarizer v3.8.3
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, native HTML summaries, flexible options, and comprehensive debug logging!_
 
 ---
 
-## What's New in v3.8.1
+## What's New in v3.8.3
 
-- **Fixed Notification System:** "Sending note to Joplin..." messages now properly clear and don't persist indefinitely.
-- **Improved Language Detection:** Enhanced language detection accuracy and support for US-English-only to speed things up.
-- **Fixed token calculation:** Using a more modern estimate of 0.32 instead of 0.22756.
-- **Breaking change:** Update your API keys.
+- **Enhanced NewsBlur Integration:** Implemented two-stage cleaning process for shared content - first sanitizes HTML to remove ads and unwanted elements, then standardizes the structure by converting to Markdown and back to HTML for cleaner, universal formatting.
+- **Improved Content Quality:** NewsBlur shares now include both AI-generated summaries and super-clean versions of original content with consistent, simple HTML structure.
+- **Better Documentation:** Added comprehensive architecture flowchart showing all extension components and their interactions.
 
 ---
 
@@ -52,6 +51,140 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 ---
 
 ## ![Models](media/models.png)
+
+---
+
+## Extension Architecture
+
+The OpenRouter Summarizer follows a modular architecture with clear separation of concerns between content scripts, background services, and user interfaces. The diagram below shows all file flows and component interactions:
+
+```mermaid
+graph TB
+    %% User Interactions
+    User[👤 User] --> WebPage[🌐 Web Page]
+    User --> OptionsPage[⚙️ Options Page]
+    User --> ChatPage[💬 Chat Page]
+
+    %% Web Page Content Scripts
+    WebPage --> ContentScript[📄 Content Script Layer]
+    ContentScript --> PageInteraction[pageInteraction.js<br/>Main Content Script]
+
+    %% Content Script Modules
+    PageInteraction --> Highlighter[highlighter.js<br/>Element Selection]
+    PageInteraction --> FloatingIcon[floatingIcon.js<br/>Action Menu]
+    PageInteraction --> SummaryPopup[summaryPopup.js<br/>Summary Display]
+    PageInteraction --> JoplinManager[joplinManager.js<br/>Joplin Integration]
+    PageInteraction --> HTMLSanitizer[htmlSanitizer.js<br/>Content Cleaning]
+
+    %% Shared Utilities
+    PageInteraction --> Utils[utils.js<br/>Shared Functions]
+    PageInteraction --> Constants[constants.js<br/>Configuration]
+
+    %% External Libraries
+    PageInteraction --> TurndownService[TurndownService<br/>HTML→Markdown]
+    PageInteraction --> MarkedJS[marked.js<br/>Markdown→HTML]
+
+    %% Background Service Worker
+    PageInteraction --> Background[🔧 Background Service Worker]
+    Background --> BackgroundJS[background.js<br/>Main Service Worker]
+
+    %% Background Modules
+    BackgroundJS --> SummaryHandler[summaryHandler.js<br/>Summary Processing]
+    BackgroundJS --> ChatHandler[chatHandler.js<br/>Chat Processing]
+    BackgroundJS --> SettingsManager[settingsManager.js<br/>Settings Management]
+    BackgroundJS --> ChatContextManager[chatContextManager.js<br/>Context Storage]
+    BackgroundJS --> PricingService[pricingService.js<br/>Model Pricing]
+    BackgroundJS --> UIActions[uiActions.js<br/>UI Actions]
+    BackgroundJS --> BackgroundUtils[backgroundUtils.js<br/>Utilities]
+
+    %% External APIs
+    SummaryHandler --> OpenRouterAPI[🤖 OpenRouter API<br/>LLM Processing]
+    ChatHandler --> OpenRouterAPI
+    PricingService --> OpenRouterAPI
+
+    %% External Services
+    JoplinManager --> JoplinAPI[📝 Joplin API<br/>Note Storage]
+    PageInteraction --> NewsBlurAPI[📰 NewsBlur API<br/>Content Sharing]
+
+    %% Storage Systems
+    BackgroundJS --> ChromeStorage[💾 Chrome Storage]
+    ChromeStorage --> SyncStorage[chrome.storage.sync<br/>Settings & API Keys]
+    ChromeStorage --> SessionStorage[chrome.storage.session<br/>Chat Context]
+
+    %% Options Page
+    OptionsPage --> OptionsJS[options.js<br/>Settings Interface]
+    OptionsJS --> Background
+    OptionsJS --> ChromeStorage
+
+    %% Chat Page
+    ChatPage --> ChatJS[chat.js<br/>Chat Interface]
+    ChatJS --> Background
+    ChatJS --> Utils
+    ChatJS --> Constants
+    ChatJS --> MarkedJS
+
+    %% User Flows
+    subgraph "🔄 Primary User Flows"
+        Flow1[1. Content Selection<br/>ALT+Click → Highlight → Menu]
+        Flow2[2. Summarization<br/>Content → API → Summary Display]
+        Flow3[3. Chat Interaction<br/>Summary → Chat Context → Conversation]
+        Flow4[4. Content Sharing<br/>Clean → NewsBlur/Joplin]
+        Flow5[5. Configuration<br/>Options → Settings → Storage]
+    end
+
+    %% Data Flow Indicators
+    Highlighter -.->|DOM Selection| FloatingIcon
+    FloatingIcon -.->|User Action| SummaryPopup
+    SummaryPopup -.->|Summary Request| Background
+    Background -.->|API Response| SummaryPopup
+    SummaryPopup -.->|Chat Request| ChatPage
+
+    %% Two-Stage Cleaning Process
+    subgraph "🧹 Two-Stage Cleaning Process"
+        OriginalHTML[Original HTML Content]
+        Stage1[Stage 1: Sanitization<br/>Remove ads, tracking, unwanted elements]
+        Stage2[Stage 2: Standardization<br/>HTML → Markdown → Clean HTML]
+        CleanOutput[Clean, Universal HTML Output]
+
+        OriginalHTML --> Stage1
+        Stage1 --> Stage2
+        Stage2 --> CleanOutput
+    end
+
+    HTMLSanitizer --> Stage1
+    TurndownService --> Stage2
+    MarkedJS --> Stage2
+
+    %% Styling
+    classDef userInterface fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef contentScript fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef background fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef external fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef storage fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef flow fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+
+    class User,OptionsPage,ChatPage userInterface
+    class ContentScript,PageInteraction,Highlighter,FloatingIcon,SummaryPopup,JoplinManager,HTMLSanitizer contentScript
+    class Background,BackgroundJS,SummaryHandler,ChatHandler,SettingsManager,ChatContextManager,PricingService,UIActions,BackgroundUtils background
+    class OpenRouterAPI,JoplinAPI,NewsBlurAPI,TurndownService,MarkedJS external
+    class ChromeStorage,SyncStorage,SessionStorage storage
+    class Flow1,Flow2,Flow3,Flow4,Flow5 flow
+```
+
+### Key Components
+
+- **🟦 User Interface Layer**: Direct user interaction points (web pages, options, chat)
+- **🟪 Content Scripts**: Injected scripts handling DOM interaction and UI elements
+- **🟩 Background Services**: Service worker managing API calls, storage, and business logic
+- **🟧 External Services**: Third-party APIs and libraries for LLM processing and integrations
+- **🟥 Storage Systems**: Chrome extension storage for settings and temporary data
+
+### Data Flow Highlights
+
+1. **Content Selection**: User interactions trigger DOM highlighting and element selection
+2. **Processing Pipeline**: Selected content flows through sanitization, API processing, and display
+3. **Two-Stage Cleaning**: Enhanced content cleaning for NewsBlur sharing with sanitization and standardization
+4. **Modular Architecture**: Clear separation between UI, business logic, and external integrations
 
 ---
 

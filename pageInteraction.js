@@ -942,9 +942,42 @@ function handlePopupNewsblur(hasNewsblurToken) {
 
       const title = document.title;
       const story_url = window.location.href;
-      // Apply comprehensive sanitization for NewsBlur sharing
-      const cleanedHtmlContent = sanitizeForSharing(lastSelectedDomSnippet, DEBUG);
-      const combinedContent = summaryHtml + "<hr>" + cleanedHtmlContent;
+
+      // --- START OF NEW TWO-STAGE CLEANING IMPLEMENTATION ---
+
+      // STAGE 1: Sanitize the original messy HTML to remove ads and junk.
+      const sanitizedHtml = sanitizeForSharing(lastSelectedDomSnippet, DEBUG);
+
+      // STAGE 2: Standardize the structure by converting it to Markdown and back to HTML.
+      let finalCleanHtml = sanitizedHtml; // Fallback to sanitized HTML if conversion fails
+
+      try {
+        // Check if marked is available globally
+        if (typeof marked !== "undefined") {
+          const turndownService = new TurndownService();
+          const markdownFromSanitizedHtml = turndownService.turndown(sanitizedHtml);
+          finalCleanHtml = marked.parse(markdownFromSanitizedHtml);
+
+          if (DEBUG) {
+            console.log("[LLM Content] Two-stage cleaning completed successfully");
+            console.log("[LLM Content] Original length:", lastSelectedDomSnippet.length);
+            console.log("[LLM Content] After sanitization:", sanitizedHtml.length);
+            console.log("[LLM Content] After standardization:", finalCleanHtml.length);
+          }
+        } else {
+          console.warn("[LLM Content] marked library not available, using sanitized HTML only");
+          if (DEBUG) console.log("[LLM Content] Falling back to Stage 1 cleaning only");
+        }
+      } catch (error) {
+        console.error("[LLM Content] Error during Stage 2 cleaning:", error);
+        if (DEBUG) console.log("[LLM Content] Falling back to Stage 1 cleaning due to error");
+        // finalCleanHtml already set to sanitizedHtml as fallback
+      }
+
+      // --- END OF NEW TWO-STAGE CLEANING IMPLEMENTATION ---
+
+      // Combine the AI summary with our new, super-clean version of the original content.
+      const combinedContent = summaryHtml + "<hr>" + finalCleanHtml;
 
       chrome.runtime.sendMessage(
         {
