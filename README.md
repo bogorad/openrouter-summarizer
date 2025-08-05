@@ -60,14 +60,6 @@ The OpenRouter Summarizer follows a modular architecture with clear separation o
 
 ```mermaid
 graph TB
-    %% Styling Definitions
-    classDef userInterface fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef contentScript fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef background fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
-    classDef external fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef storage fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-    classDef flow fill:#f1f8e9,stroke:#33691e,stroke-width:2px
-
     %% User Interactions
     User[👤 User] --> WebPage[🌐 Web Page]
     User --> OptionsPage[⚙️ Options Page]
@@ -75,69 +67,75 @@ graph TB
 
     %% Web Page Content Scripts
     WebPage --> ContentScript[📄 Content Script Layer]
-    ContentScript --> PageInteraction[pageInteraction.js<br/>Main Content Script]
+    ContentScript --> PageInteraction[pageInteraction.js Main Content Script]
 
     %% Content Script Modules
-    PageInteraction --> Highlighter[highlighter.js<br/>Element Selection]
-    PageInteraction --> FloatingIcon[floatingIcon.js<br/>Action Menu]
-    PageInteraction --> SummaryPopup[summaryPopup.js<br/>Summary Display]
-    PageInteraction --> JoplinManager[joplinManager.js<br/>Joplin Integration]
-    PageInteraction --> HTMLSanitizer[htmlSanitizer.js<br/>Content Cleaning]
+    PageInteraction --> Highlighter[highlighter.js Element Selection]
+    PageInteraction --> FloatingIcon[floatingIcon.js Action Menu]
+    PageInteraction --> SummaryPopup[summaryPopup.js Summary Display]
+    PageInteraction --> JoplinManager[joplinManager.js Joplin Integration]
+    PageInteraction --> HTMLSanitizer[htmlSanitizer.js Content Cleaning]
 
     %% Shared Utilities
-    PageInteraction --> Utils[utils.js<br/>Shared Functions]
-    PageInteraction --> Constants[constants.js<br/>Configuration]
+    PageInteraction --> Utils[utils.js Shared Functions]
+    PageInteraction --> Constants[constants.js Configuration]
 
     %% External Libraries
-    PageInteraction --> TurndownService[TurndownService<br/>HTML→Markdown]
-    PageInteraction --> MarkedJS[marked.js<br/>Markdown→HTML]
+    PageInteraction --> TurndownService[TurndownService HTML to Markdown]
+    PageInteraction --> MarkedJS[marked.js Markdown to HTML]
 
     %% Background Service Worker
     PageInteraction --> Background[🔧 Background Service Worker]
-    Background --> BackgroundJS[background.js<br/>Main Service Worker]
+    Background --> BackgroundJS[background.js Main Service Worker]
 
     %% Background Modules
-    BackgroundJS --> SummaryHandler[summaryHandler.js<br/>Summary Processing]
-    BackgroundJS --> ChatHandler[chatHandler.js<br/>Chat Processing]
-    BackgroundJS --> SettingsManager[settingsManager.js<br/>Settings Management]
-    BackgroundJS --> ChatContextManager[chatContextManager.js<br/>Context Storage]
-    BackgroundJS --> PricingService[pricingService.js<br/>Model Pricing]
-    BackgroundJS --> UIActions[uiActions.js<br/>UI Actions]
-    BackgroundJS --> BackgroundUtils[backgroundUtils.js<br/>Utilities]
+    BackgroundJS --> SummaryHandler[summaryHandler.js Summary Processing]
+    BackgroundJS --> ChatHandler[chatHandler.js Chat Processing]
+    BackgroundJS --> SettingsManager[settingsManager.js Settings Management]
+    BackgroundJS --> ChatContextManager[chatContextManager.js Context Storage]
+    BackgroundJS --> PricingService[pricingService.js Model Pricing]
+    BackgroundJS --> UIActions[uiActions.js UI Actions]
+    BackgroundJS --> BackgroundUtils[backgroundUtils.js Utilities]
 
     %% External APIs
-    SummaryHandler --> OpenRouterAPI[🤖 OpenRouter API<br/>LLM Processing]
+    SummaryHandler --> OpenRouterAPI[🤖 OpenRouter API LLM Processing]
     ChatHandler --> OpenRouterAPI
     PricingService --> OpenRouterAPI
 
     %% External Services
-    JoplinManager --> JoplinAPI[📝 Joplin API<br/>Note Storage]
-    PageInteraction --> NewsBlurAPI[📰 NewsBlur API<br/>Content Sharing]
+    JoplinManager --> JoplinAPI[📝 Joplin API Note Storage]
+    PageInteraction --> NewsBlurAPI[📰 NewsBlur API Content Sharing]
 
     %% Storage Systems
     BackgroundJS --> ChromeStorage[💾 Chrome Storage]
-    ChromeStorage --> SyncStorage[chrome.storage.sync<br/>Settings & API Keys]
-    ChromeStorage --> SessionStorage[chrome.storage.session<br/>Chat Context]
+    ChromeStorage --> SyncStorage[chrome.storage.sync Settings and API Keys]
+    ChromeStorage --> SessionStorage[chrome.storage.session Chat Context]
 
     %% Options Page
-    OptionsPage --> OptionsJS[options.js<br/>Settings Interface]
+    OptionsPage --> OptionsJS[options.js Settings Interface]
     OptionsJS --> Background
     OptionsJS --> ChromeStorage
 
     %% Chat Page
-    ChatPage --> ChatJS[chat.js<br/>Chat Interface]
+    ChatPage --> ChatJS[chat.js Chat Interface]
     ChatJS --> Background
     ChatJS --> Utils
     ChatJS --> Constants
     ChatJS --> MarkedJS
 
     %% User Flows
-    subgraph "🔄 Primary User Flows"
-        Flow1["1. Content Selection<br/>ALT+Click → Highlight → Menu"]
-        Flow2["2. Summarization<br/>Content → API → Summary Display"]
-        Flow3["3. Chat Interaction<br/>Summary → Chat Context → Conversation"]
-        Flow4["4. Content Sharing<br/>Clean → NewsBlur/Joplin"]
-        Flow5["5. Configuration<br/>Options → Settings → Storage"]
+    subgraph UserFlows[🔄 Primary User Flows]
+        direction TB
+        Flow1[1. Content Selection - ALT+Click to Highlight to Menu]
+        Flow2[2. Summarization - Content to API to Summary Display]
+        Flow3[3. Chat Interaction - Summary to Chat Context to Conversation]
+        Flow4[4. Content Sharing - Clean to NewsBlur/Joplin]
+        Flow5[5. Configuration - Options to Settings to Storage]
+
+        Flow1 --> Flow2
+        Flow2 --> Flow3
+        Flow2 --> Flow4
+        Flow1 --> Flow5
     end
 
     %% Data Flow Indicators
@@ -148,10 +146,11 @@ graph TB
     SummaryPopup -.->|Chat Request| ChatPage
 
     %% Two-Stage Cleaning Process
-    subgraph "🧹 Two-Stage Cleaning Process"
+    subgraph CleaningProcess[🧹 Two-Stage Cleaning Process]
+        direction TB
         OriginalHTML[Original HTML Content]
-        Stage1[Stage 1: Sanitization<br/>Remove ads, tracking, unwanted elements]
-        Stage2[Stage 2: Standardization<br/>HTML → Markdown → Clean HTML]
+        Stage1[Stage 1: Sanitization - Remove ads, tracking, unwanted elements]
+        Stage2[Stage 2: Standardization - HTML to Markdown to Clean HTML]
         CleanOutput[Clean, Universal HTML Output]
 
         OriginalHTML --> Stage1
@@ -163,7 +162,14 @@ graph TB
     TurndownService --> Stage2
     MarkedJS --> Stage2
 
-    %% Class Assignments
+    %% Styling
+    classDef userInterface fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef contentScript fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef background fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef external fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef storage fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef flow fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+
     class User,OptionsPage,ChatPage userInterface
     class ContentScript,PageInteraction,Highlighter,FloatingIcon,SummaryPopup,JoplinManager,HTMLSanitizer contentScript
     class Background,BackgroundJS,SummaryHandler,ChatHandler,SettingsManager,ChatContextManager,PricingService,UIActions,BackgroundUtils background
