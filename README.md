@@ -1,3 +1,4 @@
+
 # OpenRouter Summarizer v3.8.3
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
@@ -38,7 +39,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 
 ## Screenshots
 
-## ![Selection](media/selection.png)
+![Selection](media/selection.png)
 
 ---
 
@@ -50,7 +51,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 
 ---
 
-## ![Models](media/models.png)
+![Models](media/models.png)
 
 ---
 
@@ -162,6 +163,7 @@ graph TB
     classDef external fill:#fff3e0,stroke:#e65100,stroke-width:2px
     classDef storage fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     classDef flow fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+    classDef process fill:#f5f5f5,stroke:#616161,stroke-width:2px
 
     class User,OptionsPage,ChatPage userInterface
     class ContentScript,PageInteraction,Highlighter,FloatingIcon,SummaryPopup,JoplinManager,HTMLSanitizer contentScript
@@ -169,6 +171,7 @@ graph TB
     class OpenRouterAPI,JoplinAPI,NewsBlurAPI,TurndownService,MarkedJS external
     class ChromeStorage,SyncStorage,SessionStorage storage
     class Flow1,Flow2,Flow3,Flow4,Flow5 flow
+    class OriginalHTML,Stage1,Stage2,CleanOutput process
 ```
 
 ### Key Components
@@ -178,6 +181,8 @@ graph TB
 - **🟩 Background Services**: Service worker managing API calls, storage, and business logic
 - **🟧 External Services**: Third-party APIs and libraries for LLM processing and integrations
 - **🟥 Storage Systems**: Chrome extension storage for settings and temporary data
+- **🍃 User Flows**: High-level sequences of user actions within the extension
+- **⚙️ Cleaning Process**: The specific steps involved in cleaning and standardizing content
 
 ### Data Flow Highlights
 
@@ -204,7 +209,7 @@ graph TB
     - **Summarize:** Click the main icon (💡), _or_ right-click and choose "Send to LLM".
     - **Copy HTML:** Click the Copy HTML icon (📄) to copy sanitized element HTML to clipboard.
     - **Save to Joplin:** Click the Joplin icon (✂️) to save content to a Joplin notebook.
-    - The extension extracts the selected element's HTML, applies comprehensive sanitization to remove unwanted content (ads, tracking, navigation elements), converts it to Markdown to save money and improve LLM's job, then sends it and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model for summarization.
+    - The extension extracts the selected element's HTML, applies comprehensive sanitization to remove unwanted content (ads, tracking, navigation elements), converts it to Markdown to save money and improve the LLM's job, then sends it and your configured prompt (requesting a JSON array of HTML strings) to the selected OpenRouter model for summarization.
 4.  **Review Summary:**
     - The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (`json ... `) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
     - **Use keyboard shortcuts for quick actions:**
@@ -220,7 +225,7 @@ graph TB
     - The original HTML snippet and the raw/processed JSON string are stored. For _every_ message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
     - **Language flags are available in the chat interface.** Click a flag to request a translation of the _latest assistant message_ into that language. **While the LLM is processing a request, these flags will be visually dimmed and show a "busy" tooltip.**
     - Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send using any of the configured models.
-    - LLM responses are rendered with via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
+    - LLM responses are rendered via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
     - Use **Copy MD**, **Download MD**, or **Download JSON** to save the chat.
 
 ---
@@ -249,3 +254,4 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 ## Tags
 
 `Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`, `Keyboard Shortcuts`, `Copy HTML`, `Hotkeys`
+
