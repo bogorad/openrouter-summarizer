@@ -125,11 +125,17 @@ graph TB
 
     %% User Flows
     subgraph UserFlows["🔄 Primary User Flows"]
+        direction TB
         Flow1["1. Content Selection<br/>ALT+Click → Highlight → Menu"]
         Flow2["2. Summarization<br/>Content → API → Summary Display"]
         Flow3["3. Chat Interaction<br/>Summary → Chat Context → Conversation"]
         Flow4["4. Content Sharing<br/>Clean → NewsBlur/Joplin"]
         Flow5["5. Configuration<br/>Options → Settings → Storage"]
+
+        Flow1 --> Flow2
+        Flow2 --> Flow3
+        Flow2 --> Flow4
+        Flow1 --> Flow5
     end
 
     %% Data Flow Indicators
@@ -141,6 +147,7 @@ graph TB
 
     %% Two-Stage Cleaning Process
     subgraph CleaningProcess["🧹 Two-Stage Cleaning Process"]
+        direction TB
         OriginalHTML[Original HTML Content]
         Stage1["Stage 1: Sanitization<br/>Remove ads, tracking, unwanted elements"]
         Stage2["Stage 2: Standardization<br/>HTML → Markdown → Clean HTML"]
