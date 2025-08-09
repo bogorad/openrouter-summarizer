@@ -63,6 +63,9 @@ each bullet point should be a concise string,
 starting with a bold tag-like idea and a colon,
 and followed by description.
 
+the very first bullet should answer the standard
+journalism questions: who/what/when/where/why
+
 After providing bullet points for article summary,
 add a bonus bullet point - your insights, assessment and comments,
 and what should a mindful reader notice about this.
@@ -97,10 +100,10 @@ export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Translate the following text t
 export const DEFAULT_MODEL_OPTIONS = [
   { id: "google/gemini-2.5-flash-lite" },
   { id: "google/gemini-2.5-pro" },
-  { id: "anthropic/claude-sonnet-4" },
-  { id: "deepseek/deepseek-r1" },
-  { id: "openai/gpt-4.1-nano" },
-  { id: "x-ai/grok-3-mini" },
+  { id: "anthropic/claude-opus-4.1" },
+  { id: "qwen/qwen3-235b-a22b-thinking-2507" },
+  { id: "openai/gpt-5-chat" },
+  { id: "x-ai/grok-4" },
 ];
 
 // --- Default Languages for Pre-population ---
