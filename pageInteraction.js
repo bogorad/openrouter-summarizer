@@ -531,8 +531,13 @@ async function handleCopyHtmlIconClick() {
 async function handleJoplinIconClick() {
   if (DEBUG) console.log("[LLM Content] handleJoplinIconClick called.");
 
-  // Remove floating icon immediately
+  // For Joplin, get the HTML snippet *before* clearing the highlight
+  const rawContent = Highlighter.getSelectedElement()?.outerHTML;
+
+  // Remove floating icon and highlight immediately
   FloatingIcon.removeFloatingIcon();
+  Highlighter.removeSelectionHighlight();
+  Highlighter.resetHighlightState();
 
   // Ensure the token is available
   if (!joplinToken) {
@@ -546,9 +551,7 @@ async function handleJoplinIconClick() {
     return;
   }
 
-  // For Joplin, get the HTML snippet and sanitize it
-  const rawContent = Highlighter.getSelectedElement()?.outerHTML || lastSelectedDomSnippet;
-
+  // Now, check if we have content
   if (!rawContent || rawContent.trim() === "") {
     showError("No content available to send to Joplin.", true, 3000);
     if (DEBUG)

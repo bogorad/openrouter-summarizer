@@ -5,11 +5,9 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 
 ---
 
-## What's New in v3.8.3
+## What's New in v3.8.4
 
-- **Enhanced NewsBlur Integration:** Implemented two-stage cleaning process for shared content - first sanitizes HTML to remove ads and unwanted elements, then standardizes the structure by converting to Markdown and back to HTML for cleaner, universal formatting.
-- **Improved Content Quality:** NewsBlur shares now include both AI-generated summaries and super-clean versions of original content with consistent, simple HTML structure.
-- **Better Documentation:** Added comprehensive architecture flowchart showing all extension components and their interactions.
+- **Joplin Integration Fix:** Fixed the selection highlight issue when choosing a Joplin notebook.
 
 ---
 
