@@ -242,7 +242,7 @@ async function validateAndSendToLLM(content) {
     return;
   }
 
-  SummaryPopup.enableChatButton(false);
+  SummaryPopup.enableButtons(false);
 
   chrome.runtime.sendMessage({ action: "getSettings" }, (response) => {
     if (chrome.runtime.lastError || !response) {
@@ -795,7 +795,7 @@ function handleMessage(req, sender, sendResponse) {
           true, // errorState true
           false, // hasNewsblurToken: False in this specific error UI state
         );
-        SummaryPopup.enableChatButton(false); // Chat button is always disabled in error state
+        SummaryPopup.enableButtons(false); // Chat button is always disabled in error state
         setTimeout(SummaryPopup.hidePopup, 3000);
       }
       sendResponse({ status: "no element selected" });
@@ -846,13 +846,13 @@ function displaySummary(response) {
       true,
       hasNewsblurTokenFromBackground,
     );
-    SummaryPopup.enableChatButton(false);
+    SummaryPopup.enableButtons(false);
   } else if (response.summary && typeof response.summary === "string") {
     const rawSummaryString = response.summary;
 
     if (!rawSummaryString || rawSummaryString.trim() === "") {
       showError("Error: No summary data received from the API.");
-      SummaryPopup.enableChatButton(false);
+      SummaryPopup.enableButtons(false);
       return;
     }
 
@@ -864,7 +864,7 @@ function displaySummary(response) {
     lastSummary = summaryHtml;
 
     // The summary is ready, so enable the chat button.
-    SummaryPopup.enableChatButton(true);
+    SummaryPopup.enableButtons(true);
 
     // Update the popup.
     // We pass `null` for `originalMarkdownArray` because we no longer generate it from JSON.
@@ -894,7 +894,7 @@ function displaySummary(response) {
       true,
       hasNewsblurTokenFromBackground,
     );
-    SummaryPopup.enableChatButton(false);
+    SummaryPopup.enableButtons(false);
   }
 }
 

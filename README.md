@@ -1,13 +1,19 @@
-# OpenRouter Summarizer v3.8.4
+# OpenRouter Summarizer v3.8.6
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, native HTML summaries, flexible options, and comprehensive debug logging!_
 
 ---
 
-## What's New in v3.8.4
+## What's New in v3.8.6
 
-- **Joplin Integration Fix:** Fixed the selection highlight issue when choosing a Joplin notebook.
+- **UI/UX Enhancements:**
+    - The "Copy" button in the summary popup is now disabled during LLM requests to prevent errors.
+    - Button text and hotkeys have been updated for a more intuitive experience:
+        - "Chat" is now "Cha[t]" with hotkey `t`.
+        - "Close" is now "Clos[e]" with hotkey `e`.
+        - "NewsBlur" is now "Newsblu[r]" with hotkey `r`.
+        - The "Close" button can now also be activated with the `Escape` key.
 
 ---
 
@@ -23,7 +29,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 - **Customizable Prompt:** Modify the formatting instructions sent to the LLM via the Advanced Options section.
 - **Fully Functional Summary Configuration:** Choose the number of summary points (3-8) - this setting dynamically updates the prompt.
 - **Keyboard Shortcuts:**
-  - **Summary popup:** `Y` to copy, `C` to chat, `N` for NewsBlur, `Escape` to close
+  - **Summary popup:** `Y` to copy, `T` to chat, `R` for NewsBlur, `E` or `Escape` to close
   - **Joplin dialog:** `Enter` to save, `Escape` to close
   - **Chat window:** `Ctrl/Cmd+Enter` to send messages
 - **Instant Results:** Summaries appear in a clean popup; chat happens in a dedicated tab.
@@ -207,9 +213,9 @@ graph TB
     - The summary (received as a JSON array of strings) is parsed and appears in the popup, rendered as a clean HTML list (`<ul><li>...</ul>`). Potential code fences (`json ... `) around the JSON are automatically stripped. LLM responses containing multiple JSON arrays or trailing text are handled more robustly.
     - **Use keyboard shortcuts for quick actions:**
       - **Y** - Copy summary to clipboard
-      - **C** - Open chat interface (if enabled)
-      - **N** - Share to NewsBlur (if token configured)
-      - **Escape** - Close the popup
+      - **T** - Open chat interface (if enabled)
+      - **R** - Share to NewsBlur (if token configured)
+      - **E** or **Escape** - Close the popup
     - **Or use buttons:** **Copy**, **Chat**, **NewsBlur**, or **Close**.
     - Use **[NewsBlur](https://www.newsblur.com/)** to share the summary and the selected HTML snippet.
 5.  **Chat ("talk to the page"):**

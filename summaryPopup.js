@@ -26,12 +26,12 @@ const POPUP_TEMPLATE_HTML = `
     <div class="${POPUP_ACTIONS_CLASS}">
         <button class="${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}">Cop[y]</button>
         <!-- Single Chat Button -->
-        <button class="${POPUP_BTN_CLASS} ${POPUP_CHAT_BTN_CLASS}">[C]hat</button>
+        <button class="${POPUP_BTN_CLASS} ${POPUP_CHAT_BTN_CLASS}">Cha[t]</button>
         <!-- New: NewsBlur Button -->
-        <button class="${POPUP_BTN_CLASS} ${POPUP_NEWSBLUR_BTN_CLASS}">↔ [N]ewsBlur</button>
+        <button class="${POPUP_BTN_CLASS} ${POPUP_NEWSBLUR_BTN_CLASS}">Newsblu[r]</button>
         <!-- End NewsBlur Button -->
         <!-- End Single Chat Button -->
-        <button class="${POPUP_BTN_CLASS} ${POPUP_CLOSE_BTN_CLASS}">Close</button>
+        <button class="${POPUP_BTN_CLASS} ${POPUP_CLOSE_BTN_CLASS}">Clos[e]</button>
     </div>
 </div>
 `;
@@ -286,6 +286,7 @@ export function showPopup(
     if (copyBtn) {
       // Attach the new rich text copy handler
       copyBtn.onclick = () => handleRichTextCopyClick(contentDiv, copyBtn);
+      copyBtn.disabled = true;
     } else {
       console.error(
         "[LLM Popup] Could not attach copy listener: Button missing.",
@@ -303,7 +304,7 @@ export function showPopup(
             "[LLM Popup] Button set to 'Options' due to error state.",
           );
       } else {
-        chatBtn.textContent = "Chat";
+        chatBtn.textContent = "Cha[t]";
         chatBtn.title = "Open chat with summary context";
         chatBtn.onclick = () => popupCallbacks.onChat(null);
         chatBtn.disabled = true; // Keep disabled until content is ready
@@ -342,7 +343,7 @@ export function showPopup(
       const key = event.key.toLowerCase();
 
       // Check if any of our hotkeys were pressed
-      const isHotkeyPressed = ['escape', 'y', 'c', 'n'].includes(key);
+      const isHotkeyPressed = ['e', 'y', 't', 'r', 'escape'].includes(key);
 
       if (isHotkeyPressed) {
         // Stop the event from reaching any other listeners (on the host page or in other scripts)
@@ -350,6 +351,7 @@ export function showPopup(
         event.stopPropagation();
 
         switch (key) {
+          case "e":
           case "escape":
             if (popupCallbacks.onClose) {
               popupCallbacks.onClose();
@@ -364,7 +366,7 @@ export function showPopup(
             }
             break;
 
-          case "c":
+          case "t":
             // Trigger chat button click if enabled
             const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
             if (chatBtn && !chatBtn.disabled) {
@@ -372,7 +374,7 @@ export function showPopup(
             }
             break;
 
-          case "n":
+          case "r":
             // Trigger NewsBlur button click if visible
             const newsblurBtn = popup.querySelector(
               `.${POPUP_NEWSBLUR_BTN_CLASS}`,
@@ -511,7 +513,7 @@ export function updatePopupContent(
           "[LLM Popup] Button updated to 'Options' due to error state in updatePopupContent.",
         );
     } else {
-      chatBtn.textContent = "Chat";
+      chatBtn.textContent = "Cha[t]";
       chatBtn.title = "Open chat with summary context";
       chatBtn.onclick = () => popupCallbacks.onChat(null);
       // Chat button should be enabled/disabled by enableChatButton based on summary generation status
@@ -530,11 +532,12 @@ export function updatePopupContent(
 }
 
 /**
- * Enables or disables the Chat button in the popup.
+ * Enables or disables the Chat and Copy buttons in the popup.
  */
-export function enableChatButton(enable) {
+export function enableButtons(enable) {
   if (!popup) return;
   const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
+  const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
 
   if (chatBtn) {
     // Only enable if not in an error state where it should show "Options"
@@ -545,9 +548,13 @@ export function enableChatButton(enable) {
     }
   }
 
+  if (copyBtn) {
+    copyBtn.disabled = !enable;
+  }
+
   if (DEBUG)
     console.log(
-      `[LLM Popup] Chat button ${enable ? "enabled" : "disabled (or kept as Options)"}.`,
+      `[LLM Popup] Buttons ${enable ? "enabled" : "disabled (or kept as Options)"}.`,
     );
 }
 
