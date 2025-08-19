@@ -1,4 +1,4 @@
-# OpenRouter Summarizer v3.8.3
+# OpenRouter Summarizer v3.8.4
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, native HTML summaries, flexible options, and comprehensive debug logging!_

@@ -43,6 +43,18 @@ const numToWord = {
   8: "eight",
 };
 
+// --- Helper: Detect if content contains common HTML tags ---
+function containsCommonHtmlTags(input) {
+  const str = typeof input === "string" ? input : "";
+  // Quick check for common structural/inline tags
+  const tagPattern = /<\s*(p|div|span|br|ul|ol|li|a|img|h[1-6]|pre|code|table|thead|tbody|tr|td|th|blockquote|strong|b|em|i|section|article|header|footer|nav|figure|figcaption|hr)\b/i;
+  const hasTags = tagPattern.test(str);
+  if (DEBUG) {
+    console.log("[LLM Content] containsCommonHtmlTags:", { hasTags, sample: str.substring(0, 120) });
+  }
+  return hasTags;
+}
+
 // --- Core Processing Function ---
 function processSelectedElement() {
   // Modules are available due to static imports, check if they are defined (Webpack should ensure this)
@@ -78,10 +90,10 @@ function processSelectedElement() {
 
   // Remove highlight FIRST to get clean content
   Highlighter.removeSelectionHighlight();
-  
-  // THEN capture clean HTML for BOTH LLM processing AND sharing
+
+  // Capture the full outerHTML for sharing/context
   const rawHtml = selectedElement.outerHTML;
-  lastSelectedDomSnippet = rawHtml; // Both use the same clean content
+  lastSelectedDomSnippet = rawHtml;
 
   if (!rawHtml || rawHtml.trim() === "") {
     if (DEBUG)
@@ -92,17 +104,31 @@ function processSelectedElement() {
     return;
   }
 
-  // Apply sanitization before processing
-  const sanitizedHtml = sanitizeHtml(rawHtml, { debug: DEBUG });
+  // For processing, use the INNER content only
+  const contentToProcess = selectedElement.innerHTML;
+
+  // Apply sanitization to the inner content that we will process
+  const sanitizedContent = sanitizeHtml(contentToProcess, { debug: DEBUG });
 
   if (DEBUG) {
     console.log(
-      "[LLM Content] HTML sanitization complete - Original:",
-      rawHtml.length,
-      "chars, Sanitized:",
-      sanitizedHtml.length,
+      "[LLM Content] HTML sanitization complete - Original Inner HTML:",
+      contentToProcess.length,
+      "chars, Sanitized Inner HTML:",
+      sanitizedContent.length,
       "chars"
     );
+    console.log("[LLM Content] Checking for HTML tags in:", sanitizedContent.substring(0, 100));
+  }
+
+  // If the sanitized INNER content does NOT contain common HTML tags, treat as plain text and skip Markdown conversion
+  if (!containsCommonHtmlTags(sanitizedContent)) {
+    if (DEBUG) {
+      console.log("[LLM Content] Detected plain text snippet. Skipping HTML→Markdown conversion and sending raw text.");
+    }
+    lastProcessedMarkdown = sanitizedContent; // The text is already clean
+    sendToLLM(lastProcessedMarkdown);
+    return;
   }
 
   let processedMarkdown;
@@ -128,7 +154,7 @@ function processSelectedElement() {
       }
     });
 
-    processedMarkdown = turndown.turndown(sanitizedHtml);
+    processedMarkdown = turndown.turndown(sanitizedContent);
     if (DEBUG)
       console.log(
         "[LLM Content] Successfully converted HTML to Markdown:",
@@ -137,8 +163,8 @@ function processSelectedElement() {
       );
     if (DEBUG) {
       console.log(
-        "[LLM Content] Conversion Details - Sanitized HTML Length: " +
-          sanitizedHtml.length +
+        "[LLM Content] Conversion Details - Sanitized Inner HTML Length: " +
+          sanitizedContent.length +
           ", Markdown Length: " +
           processedMarkdown.length,
       );
@@ -165,7 +191,8 @@ function processSelectedElement() {
       false,
       3000,
     ); // Example: non-fatal, timed
-    sendToLLM(selectedHtml);
+    // Fallback to sending the original outerHTML snippet
+    sendToLLM(rawHtml);
   } else {
     sendToLLM(processedMarkdown);
   }
