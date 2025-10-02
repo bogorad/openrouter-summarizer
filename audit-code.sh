@@ -45,7 +45,8 @@ if [[ -f ".env" ]]; then
 fi
 
 # Set defaults and validate
-CODE_AUDITOR_MODEL="${CODE_AUDITOR_MODEL:-qwen/qwen3-235b-a22b-thinking-2507}"
+# CODE_AUDITOR_MODEL="${CODE_AUDITOR_MODEL:-qwen/qwen3-235b-a22b-thinking-2507}"
+CODE_AUDITOR_MODEL="${CODE_AUDITOR_MODEL:-moonshotai/kimi-k2-0905}"
 if [[ -z "$OPENROUTER_API_KEY" ]]; then
   echo >&2 "Error: OPENROUTER_API_KEY is not set. Check:" >&2
   echo >&2 "  1. Environment variable" >&2
