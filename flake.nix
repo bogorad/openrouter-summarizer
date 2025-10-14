@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    opencode-flake.url = "github:aodhanhayter/opencode-flake";
   };
 
   outputs =
@@ -11,6 +12,8 @@
       self,
       nixpkgs,
       flake-utils,
+      opencode-flake,
+      ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -28,6 +31,7 @@
             esbuild # build
             prettier # format js/ts
             biome # format json
+            opencode-flake.packages.${pkgs.system}.default
           ];
 
           shell = "${pkgs.zsh}/bin/zsh";
@@ -48,8 +52,8 @@
             export SHELL=${pkgs.zsh}/bin/zsh
 
             echo "Environment ready."
-            nix run github:aodhanhayter/opencode-flake
-            # exit
+            opencode .
+            exit
           '';
         };
       }

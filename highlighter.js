@@ -12,6 +12,11 @@ let onElementSelectedCallback = null;
 let onElementDeselectedCallback = null;
 let DEBUG = false; // Will be set by initializeHighlighter
 
+// Alt must be down with no Shift and no Control
+function isPureAlt(e) {
+  return e.altKey && !e.shiftKey && !e.ctrlKey;
+}
+
 // --- Internal Event Handlers ---
 
 function handleKeyDown(e) {
@@ -90,6 +95,14 @@ function handleMouseOver(e) {
     return;
   }
 
+  // NEW: Only when there is no preview yet, require the original activation to be pure Alt
+  if (!previewHighlighted) {
+    if (!isPureAlt(e)) {
+      // Not a pure-Alt activation attempt; do not create the preview yet
+      return;
+    }
+  }
+
   // Apply preview highlight if target changed
   if (previewHighlighted !== target) {
     removePreviewHighlight(); // Remove from old
@@ -121,8 +134,8 @@ function handleMouseDown(e) {
     return;
   }
 
-  // --- Alt+Left Click ---
-  if (e.altKey && e.button === 0) {
+  // --- Alt+Left Click (pure Alt only) ---
+  if (e.button === 0 && isPureAlt(e)) {
     e.preventDefault();
     e.stopPropagation();
 
