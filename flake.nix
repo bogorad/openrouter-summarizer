@@ -48,7 +48,7 @@
             export SHELL=${pkgs.zsh}/bin/zsh
 
             echo "Environment ready."
-            ${pkgs.opencode}/bin/opencode .
+            nix run github:aodhanhayter/opencode-flake
             # exit
           '';
         };
