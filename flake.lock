@@ -55,15 +55,15 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1759171281,
-        "narHash": "sha256-MI70uDINVkRd2/pWfwYZrfenhHpNbt+jUlOMKfta5aI=",
-        "owner": "aodhanhayter",
+        "lastModified": 1760445452,
+        "narHash": "sha256-mY4O/YB71teHK4+1C2kCy22jqpvjoTrWzJReTVjh0RI=",
+        "owner": "bogorad",
         "repo": "opencode-flake",
-        "rev": "7b95e7ab392b7f7dfab44f61e4e12708810d654a",
+        "rev": "e299af603de45690276cc06e9f2cc319dd6bc4ba",
         "type": "github"
       },
       "original": {
-        "owner": "aodhanhayter",
+        "owner": "bogorad",
         "repo": "opencode-flake",
         "type": "github"
       }
