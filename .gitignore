@@ -1,5 +1,6 @@
 .env
 .envrc
+.gemini
 node_modules/
 flake.lock
 package-lock.json
