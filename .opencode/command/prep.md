@@ -5,6 +5,6 @@ agent: build
 
 run lint, autofix errors if needed
 run typecheck
+run @scripts/bump-patch.cjs
 run build
 run npx webpack
-run @scripts/bump-patch.cjs
