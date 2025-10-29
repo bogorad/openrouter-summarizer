@@ -34,45 +34,10 @@
         "type": "github"
       }
     },
-    "nixpkgs_2": {
-      "locked": {
-        "lastModified": 1756288264,
-        "narHash": "sha256-Om8adB1lfkU7D33VpR+/haZ2gI5r3Q+ZbIPzE5sYnwE=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "ddd1826f294a0ee5fdc198ab72c8306a0ea73aa9",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixpkgs-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "opencode-flake": {
-      "inputs": {
-        "nixpkgs": "nixpkgs_2"
-      },
-      "locked": {
-        "lastModified": 1760445452,
-        "narHash": "sha256-mY4O/YB71teHK4+1C2kCy22jqpvjoTrWzJReTVjh0RI=",
-        "owner": "bogorad",
-        "repo": "opencode-flake",
-        "rev": "e299af603de45690276cc06e9f2cc319dd6bc4ba",
-        "type": "github"
-      },
-      "original": {
-        "owner": "bogorad",
-        "repo": "opencode-flake",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "opencode-flake": "opencode-flake"
+        "nixpkgs": "nixpkgs"
       }
     },
     "systems": {
