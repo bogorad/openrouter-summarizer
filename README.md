@@ -1,19 +1,16 @@
-# OpenRouter Summarizer v3.8.6
+# OpenRouter Summarizer v3.8.8
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, native HTML summaries, flexible options, and comprehensive debug logging!_
 
 ---
 
-## What's New in v3.8.6
+## What's New in v3.8.8
 
-- **UI/UX Enhancements:**
-    - The "Copy" button in the summary popup is now disabled during LLM requests to prevent errors.
-    - Button text and hotkeys have been updated for a more intuitive experience:
-        - "Chat" is now "Cha[t]" with hotkey `t`.
-        - "Close" is now "Clos[e]" with hotkey `e`.
-        - "NewsBlur" is now "Newsblu[r]" with hotkey `r`.
-        - The "Close" button can now also be activated with the `Escape` key.
+- **Web-Enabled Chat Documentation:**
+    - Comprehensive documentation for the `:online` model variant
+    - Enable real-time web search in chat for current information beyond the page content
+    - Special note about xAI models getting both web search AND X/Twitter search capabilities
 
 ---
 
@@ -23,7 +20,11 @@ _Featuring interactive chat, native HTML summaries, flexible options, and compre
 - **Native HTML Summaries:** LLM returns properly formatted HTML bullet lists with preserved formatting (bold text, etc.).
 - **Copy:** Use Copy HTML icon (📄) in the floating menu to copy complete element HTML to clipboard.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
-- **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports `:nitro`, `:floor` and `:auto`.
+- **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports model variants:
+  - `:nitro` - Fastest inference speed
+  - `:floor` - Lowest cost provider
+  - `:auto` - Automatic routing
+  - `:online` - Real-time web search (see [Web-Enabled Chat](#web-enabled-chat))
 - **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the latest message.
 - **Languages can now be reordered** by dragging them in the Options list.
 - **Customizable Prompt:** Modify the formatting instructions sent to the LLM via the Advanced Options section.
@@ -224,8 +225,49 @@ graph TB
     - The original HTML snippet and the raw/processed JSON string are stored. For _every_ message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
     - **Language flags are available in the chat interface.** Click a flag to request a translation of the _latest assistant message_ into that language. **While the LLM is processing a request, these flags will be visually dimmed and show a "busy" tooltip.**
     - Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send using any of the configured models.
+    - **Tip:** Use an `:online` model variant (e.g., `x-ai/grok-4.1-fast:online` or `openai/gpt-5.1-codex-mini:online`) for questions requiring current web information beyond the page content. See [Web-Enabled Chat](#web-enabled-chat) below.
     - LLM responses are rendered with via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
     - Use **Copy MD**, **Download MD**, or **Download JSON** to save the chat.
+
+### Web-Enabled Chat
+
+For chat conversations requiring **current information** beyond what's on the page, OpenRouter offers the `:online` model variant. Append `:online` to any model ID in Options to enable real-time web search capabilities:
+
+**Example Models with `:online`:**
+
+- `x-ai/grok-4.1-fast:online` - Grok with **web search + X/Twitter search** (xAI models uniquely support both web and X search)
+- `openai/gpt-5.1-codex-mini:online` - GPT with native web search
+- `anthropic/claude-sonnet-4:online` - Claude with web search
+- `google/gemini-2.5-flash:online` - Gemini with Exa-powered search
+- `meta-llama/llama-4-scout:online` - Llama with web search
+
+**When to Use `:online` in Chat:**
+
+The `:online` variant is particularly powerful for the **Chat** feature when you need to:
+
+- **Verify or update facts** from the summarized content against current sources
+- **Follow up on recent developments** related to the article's topic
+- **Research additional context** that the LLM's training data might not cover
+- **Get citations** to current sources the model can reference in its answers
+
+**How It Works:**
+
+When you use an `:online` model in chat:
+1. Your question is analyzed for search intent
+2. OpenRouter's web search agent retrieves relevant current results
+3. The model incorporates these results into its response with citations
+
+For models with **native search** (OpenAI, Anthropic, Perplexity, xAI), the provider's built-in search is used. For other models, search is powered by [Exa](https://exa.ai).
+
+**Note about xAI Models:** When using xAI models (like Grok) with `:online`, you get access to both traditional web search AND X (Twitter) search, giving you real-time social media context in addition to web results.
+
+**Stacking Variants:**
+
+You can combine `:online` with other variants:
+- `meta-llama/llama-4-scout:floor:online` - Cheapest provider + web search
+- `openai/gpt-5.1-codex-mini:online` - Fast model with web access
+
+**Cost Note:** Web search adds a small cost per request (typically ~$0.02 via Exa, or provider-specific pricing for native search). See [OpenRouter's web search documentation](https://openrouter.ai/docs/guides/features/plugins/web-search) for current pricing details.
 
 ---
 
@@ -252,4 +294,4 @@ A: The extension attempts to use an SVG flag file (`[language_code].svg`) from t
 
 ## Tags
 
-`Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`, `Keyboard Shortcuts`, `Copy HTML`, `Hotkeys`
+`Summarizer`, `LLM`, `OpenRouter`, `AI`, `Chat`, `JSON`, `HTML`, `Markdown`, `Chrome Extension`, `Productivity`, `GPT`, `Claude`, `Llama`, `Gemini`, `Article Summarizer`, `Web Clipper`, `Prompt Engineering`, `Translation`, `Language Flags`, `Keyboard Shortcuts`, `Copy HTML`, `Hotkeys`, `Web Search`, `Online`, `:online`, `Real-time Search`

@@ -1,3 +1,12 @@
+- **Version 3.8.8:** 📚 **Web-Enabled Chat Documentation**
+  - **Comprehensive `:online` Documentation:** Added detailed documentation for OpenRouter's `:online` model variant
+  - **Web Search in Chat:** Explains how to enable real-time web search for chat conversations requiring current information
+  - **xAI Special Feature:** Highlighted that xAI models (Grok) get both web search AND X/Twitter search with `:online`
+  - **Model Examples:** Updated all examples to use current models (e.g., `openai/gpt-5.1-codex-mini`)
+  - **Variant Stacking:** Documented how to combine `:online` with other variants like `:floor`
+  - **Updated Options Page:** Enhanced helper text in Options to mention `:online` for web search
+  - **Cost Transparency:** Added note about web search costs (~$0.02/request) without overemphasis
+
 - **Version 3.8.0:** 🎯 **Major Architecture Update - Native HTML Summary Format**
   - **Native HTML Summaries:** LLM now returns properly formatted HTML bullet lists directly, eliminating JSON parsing errors and improving reliability
   - **Dynamic Bullet Count:** The bullet count setting (3-8) now actually works! Uses `$$$bulletCount$$$` placeholder in prompt templates
