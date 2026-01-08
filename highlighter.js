@@ -122,15 +122,13 @@ function handleMouseOut(e) {
 }
 
 function handleMouseDown(e) {
-  // Ignore clicks inside floating icon or popup
-  // Note: The main script should handle preventing clicks on its own UI elements if needed *before* calling highlighter logic,
-  // but this check adds robustness.
+  // Ignore clicks inside floating icon or popup (Shadow DOM hosts)
+  // We check for the data-extension-ui attribute on the host elements
   if (
-    e.target.closest(".llm-floating-icon") ||
-    e.target.closest(".summarizer-popup")
+    e.target.closest('[data-extension-ui="true"]')
   ) {
     if (DEBUG)
-      console.log("[LLM Highlighter] Mousedown ignored on icon or popup.");
+      console.log("[LLM Highlighter] Mousedown ignored on extension UI.");
     return;
   }
 

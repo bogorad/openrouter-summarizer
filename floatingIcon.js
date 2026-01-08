@@ -65,6 +65,7 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
   // Create Host
   host = document.createElement("div");
   host.id = "summarizer-floating-host";
+  host.setAttribute("data-extension-ui", "true");
   host.style.cssText = `
     position: absolute;
     top: 0;

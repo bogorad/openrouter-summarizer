@@ -372,6 +372,7 @@ export function showPopup(
       // Create Host
       host = document.createElement("div");
       host.id = "summarizer-popup-host";
+      host.setAttribute("data-extension-ui", "true");
       host.style.cssText = `
         position: fixed;
         top: 0;
