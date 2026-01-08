@@ -1,22 +1,23 @@
-# OpenRouter Summarizer v3.8.8
+# OpenRouter Summarizer v3.9.1
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
-_Featuring interactive chat, native HTML summaries, flexible options, and comprehensive debug logging!_
+_Featuring interactive chat, native HTML summaries, flexible options, and robust CSS isolation!_
 
 ---
 
-## What's New in v3.8.8
+## What's New in v3.9.1
 
-- **Web-Enabled Chat Documentation:**
-    - Comprehensive documentation for the `:online` model variant
-    - Enable real-time web search in chat for current information beyond the page content
-    - Special note about xAI models getting both web search AND X/Twitter search capabilities
+- **Shadow DOM Migration:**
+    - Migrated Popup and Floating Icon to Shadow DOM for complete CSS isolation.
+    - Extension UI is now immune to external page styles (Bootstrap, Tailwind, etc.).
+    - Improved click handling and reliability on complex websites.
 
 ---
 
 ## Features
 
 - **Summarize Anything:** `ALT+hover` to highlight, then `ALT+Click` any element on a web page to select and summarize it.
+- **Robust UI:** Extension popups render consistently on any website, immune to external CSS and design conflicts.
 - **Native HTML Summaries:** LLM returns properly formatted HTML bullet lists with preserved formatting (bold text, etc.).
 - **Copy:** Use Copy HTML icon (📄) in the floating menu to copy complete element HTML to clipboard.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
