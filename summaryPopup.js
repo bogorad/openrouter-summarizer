@@ -377,10 +377,9 @@ export function showPopup(
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 0; /* No visual presence, just a viewport anchor */
+        width: 0;
+        height: 0;
         z-index: 2147483647;
-        pointer-events: none;
       `;
 
       // Attach Shadow DOM
