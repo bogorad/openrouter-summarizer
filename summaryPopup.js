@@ -1,6 +1,206 @@
-// @description Manages the summary popup UI for the OpenRouter Summarizer extension, including rich text copying.
-import { marked } from "marked"; // Import marked library
-console.log(`[LLM Popup] Script Loaded (v3.0.18)`); // Updated version
+// summaryPopup.js
+/**
+ * summaryPopup.js
+ * Short Spec: Manages the summary popup UI with Shadow DOM encapsulation.
+ * Provides functions to show, hide, and update the popup content.
+ * Dependencies: marked (optional for inline parsing).
+ */
+
+// --- CSS STYLES ---
+// Extracted from pageInteraction.css and isolated within this module.
+const POPUP_STYLES = `
+  /* --- Globals --- */
+  :host {
+    all: initial; /* Reset all inherited styles */
+    display: block;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Emoji", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", "Noto Color Emoji", sans-serif !important;
+  }
+
+  /* --- Main Popup Container --- */
+  .summarizer-popup {
+    position: fixed;
+    top: 10vh;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2147483647;
+    display: flex;
+    flex-direction: column;
+    width: auto;
+    max-width: 750px;
+    min-width: 320px;
+    height: min-content;
+    background-color: #ffffff;
+    border: 1.5px solid #2196F3;
+    border-radius: 14px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    color: #333;
+    font-size: 16px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+    transform: translateX(-50%) translateY(-10px);
+  }
+
+  .summarizer-popup.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* --- Popup Header Container --- */
+  .summarizer-header-container {
+    padding: 14px 20px;
+    background-color: #2196F3;
+    color: #ffffff;
+    flex-shrink: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* --- Popup Header (Summary Title) --- */
+  .summarizer-header {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 0;
+    text-align: center;
+  }
+
+  /* --- Popup Body (Main Content Area) --- */
+  .summarizer-body {
+    padding: 18px 20px;
+    background-color: #f7faff;
+    color: #1e2333;
+    font-size: 1em;
+    line-height: 1.6;
+    min-height: 50px;
+    max-height: 65vh;
+    overflow-y: auto;
+    word-wrap: break-word;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .summarizer-body ul {
+    padding-left: 20px;
+    margin: 0.5em 0;
+  }
+  .summarizer-body li {
+    margin-bottom: 0.6em;
+  }
+  .summarizer-body b,
+  .summarizer-body strong {
+    font-weight: 600;
+  }
+  .summarizer-body i,
+  .summarizer-body em {
+    font-style: italic;
+  }
+
+  /* --- Popup Actions (Footer with Buttons) --- */
+  .summarizer-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 20px;
+    background-color: #f7faff;
+    border-top: 1px solid #e0e8f0;
+    flex-shrink: 0;
+    margin: 0;
+  }
+
+  /* --- Buttons (Base Style) --- */
+  .summarizer-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95em;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    vertical-align: middle;
+    height: 36px;
+    min-width: 40px;
+  }
+  .summarizer-btn:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+  .summarizer-btn:active {
+    transform: translateY(0px);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  .summarizer-btn:disabled {
+    background-color: #bdbdbd !important;
+    color: #757575 !important;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+    opacity: 0.7;
+  }
+  .summarizer-btn img {
+    height: 1.2em;
+    width: auto;
+    display: block;
+    max-width: 100%;
+  }
+
+  /* Specific Button Colors */
+  .summarizer-btn.copy-btn { background-color: #1976D2; color: #ffffff; padding: 8px 20px; }
+  .summarizer-btn.copy-btn:hover:not(:disabled) { background-color: #1565C0; }
+  .summarizer-btn.chat-btn { background-color: #28a745; color: #ffffff; padding: 8px 20px; }
+  .summarizer-btn.chat-btn:hover:not(:disabled) { background-color: #218838; }
+  .summarizer-btn.close-btn { background-color: #e53935; color: #ffffff; padding: 8px 20px; }
+  .summarizer-btn.close-btn:hover:not(:disabled) { background-color: #d32f2f; }
+  .summarizer-btn.newsblur-btn { background-color: #8B4513; color: #ffffff; padding: 8px 20px; }
+  .summarizer-btn.newsblur-btn:hover:not(:disabled) { background-color: #652a0d; }
+
+  /* --- Responsive Adjustments --- */
+  @media (max-width: 780px) {
+    .summarizer-popup {
+      width: 95vw;
+      max-width: 95vw;
+      min-width: 95vw;
+      top: 2.5vh;
+    }
+
+    .summarizer-header-container,
+    .summarizer-body,
+    .summarizer-actions {
+      padding-left: 15px;
+      padding-right: 15px;
+    }
+
+    .summarizer-actions { gap: 8px; padding-top: 12px; padding-bottom: 12px; }
+    .summarizer-btn { padding: 6px 12px; height: 34px; }
+    .summarizer-btn.copy-btn, .summarizer-btn.chat-btn, .summarizer-btn.close-btn { padding: 6px 16px; }
+  }
+`;
+
+// --- HTML Template String ---
+const POPUP_TEMPLATE_HTML = `
+<div class="summarizer-popup" style="display: none;">
+    <div class="summarizer-header-container">
+        <div class="summarizer-header">Summary</div>
+    </div>
+    <div class="summarizer-body"></div>
+    <div class="summarizer-actions">
+        <button class="summarizer-btn copy-btn">Cop[y]</button>
+        <button class="summarizer-btn chat-btn">Cha[t]</button>
+        <button class="summarizer-btn newsblur-btn">Newsblu[r]</button>
+        <button class="summarizer-btn close-btn">Clos[e]</button>
+    </div>
+</div>
+`;
 
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
@@ -9,62 +209,38 @@ const POPUP_HEADER_CLASS = "summarizer-header";
 const POPUP_BODY_CLASS = "summarizer-body";
 const POPUP_ACTIONS_CLASS = "summarizer-actions";
 const POPUP_BTN_CLASS = "summarizer-btn";
-const POPUP_COPY_BTN_CLASS = "copy-btn"; // This class will be used for the new single Copy button
-const POPUP_CHAT_BTN_CLASS = "chat-btn"; // Class for the dynamic chat/options button
-const POPUP_NEWSBLUR_BTN_CLASS = "newsblur-btn"; // New: Class for NewsBlur button
+const POPUP_COPY_BTN_CLASS = "copy-btn";
+const POPUP_CHAT_BTN_CLASS = "chat-btn";
+const POPUP_NEWSBLUR_BTN_CLASS = "newsblur-btn";
 const POPUP_CLOSE_BTN_CLASS = "close-btn";
-// const NEWSBLUR_SYMBOL_CLASS = "newsblur-symbol"; // REMOVED: Class for the NewsBlur symbol
-
-// --- HTML Template String ---
-// Updated template for a single "Copy" button
-const POPUP_TEMPLATE_HTML = `
-<div class="${POPUP_CLASS}" style="display: none;">
-    <div class="${POPUP_HEADER_CONTAINER_CLASS}">
-        <div class="${POPUP_HEADER_CLASS}">Summary</div>
-    </div>
-    <div class="${POPUP_BODY_CLASS}"></div>
-    <div class="${POPUP_ACTIONS_CLASS}">
-        <button class="${POPUP_BTN_CLASS} ${POPUP_COPY_BTN_CLASS}">Cop[y]</button>
-        <!-- Single Chat Button -->
-        <button class="${POPUP_BTN_CLASS} ${POPUP_CHAT_BTN_CLASS}">Cha[t]</button>
-        <!-- New: NewsBlur Button -->
-        <button class="${POPUP_BTN_CLASS} ${POPUP_NEWSBLUR_BTN_CLASS}">Newsblu[r]</button>
-        <!-- End NewsBlur Button -->
-        <!-- End Single Chat Button -->
-        <button class="${POPUP_BTN_CLASS} ${POPUP_CLOSE_BTN_CLASS}">Clos[e]</button>
-    </div>
-</div>
-`;
 
 // --- Module State ---
-let popup = null;
-let currentContent = ""; // Stores the HTML/text content being displayed
+let host = null; // The host element (fixed position)
+let shadow = null; // The ShadowRoot
+let currentContent = "";
+let currentOriginalMarkdownArray = null;
+let currentPageURL = null;
+let currentPageTitle = null;
+let isErrorState = false;
 let popupCallbacks = {
   onCopy: null,
   onChat: null,
   onClose: null,
   onOptions: null,
   onNewsblur: null,
-}; // Initialize new callback
+};
 let copyTimeoutId = null;
-let DEBUG = false;
+let handlePopupKeydown = null;
 
-let currentOriginalMarkdownArray = null; // To store the array of original Markdown strings
-let currentPageURL = null; // To store the page URL
-let currentPageTitle = null; // To store the page title
-let isErrorState = false; // To track if the popup is in an error state
-let handlePopupKeydown = null; // To hold the reference to our keydown handler
+// --- Helper Functions ---
 
-// Helper function to escape HTML special characters
 function escapeHTML(str) {
   if (typeof str !== "string") return "";
-  // A robust way to escape HTML: create a text node and get its HTML representation.
   const div = document.createElement("div");
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
 }
 
-// Handles rich text copy logic
 async function handleRichTextCopyClick(contentDiv, copyBtn) {
   if (!copyBtn) return;
   if (copyTimeoutId) clearTimeout(copyTimeoutId);
@@ -74,13 +250,11 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
 
   if (currentOriginalMarkdownArray && currentOriginalMarkdownArray.length > 0) {
     // Construct HTML list from original markdown items
-    htmlToCopy = "<ul>"; // Use literal tags
+    htmlToCopy = "<ul>";
     currentOriginalMarkdownArray.forEach((item) => {
-      // Convert Markdown item to HTML using marked, then add to list
-      // Use parseInline to avoid wrapping in <p> tags if item is simple
       htmlToCopy += `<li>${marked.parseInline(item)}</li>`;
     });
-    htmlToCopy += "</ul>"; // Use literal tags
+    htmlToCopy += "</ul>";
 
     // Construct plain text list
     textToCopy = currentOriginalMarkdownArray
@@ -88,42 +262,30 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
       .join("\n");
 
     if (currentPageURL) {
-      // MODIFIED: Use currentPageTitle if available, otherwise fallback to currentPageURL for the link text
-      const linkText = currentPageTitle
-        ? escapeHTML(currentPageTitle)
-        : escapeHTML(currentPageURL);
-      htmlToCopy += `<br><p>Source: <a href="${escapeHTML(currentPageURL)}">${linkText}</a></p>`; // Use literal tags, escape URL content
+      const linkText = currentPageTitle ? escapeHTML(currentPageTitle) : escapeHTML(currentPageURL);
+      htmlToCopy += `<br><p>Source: <a href="${escapeHTML(currentPageURL)}">${linkText}</a></p>`;
       textToCopy += `\n\nSource: ${currentPageURL}`;
       if (currentPageTitle) {
-        // ADDED
-        textToCopy += ` (${currentPageTitle})`; // ADDED
+        textToCopy += ` (${currentPageTitle})`;
       }
     }
-    if (DEBUG)
-      console.log(
-        "[LLM Popup] Preparing rich text and plain text from original markdown array.",
-      );
   } else if (contentDiv && contentDiv.innerHTML.trim() !== "") {
-    // Fallback: Use the innerHTML of the contentDiv for rich text
+    // Fallback: Use the innerHTML of the contentDiv
     htmlToCopy = contentDiv.innerHTML;
-
-    // For plain text, preserve bold formatting as markdown
     const listItems = contentDiv.querySelectorAll("li");
     if (listItems.length > 0) {
       textToCopy = Array.from(listItems)
         .map((li) => {
-          // Convert <b> tags to **bold** markdown in plain text
           let itemText = li.innerHTML
             .replace(/<b>/gi, "**")
             .replace(/<\/b>/gi, "**")
-            .replace(/<[^>]*>/g, "") // Remove any other HTML tags
+            .replace(/<[^>]*>/g, "")
             .replace(/\u00A0/g, " ")
             .trim();
           return `* ${itemText}`;
         })
         .join("\n");
     } else {
-      // Fallback for non-list content
       textToCopy = contentDiv.innerHTML
         .replace(/<b>/gi, "**")
         .replace(/<\/b>/gi, "**")
@@ -131,34 +293,17 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
         .replace(/\u00A0/g, " ")
         .trim() || "";
     }
-
-    // Add source URL if available (consistent with originalMarkdownArray path)
     if (currentPageURL) {
-      const linkText = currentPageTitle
-        ? escapeHTML(currentPageTitle)
-        : escapeHTML(currentPageURL);
+      const linkText = currentPageTitle ? escapeHTML(currentPageTitle) : escapeHTML(currentPageURL);
       htmlToCopy += `<br><p>Source: <a href="${escapeHTML(currentPageURL)}">${linkText}</a></p>`;
       textToCopy += `\n\nSource: ${currentPageURL}`;
       if (currentPageTitle) {
         textToCopy += ` (${currentPageTitle})`;
       }
     }
-
-    if (DEBUG)
-      console.log(
-        "[LLM Popup] Fallback: Preparing rich/plain text from visible popup content.",
-      );
-  } else if (
-    typeof currentContent === "string" &&
-    !currentContent.startsWith("<")
-  ) {
-    // Fallback for simple text like "Thinking..."
-    htmlToCopy = `<p>${escapeHTML(currentContent.trim())}</p>`; // Use literal tags
+  } else if (typeof currentContent === "string" && !currentContent.startsWith("<")) {
+    htmlToCopy = `<p>${escapeHTML(currentContent.trim())}</p>`;
     textToCopy = currentContent.trim();
-    if (DEBUG)
-      console.log(
-        "[LLM Popup] Fallback: Preparing rich/plain text from currentContent string.",
-      );
   }
 
   if (htmlToCopy && textToCopy) {
@@ -171,70 +316,48 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
       });
       await navigator.clipboard.write([clipboardItem]);
       copyBtn.textContent = "Copied!";
-      if (DEBUG) console.log("[LLM Popup] Rich text copied successfully.");
     } catch (err) {
       console.error("[LLM Popup] Failed to copy rich text: ", err);
       try {
         await navigator.clipboard.writeText(textToCopy);
         copyBtn.textContent = "Copied (Text)!";
-        if (DEBUG)
-          console.log(
-            "[LLM Popup] Rich text failed, plain text copied as fallback.",
-          );
       } catch (textErr) {
-        console.error(
-          "[LLM Popup] Failed to copy plain text as fallback: ",
-          textErr,
-        );
+        console.error("[LLM Popup] Failed to copy plain text as fallback: ", textErr);
         copyBtn.textContent = "Error";
       }
     }
   } else {
-    if (DEBUG) console.warn("[LLM Popup] Nothing to copy (HTML or Text).");
     copyBtn.textContent = "Empty";
   }
 
   copyTimeoutId = setTimeout(() => {
-    copyBtn.textContent = "Copy"; // Button text is now "Copy"
+    copyBtn.textContent = "Copy";
     copyTimeoutId = null;
   }, 1500);
 }
 
+function getShadowElement(selector) {
+  return shadow.querySelector(selector);
+}
+
 // --- Public Functions ---
 
-/**
- * Creates and shows the summary popup using an HTML template.
- * Returns a Promise that resolves when the popup is visible and ready.
- * @param {string} content - The initial HTML or text content to display.
- * @param {object} callbacks - Object containing onCopy, onChat, onClose, and onOptions callbacks.
- * @param {string[] | null} [originalMarkdownArray=null] - Optional array of original Markdown strings.
- * @param {string | null} [pageURL=null] - Optional page URL.
- * @param {boolean} [errorState=false] - Indicates if the popup is in an error state.
- * @returns {Promise<void>} A Promise that resolves when the popup is ready.
- */
 export function showPopup(
   content,
   callbacks,
   originalMarkdownArray = null,
   pageURL = null,
-  pageTitle = null, // MODIFIED: Added pageTitle parameter
+  pageTitle = null,
   errorState = false,
-  hasNewsblurToken = false, // New: Add hasNewsblurToken parameter
+  hasNewsblurToken = false
 ) {
   return new Promise((resolve) => {
-    hidePopup(); // Clears previous state
+    hidePopup();
 
-    if (
-      !callbacks ||
-      typeof callbacks.onCopy !== "function" || // onCopy is still expected by the caller, though not used by the button directly
-      typeof callbacks.onChat !== "function" ||
-      typeof callbacks.onClose !== "function" ||
-      typeof callbacks.onOptions !== "function" ||
-      typeof callbacks.onNewsblur !== "function" // New: Check for onNewsblur callback
-    ) {
-      console.error(
-        "[LLM Popup] showPopup failed: Required callbacks missing.",
-      );
+    if (!callbacks || typeof callbacks.onCopy !== "function" || typeof callbacks.onChat !== "function" ||
+        typeof callbacks.onClose !== "function" || typeof callbacks.onOptions !== "function" ||
+        typeof callbacks.onNewsblur !== "function") {
+      console.error("[LLM Popup] showPopup failed: Required callbacks missing.");
       resolve();
       return;
     }
@@ -242,55 +365,60 @@ export function showPopup(
     currentContent = content;
     currentOriginalMarkdownArray = originalMarkdownArray;
     currentPageURL = pageURL;
-    currentPageTitle = pageTitle; // ADDED: Store pageTitle
+    currentPageTitle = pageTitle;
     isErrorState = errorState;
 
     try {
-      const template = document.createElement("template");
-      template.innerHTML = POPUP_TEMPLATE_HTML.trim();
-      popup = template.content.firstChild.cloneNode(true);
+      // Create Host
+      host = document.createElement("div");
+      host.id = "summarizer-popup-host";
+      host.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 0; /* No visual presence, just a viewport anchor */
+        z-index: 2147483647;
+        pointer-events: none;
+      `;
+
+      // Attach Shadow DOM
+      shadow = host.attachShadow({ mode: "open" });
+
+      // Inject Styles and Template
+      shadow.innerHTML = `<style>${POPUP_STYLES}</style>${POPUP_TEMPLATE_HTML.trim()}`;
+
+      document.body.appendChild(host);
     } catch (e) {
-      console.error("[LLM Popup] Error parsing or cloning popup template:", e);
-      popup = null;
+      console.error("[LLM Popup] Error creating Shadow DOM:", e);
+      host = null;
+      shadow = null;
       resolve();
       return;
     }
 
-    const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
-    const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
-    const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
-    const newsblurBtn = popup.querySelector(`.${POPUP_NEWSBLUR_BTN_CLASS}`); // New: NewsBlur button element
-    const closeBtn = popup.querySelector(`.${POPUP_CLOSE_BTN_CLASS}`);
+    const contentDiv = getShadowElement(`.${POPUP_BODY_CLASS}`);
+    const copyBtn = getShadowElement(`.${POPUP_COPY_BTN_CLASS}`);
+    const chatBtn = getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`);
+    const newsblurBtn = getShadowElement(`.${POPUP_NEWSBLUR_BTN_CLASS}`);
+    const closeBtn = getShadowElement(`.${POPUP_CLOSE_BTN_CLASS}`);
+    const popupElement = getShadowElement(`.${POPUP_CLASS}`);
 
     if (contentDiv) {
       if (typeof content === "string") {
         if (content.startsWith("<ul>")) {
-          // Check for HTML list
           contentDiv.innerHTML = content;
         } else {
           contentDiv.textContent = content;
         }
       } else {
         contentDiv.textContent = "Error: Invalid content type.";
-        console.error(
-          "[LLM Popup] Invalid content type passed to showPopup:",
-          content,
-        );
       }
-    } else {
-      console.error(
-        "[LLM Popup] Cannot set initial content: Popup body div not found.",
-      );
     }
 
     if (copyBtn) {
-      // Attach the new rich text copy handler
       copyBtn.onclick = () => handleRichTextCopyClick(contentDiv, copyBtn);
       copyBtn.disabled = true;
-    } else {
-      console.error(
-        "[LLM Popup] Could not attach copy listener: Button missing.",
-      );
     }
 
     if (chatBtn) {
@@ -299,116 +427,103 @@ export function showPopup(
         chatBtn.title = "Open options to adjust settings";
         chatBtn.onclick = () => popupCallbacks.onOptions();
         chatBtn.disabled = false;
-        if (DEBUG)
-          console.log(
-            "[LLM Popup] Button set to 'Options' due to error state.",
-          );
       } else {
         chatBtn.textContent = "Cha[t]";
         chatBtn.title = "Open chat with summary context";
         chatBtn.onclick = () => popupCallbacks.onChat(null);
-        chatBtn.disabled = true; // Keep disabled until content is ready
-        if (DEBUG)
-          console.log("[LLM Popup] Button set to 'Chat' for normal state.");
+        chatBtn.disabled = true;
       }
-    } else {
-      console.error(
-        "[LLM Popup] Could not attach chat/options listener: Button missing.",
-      );
     }
 
     if (newsblurBtn) {
-      // New: Attach listener for NewsBlur button
-      newsblurBtn.onclick = () => popupCallbacks.onNewsblur(hasNewsblurToken); // Pass hasNewsblurToken to callback
-      newsblurBtn.style.display = hasNewsblurToken ? "inline-block" : "none"; // Control visibility
-    } else {
-      console.error(
-        "[LLM Popup] Could not attach NewsBlur listener: Button missing.",
-      );
+      newsblurBtn.onclick = () => popupCallbacks.onNewsblur(hasNewsblurToken);
+      newsblurBtn.style.display = hasNewsblurToken ? "inline-block" : "none";
     }
 
     if (closeBtn) {
       closeBtn.onclick = () => popupCallbacks.onClose();
-    } else {
-      console.error(
-        "[LLM Popup] Could not attach close listener: Button missing.",
-      );
     }
-
-    document.body.appendChild(popup);
-    if (DEBUG) console.log("[LLM Popup] Popup added to page from template.");
 
     // Define and add the keydown listener for multiple hotkeys
     handlePopupKeydown = (event) => {
       const key = event.key.toLowerCase();
-
-      // Check if any of our hotkeys were pressed
       const isHotkeyPressed = ['e', 'y', 't', 'r', 'escape'].includes(key);
 
       if (isHotkeyPressed) {
-        // Stop the event from reaching any other listeners (on the host page or in other scripts)
         event.preventDefault();
         event.stopPropagation();
 
         switch (key) {
           case "e":
           case "escape":
-            if (popupCallbacks.onClose) {
-              popupCallbacks.onClose();
-            }
+            if (popupCallbacks.onClose) popupCallbacks.onClose();
             break;
-
           case "y":
-            // Trigger copy button click
-            const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
-            if (copyBtn) {
-              copyBtn.click();
-            }
-            break;
-
+          {
+            const cBtn = getShadowElement(`.${POPUP_COPY_BTN_CLASS}`);
+            if (cBtn) cBtn.click();
+          }
+          break;
           case "t":
-            // Trigger chat button click if enabled
-            const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
-            if (chatBtn && !chatBtn.disabled) {
-              chatBtn.click();
-            }
-            break;
-
+          {
+            const chBtn = getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`);
+            if (chBtn && !chBtn.disabled) chBtn.click();
+          }
+          break;
           case "r":
-            // Trigger NewsBlur button click if visible
-            const newsblurBtn = popup.querySelector(
-              `.${POPUP_NEWSBLUR_BTN_CLASS}`,
-            );
-            if (newsblurBtn && newsblurBtn.style.display !== "none") {
-              newsblurBtn.click();
-            }
-            break;
+          {
+            const nBtn = getShadowElement(`.${POPUP_NEWSBLUR_BTN_CLASS}`);
+            if (nBtn && nBtn.style.display !== "none") nBtn.click();
+          }
+          break;
         }
       }
     };
     document.addEventListener("keydown", handlePopupKeydown, true);
 
-    popup.style.display = "flex";
-    requestAnimationFrame(() => {
-      if (popup) {
-        popup.classList.add("visible");
-        if (DEBUG)
-          console.log("[LLM Popup] Popup visibility transition started.");
-        resolve();
-      } else {
-        resolve(); // Should not happen if parsing was successful
-      }
-    });
+    if (popupElement) {
+      popupElement.style.display = "flex";
+      requestAnimationFrame(() => {
+        if (popupElement) {
+          popupElement.classList.add("visible");
+          resolve();
+        } else {
+          resolve();
+        }
+      });
+    } else {
+      resolve();
+    }
   });
 }
 
-/**
- * Hides and removes the summary popup from the DOM.
- */
 export function hidePopup() {
-  if (popup) {
-    const popupElement = popup;
-    popup = null;
+  if (host) {
+    if (handlePopupKeydown) {
+      document.removeEventListener("keydown", handlePopupKeydown, true);
+      handlePopupKeydown = null;
+    }
+
+    const popupElement = getShadowElement(`.${POPUP_CLASS}`);
+    if (popupElement) {
+      popupElement.classList.remove("visible");
+      const computedStyle = window.getComputedStyle(popupElement);
+      const transitionDuration = parseFloat(computedStyle.transitionDuration) * 1000;
+      setTimeout(() => {
+        if (host && host.parentNode) {
+          host.parentNode.removeChild(host);
+        }
+        host = null;
+        shadow = null;
+      }, transitionDuration > 0 ? transitionDuration + 50 : 10);
+    } else {
+      if (host.parentNode) {
+        host.parentNode.removeChild(host);
+      }
+      host = null;
+      shadow = null;
+    }
+
     // Reset callbacks and state
     popupCallbacks = {
       onCopy: null,
@@ -416,90 +531,45 @@ export function hidePopup() {
       onClose: null,
       onOptions: null,
       onNewsblur: null,
-    }; // Reset new callback
+    };
     currentContent = "";
     currentOriginalMarkdownArray = null;
     currentPageURL = null;
-    currentPageTitle = null; // ADDED: Reset pageTitle
+    currentPageTitle = null;
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
     isErrorState = false;
-
-    // Remove the keydown listener
-    if (handlePopupKeydown) {
-      document.removeEventListener("keydown", handlePopupKeydown, true);
-      handlePopupKeydown = null;
-    }
-
-    popupElement.classList.remove("visible");
-    const computedStyle = window.getComputedStyle(popupElement);
-    const transitionDuration =
-      parseFloat(computedStyle.transitionDuration) * 1000;
-    setTimeout(
-      () => {
-        if (popupElement?.parentNode) {
-          popupElement.parentNode.removeChild(popupElement);
-          if (DEBUG) console.log("[LLM Popup] Popup hidden and removed.");
-        }
-      },
-      transitionDuration > 0 ? transitionDuration + 50 : 10,
-    );
   }
 }
 
-/**
- * Updates the content of the existing popup body.
- * @param {string} newContent - The new HTML or text content to display.
- * @param {string[] | null} [originalMarkdownArray=null] - Optional array of original Markdown strings.
- * @param {string | null} [pageURL=null] - Optional page URL.
- * @param {boolean} [errorState=false] - Indicates if the popup is in an error state.
- * @param {boolean} [hasNewsblurToken=false] - New: Indicates if a NewsBlur token is available.
- */
 export function updatePopupContent(
   newContent,
   originalMarkdownArray = null,
   pageURL = null,
-  pageTitle = null, // MODIFIED: Added pageTitle parameter
+  pageTitle = null,
   errorState = false,
-  hasNewsblurToken = false, // New: Add hasNewsblurToken parameter
+  hasNewsblurToken = false
 ) {
-  if (!popup) {
-    if (DEBUG)
-      console.warn(
-        "[LLM Popup] updatePopupContent called but popup doesn't exist.",
-      );
-    return;
-  }
+  if (!host || !shadow) return;
+
   currentContent = newContent;
-  currentOriginalMarkdownArray = originalMarkdownArray; // Store for copy
-  currentPageURL = pageURL; // Store for copy
-  currentPageTitle = pageTitle; // ADDED: Store pageTitle
+  currentOriginalMarkdownArray = originalMarkdownArray;
+  currentPageURL = pageURL;
+  currentPageTitle = pageTitle;
   isErrorState = errorState;
 
-  const contentDiv = popup.querySelector(`.${POPUP_BODY_CLASS}`);
-  const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
-  const newsblurBtn = popup.querySelector(`.${POPUP_NEWSBLUR_BTN_CLASS}`); // New: NewsBlur button element
+  const contentDiv = getShadowElement(`.${POPUP_BODY_CLASS}`);
+  const chatBtn = getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`);
+  const newsblurBtn = getShadowElement(`.${POPUP_NEWSBLUR_BTN_CLASS}`);
 
   if (contentDiv) {
     if (typeof newContent === "string") {
       if (newContent.startsWith("<ul>")) {
-        // Check for HTML list
         contentDiv.innerHTML = newContent;
       } else {
         contentDiv.textContent = newContent;
       }
-      if (DEBUG) console.log("[LLM Popup] Popup content updated.");
-    } else {
-      contentDiv.textContent = "Error: Invalid content type.";
-      console.error(
-        "[LLM Popup] Invalid content type passed to updatePopupContent:",
-        newContent,
-      );
     }
-  } else {
-    console.error(
-      "[LLM Popup] Cannot update content: Popup body div not found.",
-    );
   }
 
   if (chatBtn) {
@@ -508,41 +578,28 @@ export function updatePopupContent(
       chatBtn.title = "Open options to adjust settings";
       chatBtn.onclick = () => popupCallbacks.onOptions();
       chatBtn.disabled = false;
-      if (DEBUG)
-        console.log(
-          "[LLM Popup] Button updated to 'Options' due to error state in updatePopupContent.",
-        );
     } else {
       chatBtn.textContent = "Cha[t]";
       chatBtn.title = "Open chat with summary context";
       chatBtn.onclick = () => popupCallbacks.onChat(null);
-      // Chat button should be enabled/disabled by enableChatButton based on summary generation status
-      // chatBtn.disabled = true; // Re-evaluate: keep existing logic from enableChatButton
-      if (DEBUG)
-        console.log(
-          "[LLM Popup] Button updated to 'Chat' for normal state in updatePopupContent.",
-        );
+      chatBtn.disabled = false;
     }
   }
+
   if (newsblurBtn) {
-    // New: Control NewsBlur button visibility and pass token status
-    newsblurBtn.onclick = () => popupCallbacks.onNewsblur(hasNewsblurToken); // Ensure callback always gets token status
+    newsblurBtn.onclick = () => popupCallbacks.onNewsblur(hasNewsblurToken);
     newsblurBtn.style.display = hasNewsblurToken ? "inline-block" : "none";
   }
 }
 
-/**
- * Enables or disables the Chat and Copy buttons in the popup.
- */
 export function enableButtons(enable) {
-  if (!popup) return;
-  const chatBtn = popup.querySelector(`.${POPUP_CHAT_BTN_CLASS}`);
-  const copyBtn = popup.querySelector(`.${POPUP_COPY_BTN_CLASS}`);
+  if (!host || !shadow) return;
+  const chatBtn = getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`);
+  const copyBtn = getShadowElement(`.${POPUP_COPY_BTN_CLASS}`);
 
   if (chatBtn) {
-    // Only enable if not in an error state where it should show "Options"
     if (isErrorState && chatBtn.textContent === "Options") {
-      // Don't change disabled state if it's an "Options" button
+      // Keep state
     } else {
       chatBtn.disabled = !enable;
     }
@@ -551,17 +608,8 @@ export function enableButtons(enable) {
   if (copyBtn) {
     copyBtn.disabled = !enable;
   }
-
-  if (DEBUG)
-    console.log(
-      `[LLM Popup] Buttons ${enable ? "enabled" : "disabled (or kept as Options)"}.`,
-    );
 }
 
-/**
- * Initializes the popup manager module.
- */
 export function initializePopupManager(options) {
-  DEBUG = !!options?.initialDebugState;
-  if (DEBUG) console.log("[LLM Popup] Initialized.");
+  // DEBUG is handled via options if needed in future
 }

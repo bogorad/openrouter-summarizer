@@ -1,196 +1,13 @@
 /* ========================================= */
 /* OpenRouter Summarizer pageInteraction.css */
-/* v3.0.1                                   */
-/* Styles for Popup and Page Interactions    */
+/* v3.0.2                                   */
+/* Styles for Highlighting & UI Components   */
+/* NOTE: Popup and Floating Icon styles have */
+/* been moved to Shadow DOM for isolation.   */
 /* ========================================= */
 
-/* --- Globals --- */
-.summarizer-popup,
-.summarizer-popup *,
-.summarizer-popup *::before,
-.summarizer-popup *::after {
-  box-sizing: border-box;
-}
-
-/* --- Main Popup Container --- */
-.summarizer-popup {
-  position: fixed;
-  top: 10vh;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2147483647;
-  display: flex;
-  flex-direction: column;
-  width: auto;
-  max-width: 750px;
-  min-width: 320px;
-  height: min-content;
-  background-color: #ffffff;
-  border: 1.5px solid #2196F3;
-  border-radius: 14px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-  color: #333;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Emoji", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", "Noto Color Emoji", sans-serif !important;
-  font-size: 16px;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-  transform: translateX(-50%) translateY(-10px);
-}
-
-.summarizer-popup.visible {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-
-/* --- Popup Header Container --- */
-.summarizer-header-container {
-    padding: 14px 20px;
-    background-color: #2196F3;
-    color: #ffffff;
-    flex-shrink: 0;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-
-/* --- Popup Header (Summary Title) --- */
-.summarizer-header {
-  font-size: 1.1em;
-  font-weight: 600;
-  margin: 0;
-  text-align: center;
-}
-
-/* --- Popup Body (Main Content Area) --- */
-.summarizer-body {
-  padding: 18px 20px;
-  background-color: #f7faff;
-  color: #1e2333;
-  font-size: 1em;
-  line-height: 1.6;
-  min-height: 50px;
-  max-height: 65vh;
-  overflow-y: auto;
-  word-wrap: break-word;
-  border-radius: 0;
-  margin: 0;
-}
-
-.summarizer-body ul {
-  padding-left: 20px;
-  margin: 0.5em 0;
-}
-.summarizer-body li {
-  margin-bottom: 0.6em;
-}
-.summarizer-body b,
-.summarizer-body strong {
-  font-weight: 600;
-}
-.summarizer-body i,
-.summarizer-body em {
-  font-style: italic;
-}
-
-/* --- Popup Actions (Footer with Buttons) --- */
-.summarizer-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center; /* Vertically center Copy, Chat, Close */
-  gap: 12px;
-  padding: 15px 20px;
-  background-color: #f7faff;
-  border-top: 1px solid #e0e8f0;
-  flex-shrink: 0;
-  margin: 0;
-}
-
-/* --- Buttons (Base Style) --- */
-.summarizer-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.95em;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  text-align: center;
-  white-space: nowrap;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  vertical-align: middle;
-  height: 36px;
-  min-width: 40px;
-}
-.summarizer-btn:hover {
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
-}
-.summarizer-btn:active {
-  transform: translateY(0px);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-.summarizer-btn:disabled {
-  background-color: #bdbdbd !important;
-  color: #757575 !important;
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
-  opacity: 0.7;
-}
-.summarizer-btn img {
-    height: 1.2em;
-    width: auto;
-    display: block;
-    max-width: 100%;
-}
-
-
-/* Specific Button Colors */
-.summarizer-btn.copy-btn { background-color: #1976D2; color: #ffffff; padding: 8px 20px; }
-.summarizer-btn.copy-btn:hover:not(:disabled) { background-color: #1565C0; }
-/* New style for the single Chat button */
-.summarizer-btn.chat-btn { background-color: #28a745; color: #ffffff; padding: 8px 20px; }
-.summarizer-btn.chat-btn:hover:not(:disabled) { background-color: #218838; }
-.summarizer-btn.close-btn { background-color: #e53935; color: #ffffff; padding: 8px 20px; }
-.summarizer-btn.close-btn:hover:not(:disabled) { background-color: #d32f2f; }
-/* New style for the NewsBlur button */
-.summarizer-btn.newsblur-btn { background-color: #8B4513; color: #ffffff; padding: 8px 20px; } /* SaddleBrown */
-.summarizer-btn.newsblur-btn:hover:not(:disabled) { background-color: #652a0d; } /* Darker shade for hover */
-
-
-
-/* --- Responsive Adjustments --- */
-@media (max-width: 780px) {
-  .summarizer-popup {
-    width: 95vw;
-    max-width: 95vw;
-    min-width: 95vw;
-    top: 2.5vh;
-  }
-
-  .summarizer-header-container,
-  .summarizer-body,
-  .summarizer-actions {
-    padding-left: 15px;
-    padding-right: 15px;
-  }
-
-  .summarizer-actions { gap: 8px; padding-top: 12px; padding-bottom: 12px; } /* Adjust padding */
-  .summarizer-btn { padding: 6px 12px; height: 34px; }
-  .summarizer-btn.copy-btn, .summarizer-btn.chat-btn, .summarizer-btn.close-btn { padding: 6px 16px; } /* Apply adjusted padding to new chat button */
-}
-
 /* ======================================== */
-/* Element Highlighting & Floating Icon     */
+/* Element Highlighting                     */
 /* ======================================== */
 .llm-highlight-preview {
   outline: 3px dashed #2196F3 !important;
@@ -206,36 +23,11 @@
   box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
   z-index: 2147483644;
 }
-.llm-floating-icon {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 2147483646;
-  transition: transform 0.1s ease-out;
-  border: 1px solid #ccc;
-}
-.llm-floating-icon:hover {
-  transform: scale(1.1);
-}
-.llm-floating-icon img {
-  width: 24px;
-  height: 24px;
-  display: block;
-  max-width: 100%;
-}
-.llm-fallback-icon {
-  font-size: 22px;
-  line-height: 1;
-}
 
-/* Styling for Joplin Notebook Selection Popup */
+/* ======================================== */
+/* Joplin Notebook Selection Popup          */
+/* (Not migrated to Shadow DOM yet)         */
+/* ======================================== */
 .joplin-popup {
     position: fixed;
     top: 50%;
@@ -246,9 +38,9 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     border-radius: 8px;
     padding: 20px;
-    z-index: 10000; /* Ensure it's on top of most elements */
+    z-index: 10000;
     width: 300px;
-    font-family: inherit; /* Inherit font from the page */
+    font-family: inherit;
     font-size: 14px;
     display: flex;
     flex-direction: column;
@@ -264,7 +56,6 @@
     pointer-events: auto;
 }
 
-/* Styling for Joplin Notebook Selection Popup Header (similar to summarizer-popup header) */
 .joplin-popup-header-container {
     padding: 14px 20px;
     background-color: #2196F3;
@@ -275,15 +66,15 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    border-radius: 8px 8px 0 0; /* Match popup border-radius */
+    border-radius: 8px 8px 0 0;
 }
 
 .joplin-popup-header {
-    font-size: 1.1em; /* Adjusted for consistency */
-    font-weight: 600; /* Adjusted for consistency */
+    font-size: 1.1em;
+    font-weight: 600;
     margin: 0;
     text-align: center;
-    color: #ffffff; /* Ensure text is white against blue background */
+    color: #ffffff;
 }
 
 .joplin-popup-body {
@@ -293,11 +84,10 @@
     justify-content: center;
     align-items: center;
     text-align: center;
-    min-height: 80px; /* Ensure some height for loading text */
+    min-height: 80px;
 }
 
 .joplin-popup-body.placeholder-content {
-    /* Style for loading/error messages if needed */
     color: #888;
     font-style: italic;
 }
@@ -314,7 +104,7 @@
     border-radius: 4px;
     font-size: 1em;
     margin-top: 10px;
-    box-sizing: border-box; /* Include padding in width */
+    box-sizing: border-box;
 }
 
 .joplin-popup-actions {
@@ -364,7 +154,7 @@
     background-color: #fff;
     max-height: 200px;
     overflow-y: auto;
-    z-index: 10001; /* Above Joplin popup */
+    z-index: 10001;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     border-radius: 4px;
     margin-top: 4px;
@@ -391,29 +181,30 @@
 
 /* ======================================== */
 /* Notification Container Styles            */
+/* (Not migrated to Shadow DOM yet)         */
 /* ======================================== */
 .llm-notification-container {
   position: fixed;
   top: 20px;
   right: 20px;
-  z-index: 2147483647; /* Max z-index to stay on top */
+  z-index: 2147483647;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  pointer-events: none; /* Allows clicking through the container */
+  pointer-events: none;
   max-width: 350px;
 }
 
 .llm-notification-message {
   background-color: #fff;
-  color: #c0392b; /* Error Red */
+  color: #c0392b;
   padding: 12px 18px;
   border-radius: 6px;
   border: 1px solid #f5c6cb;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   font-size: 14px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  pointer-events: auto; /* Make individual messages clickable if needed */
+  pointer-events: auto;
   animation: llm-fade-in 0.3s ease-out;
 }
 

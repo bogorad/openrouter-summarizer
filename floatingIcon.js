@@ -1,14 +1,16 @@
 // floatingIcon.js
 
-console.log(`[LLM FloatingIcon] Script Loaded (v2.40.10)`);
+console.log(`[LLM FloatingIcon] Script Loaded (v2.41.0 - ShadowDOM)`);
 
 const FLOATING_ICON_CLASS = "llm-floating-icon";
-const FALLBACK_ICON_CLASS = "llm-fallback-icon"; // Added for consistency
+const FALLBACK_ICON_CLASS = "llm-fallback-icon";
 
-let floatingIcon = null; // Module-scoped state for the icon element
+let host = null;
+let shadow = null;
+let floatingIcon = null;
 let onClickCallback = null;
 let onDismissCallback = null;
-let DEBUG = false; // Will be set by initializeFloatingIcon
+let DEBUG = false;
 
 // --- Internal Helper ---
 
@@ -30,39 +32,27 @@ function handleIconKeyDown(e) {
       onClickCallback();
     }
   }
-  // Use Escape key to dismiss the icon AND trigger the deselect logic
   if (e.key === "Escape") {
     e.preventDefault();
     e.stopPropagation();
     if (DEBUG) console.log("[LLM FloatingIcon] Icon dismissed via Escape.");
-    removeFloatingIcon(); // Remove the icon itself
+    removeFloatingIcon();
     if (onDismissCallback) {
-      onDismissCallback(); // Notify the main script to handle deselection etc.
+      onDismissCallback();
     }
   }
 }
 
 // --- Public Functions ---
 
-/**
- * Creates and displays the floating icon at the specified coordinates.
- * @param {number} clickX - The page X coordinate for positioning.
- * @param {number} clickY - The page Y coordinate for positioning.
- * @param {function} onIconClick - Callback function when the main icon is clicked or activated.
- * @param {function} onIconDismiss - Callback function when the main icon is dismissed (e.g., via Escape key).
- * @param {function} onJoplinClick - Callback function when the Joplin icon is clicked.
- * @param {boolean} showJoplinIcon - Whether to display the Joplin icon.
- * @param {function} onCopyHtmlClick - Callback function when the Copy HTML icon is clicked.
- * @param {boolean} showCopyHtmlIcon - Whether to display the Copy HTML icon.
- */
 export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, onJoplinClick, showJoplinIcon, onCopyHtmlClick, showCopyHtmlIcon) {
-  removeFloatingIcon(); // Ensure any old icon is removed first
+  removeFloatingIcon();
 
   if (
     typeof onIconClick !== "function" ||
     typeof onIconDismiss !== "function" ||
-    typeof onJoplinClick !== "function" || // Ensure joplin callback is a function
-    typeof onCopyHtmlClick !== "function" // Ensure copy HTML callback is a function
+    typeof onJoplinClick !== "function" ||
+    typeof onCopyHtmlClick !== "function"
   ) {
     console.error(
       "[LLM FloatingIcon] createFloatingIcon failed: Required callbacks missing.",
@@ -70,8 +60,23 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
     return;
   }
   onClickCallback = onIconClick;
-  onDismissCallback = onDismissCallback; // Re-assigning to itself, as it's modified in the main function.
-  // We don't store onJoplinClick as a module-level variable because it's only for this specific instance.
+  onDismissCallback = onIconDismiss;
+
+  // Create Host
+  host = document.createElement("div");
+  host.id = "summarizer-floating-host";
+  host.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    overflow: visible;
+    z-index: 2147483646;
+  `;
+
+  // Attach Shadow DOM
+  shadow = host.attachShadow({ mode: "open" });
 
   floatingIcon = document.createElement("div");
   floatingIcon.className = FLOATING_ICON_CLASS;
@@ -92,13 +97,13 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
   let iconCount = 1 + (showJoplinIcon ? 1 : 0) + (showCopyHtmlIcon ? 1 : 0);
 
   if (iconCount > 1) {
-    floatingIcon.style.gap = "8px"; // Spacing when multiple icons are present
-    floatingIcon.style.borderRadius = "30px"; // Oval shape for multiple icons
-    floatingIcon.style.padding = "8px 16px"; // Adjust padding for oval to accommodate multiple icons
+    floatingIcon.style.gap = "8px";
+    floatingIcon.style.borderRadius = "30px";
+    floatingIcon.style.padding = "8px 16px";
   } else {
-    floatingIcon.style.gap = "0px"; // No gap needed for a single icon
-    floatingIcon.style.borderRadius = "50%"; // Circular shape for single icon
-    floatingIcon.style.padding = "8px"; // Padding for circle
+    floatingIcon.style.gap = "0px";
+    floatingIcon.style.borderRadius = "50%";
+    floatingIcon.style.padding = "8px";
   }
 
   let iconUrl = "";
@@ -121,13 +126,13 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
   iconImg.src = iconUrl;
   iconImg.alt = "Summarize";
   iconImg.style.pointerEvents = "none";
-  iconImg.style.width = "32px"; // Retain main icon original size
-  iconImg.style.height = "32px"; // Retain main icon original size
+  iconImg.style.width = "32px";
+  iconImg.style.height = "32px";
 
   iconImg.onerror = function () {
     iconImg.style.display = "none";
     if (!floatingIcon || floatingIcon.querySelector(`.${FALLBACK_ICON_CLASS}`))
-      return; // Prevent adding multiple fallbacks
+      return;
     const fallback = document.createElement("span");
     fallback.className = FALLBACK_ICON_CLASS;
     fallback.textContent = "💡";
@@ -138,39 +143,38 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
         "[LLM FloatingIcon] Failed to load icon image, using fallback.",
       );
   };
-  if (!iconUrl) iconImg.onerror(); // Trigger fallback if URL is empty
+  if (!iconUrl) iconImg.onerror();
 
-  // Container for the main icon and its text, if any
   const mainIconContainer = document.createElement("div");
   mainIconContainer.style.display = "flex";
   mainIconContainer.style.alignItems = "center";
   mainIconContainer.appendChild(iconImg);
-  floatingIcon.appendChild(mainIconContainer); // Append the main icon container
+  floatingIcon.appendChild(mainIconContainer);
 
   // Add Joplin icon if requested
   if (showJoplinIcon) {
     const joplinIconWrapper = document.createElement("div");
     joplinIconWrapper.id = "llm-joplin-icon-wrapper";
-    joplinIconWrapper.className = "llm-floating-icon-item"; // A class for styling individual icons
+    joplinIconWrapper.className = "llm-floating-icon-item";
     joplinIconWrapper.setAttribute("role", "button");
     joplinIconWrapper.setAttribute("tabindex", "0");
-    joplinIconWrapper.title = "Send to Joplin"; // Tooltip for the new icon
-    joplinIconWrapper.style.cursor = "pointer"; // Indicate it's clickable
+    joplinIconWrapper.title = "Send to Joplin";
+    joplinIconWrapper.style.cursor = "pointer";
     joplinIconWrapper.style.backgroundColor = "transparent";
     joplinIconWrapper.style.borderRadius = "50%";
-    joplinIconWrapper.style.width = "32px"; // Match main icon size for consistency
-    joplinIconWrapper.style.height = "32px"; // Match main icon size for consistency
+    joplinIconWrapper.style.width = "32px";
+    joplinIconWrapper.style.height = "32px";
     joplinIconWrapper.style.display = "flex";
     joplinIconWrapper.style.justifyContent = "center";
     joplinIconWrapper.style.alignItems = "center";
     joplinIconWrapper.style.boxShadow = "none";
 
     const joplinIconImg = document.createElement("img");
-    joplinIconImg.src = chrome.runtime.getURL("icons/scissors.svg"); // Path to scissors.svg
+    joplinIconImg.src = chrome.runtime.getURL("icons/scissors.svg");
     joplinIconImg.alt = "Joplin";
-    joplinIconImg.style.width = "24px"; // Retain original size
-    joplinIconImg.style.height = "24px"; // Retain original size
-    joplinIconImg.style.pointerEvents = "none"; // Ensures clicks go to the parent wrapper
+    joplinIconImg.style.width = "24px";
+    joplinIconImg.style.height = "24px";
+    joplinIconImg.style.pointerEvents = "none";
 
     joplinIconWrapper.onclick = (e) => {
       e.stopPropagation();
@@ -192,33 +196,33 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
     };
 
     joplinIconWrapper.appendChild(joplinIconImg);
-    floatingIcon.appendChild(joplinIconWrapper); // Append the Joplin icon wrapper
+    floatingIcon.appendChild(joplinIconWrapper);
   }
 
   // Add Copy HTML icon if requested
   if (showCopyHtmlIcon) {
     const copyHtmlIconWrapper = document.createElement("div");
     copyHtmlIconWrapper.id = "llm-copy-html-icon-wrapper";
-    copyHtmlIconWrapper.className = "llm-floating-icon-item"; // A class for styling individual icons
+    copyHtmlIconWrapper.className = "llm-floating-icon-item";
     copyHtmlIconWrapper.setAttribute("role", "button");
     copyHtmlIconWrapper.setAttribute("tabindex", "0");
-    copyHtmlIconWrapper.title = "Copy element HTML"; // Tooltip for the new icon
-    copyHtmlIconWrapper.style.cursor = "pointer"; // Indicate it's clickable
+    copyHtmlIconWrapper.title = "Copy element HTML";
+    copyHtmlIconWrapper.style.cursor = "pointer";
     copyHtmlIconWrapper.style.backgroundColor = "transparent";
     copyHtmlIconWrapper.style.borderRadius = "50%";
-    copyHtmlIconWrapper.style.width = "32px"; // Match main icon size for consistency
-    copyHtmlIconWrapper.style.height = "32px"; // Match main icon size for consistency
+    copyHtmlIconWrapper.style.width = "32px";
+    copyHtmlIconWrapper.style.height = "32px";
     copyHtmlIconWrapper.style.display = "flex";
     copyHtmlIconWrapper.style.justifyContent = "center";
     copyHtmlIconWrapper.style.alignItems = "center";
     copyHtmlIconWrapper.style.boxShadow = "none";
 
     const copyHtmlIconImg = document.createElement("img");
-    copyHtmlIconImg.src = chrome.runtime.getURL("icons/copy-html.svg"); // Path to copy-html.svg
+    copyHtmlIconImg.src = chrome.runtime.getURL("icons/copy-html.svg");
     copyHtmlIconImg.alt = "Copy HTML";
-    copyHtmlIconImg.style.width = "24px"; // Retain original size
-    copyHtmlIconImg.style.height = "24px"; // Retain original size
-    copyHtmlIconImg.style.pointerEvents = "none"; // Ensures clicks go to the parent wrapper
+    copyHtmlIconImg.style.width = "24px";
+    copyHtmlIconImg.style.height = "24px";
+    copyHtmlIconImg.style.pointerEvents = "none";
 
     copyHtmlIconWrapper.onclick = (e) => {
       e.stopPropagation();
@@ -240,25 +244,25 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
     };
 
     copyHtmlIconWrapper.appendChild(copyHtmlIconImg);
-    floatingIcon.appendChild(copyHtmlIconWrapper); // Append the Copy HTML icon wrapper
+    floatingIcon.appendChild(copyHtmlIconWrapper);
   }
 
-  // Positioning logic (accounts for dynamic width due to multiple icons)
-  floatingIcon.style.whiteSpace = "nowrap"; // Prevent icon wrapping
-  
+  // Positioning logic
+  floatingIcon.style.whiteSpace = "nowrap";
+
   // Before appending, define default size based on number of icons
-  // This ensures the bounding box calculation for initial positioning is accurate
-  let defaultWidth = 32 + (8 * 2); // icon size + padding
-  let defaultHeight = 32 + (8 * 2); // icon size + padding
+  let defaultWidth = 32 + (8 * 2);
+  let defaultHeight = 32 + (8 * 2);
 
   if (iconCount > 1) {
-    defaultWidth = (32 * iconCount) + (8 * (iconCount - 1)) + (16 * 2); // multiple icons + gaps + padding
+    defaultWidth = (32 * iconCount) + (8 * (iconCount - 1)) + (16 * 2);
   }
 
   floatingIcon.style.width = `${defaultWidth}px`;
   floatingIcon.style.height = `${defaultHeight}px`;
 
-  document.body.appendChild(floatingIcon); // Append to the DOM first to get accurate width
+  shadow.appendChild(floatingIcon);
+  document.body.appendChild(host);
 
   const boundingBox = floatingIcon.getBoundingClientRect();
   const iconWidth = boundingBox.width;
@@ -267,7 +271,7 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
   const margin = 5;
   let iconX = clickX - iconWidth / 2;
   let iconY = clickY - iconHeight / 2;
-  
+
   iconX = Math.max(
     window.scrollX + margin,
     Math.min(iconX, window.scrollX + window.innerWidth - iconWidth - margin),
@@ -276,45 +280,38 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
     window.scrollY + margin,
     Math.min(iconY, window.scrollY + window.innerHeight - iconHeight - margin),
   );
-  
-  floatingIcon.style.left = `${iconX}px`;
-  floatingIcon.style.top = `${iconY}px`;
-  floatingIcon.style.pointerEvents = "auto";
 
-  // Add event listeners specific to this icon instance
+  host.style.left = `${iconX}px`;
+  host.style.top = `${iconY}px`;
+
   floatingIcon.addEventListener("click", handleIconClick);
   floatingIcon.addEventListener("keydown", handleIconKeyDown);
 
-  document.body.appendChild(floatingIcon);
   if (DEBUG) console.log("[LLM FloatingIcon] Icon created at", iconX, iconY);
 
-  floatingIcon.focus(); // Focus for accessibility
+  floatingIcon.focus();
 }
 
-/**
- * Removes the floating icon from the DOM if it exists.
- */
 export function removeFloatingIcon() {
-  if (floatingIcon && floatingIcon.parentNode) {
-    // Remove specific listeners added in createFloatingIcon
-    floatingIcon.removeEventListener("click", handleIconClick);
-    floatingIcon.removeEventListener("keydown", handleIconKeyDown);
+  if (host) {
+    if (floatingIcon) {
+      floatingIcon.removeEventListener("click", handleIconClick);
+      floatingIcon.removeEventListener("keydown", handleIconKeyDown);
+    }
 
-    floatingIcon.parentNode.removeChild(floatingIcon);
+    if (host.parentNode) {
+      host.parentNode.removeChild(host);
+    }
+    host = null;
+    shadow = null;
+    floatingIcon = null;
     if (DEBUG) console.log("[LLM FloatingIcon] Icon removed.");
   }
-  floatingIcon = null; // Clear the state variable
-  onClickCallback = null; // Clear callbacks
+  onClickCallback = null;
   onDismissCallback = null;
 }
 
-/**
- * Initializes the floating icon module.
- * @param {object} options - Configuration options.
- * @param {boolean} [options.initialDebugState=false] - Initial debug logging state.
- */
 export function initializeFloatingIcon(options) {
   DEBUG = !!options?.initialDebugState;
   if (DEBUG) console.log("[LLM FloatingIcon] Initialized.");
-  // No persistent listeners needed for this module itself
 }
