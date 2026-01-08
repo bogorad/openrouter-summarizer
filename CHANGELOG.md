@@ -1,3 +1,10 @@
+- **Version 3.9.0:** 🛡️ **Shadow DOM Migration (Robustness)**
+  - **Complete UI Isolation:** Migrated `summaryPopup.js` and `floatingIcon.js` to use Shadow DOM.
+  - **CSS Independence:** Extension UI is now immune to external CSS (Bootstrap, Tailwind, site resets).
+  - **No More Style Conflicts:** Floating icons and popups render consistently on all websites.
+  - **Fixed Interactions:** Resolved issues where clicking the floating icon would deselect the element.
+  - **Fixed Clipboard:** Ensured bold formatting is preserved when copying summaries.
+
 - **Version 3.8.8:** 📚 **Web-Enabled Chat Documentation**
   - **Comprehensive `:online` Documentation:** Added detailed documentation for OpenRouter's `:online` model variant
   - **Web Search in Chat:** Explains how to enable real-time web search for chat conversations requiring current information
