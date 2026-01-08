@@ -49,8 +49,6 @@
             export SHELL=${pkgs.zsh}/bin/zsh
 
             echo "Environment ready."
-            opencode .
-            exit
           '';
         };
       }
