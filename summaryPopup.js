@@ -270,8 +270,12 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
       }
     }
   } else if (contentDiv && contentDiv.innerHTML.trim() !== "") {
-    // Fallback: Use the innerHTML of the contentDiv
-    htmlToCopy = contentDiv.innerHTML;
+    // Use currentContent if it's HTML (safer than innerHTML for clipboard)
+    if (typeof currentContent === "string" && currentContent.startsWith("<ul>")) {
+      htmlToCopy = currentContent;
+    } else {
+      htmlToCopy = contentDiv.innerHTML;
+    }
     const listItems = contentDiv.querySelectorAll("li");
     if (listItems.length > 0) {
       textToCopy = Array.from(listItems)
