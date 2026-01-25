@@ -1,4 +1,6 @@
-- **Version 3.9.0:** 🛡️ **Shadow DOM Migration (Robustness)**
+- **Version 3.9.2:** Display model name in summary popup header (e.g., "Summary (google/gemini-2.0-flash-001)") to show which LLM generated the summary.
+
+- **Version 3.9.0:** Shadow DOM Migration (Robustness)
   - **Complete UI Isolation:** Migrated `summaryPopup.js` and `floatingIcon.js` to use Shadow DOM.
   - **CSS Independence:** Extension UI is now immune to external CSS (Bootstrap, Tailwind, site resets).
   - **No More Style Conflicts:** Floating icons and popups render consistently on all websites.

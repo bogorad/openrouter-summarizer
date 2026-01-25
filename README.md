@@ -1,16 +1,15 @@
-# OpenRouter Summarizer v3.9.1
+# OpenRouter Summarizer v3.9.2
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, native HTML summaries, flexible options, and robust CSS isolation!_
 
 ---
 
-## What's New in v3.9.1
+## What's New in v3.9.2
 
-- **Shadow DOM Migration:**
-    - Migrated Popup and Floating Icon to Shadow DOM for complete CSS isolation.
-    - Extension UI is now immune to external page styles (Bootstrap, Tailwind, etc.).
-    - Improved click handling and reliability on complex websites.
+- **Model Name in Summary Popup:**
+    - The summary popup header now displays the model used (e.g., "Summary (google/gemini-2.0-flash-001)").
+    - Provides visibility into which LLM generated each summary.
 
 ---
 

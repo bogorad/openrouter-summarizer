@@ -222,6 +222,7 @@ let currentOriginalMarkdownArray = null;
 let currentPageURL = null;
 let currentPageTitle = null;
 let isErrorState = false;
+let currentModelName = null;
 let popupCallbacks = {
   onCopy: null,
   onChat: null,
@@ -540,6 +541,7 @@ export function hidePopup() {
     currentOriginalMarkdownArray = null;
     currentPageURL = null;
     currentPageTitle = null;
+    currentModelName = null;
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
     isErrorState = false;
@@ -552,7 +554,8 @@ export function updatePopupContent(
   pageURL = null,
   pageTitle = null,
   errorState = false,
-  hasNewsblurToken = false
+  hasNewsblurToken = false,
+  modelName = null
 ) {
   if (!host || !shadow) return;
 
@@ -561,8 +564,19 @@ export function updatePopupContent(
   currentPageURL = pageURL;
   currentPageTitle = pageTitle;
   isErrorState = errorState;
+  currentModelName = modelName;
 
   const contentDiv = getShadowElement(`.${POPUP_BODY_CLASS}`);
+  const headerDiv = getShadowElement(`.${POPUP_HEADER_CLASS}`);
+
+  // Update header with model name if provided
+  if (headerDiv) {
+    if (modelName && !errorState) {
+      headerDiv.textContent = `Summary (${modelName})`;
+    } else {
+      headerDiv.textContent = "Summary";
+    }
+  }
   const chatBtn = getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`);
   const newsblurBtn = getShadowElement(`.${POPUP_NEWSBLUR_BTN_CLASS}`);
 

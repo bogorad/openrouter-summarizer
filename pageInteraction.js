@@ -876,6 +876,7 @@ function displaySummary(response) {
       pageTitle,
       false,
       hasNewsblurTokenFromBackground,
+      lastModelUsed,
     );
 
     if (DEBUG)
