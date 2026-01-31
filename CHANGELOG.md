@@ -1,3 +1,9 @@
+- **Version 3.9.18:** Removed unused numToWord object from pageInteraction.js (dead code cleanup)
+
+- **Version 3.9.17:** Added fallback models for language detection to improve reliability when primary model is unavailable
+
+- **Version 3.9.16:** Added accessibility attributes to dynamic elements including ARIA roles, labels, and keyboard navigation support
+
 - **Version 3.9.15:** Replaced LLM-specific comment artifact with standard JSDoc documentation in constants.js
 
 - **Version 3.9.14:** Changed 'let' to 'const' for constants in background.js per CONVENTIONS.md

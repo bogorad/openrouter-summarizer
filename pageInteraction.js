@@ -41,14 +41,6 @@ const MAX_ELEMENT_COUNT = 10000;
 const PROCESSING_TIMEOUT_MS = 30000; // 30 seconds
 
 // --- Prompt Assembly Function (Placeholder - ensure constants is loaded if used here) ---
-const numToWord = {
-  3: "three",
-  4: "four",
-  5: "five",
-  6: "six",
-  7: "seven",
-  8: "eight",
-};
 
 /**
  * Calculates the nesting depth of an element
