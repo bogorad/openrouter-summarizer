@@ -15,6 +15,7 @@ import * as SummaryPopup from "./summaryPopup.js";
 import * as JoplinManager from "./joplinManager.js"; // New: Import JoplinManager
 import * as constants from "./constants.js"; // Assuming constants.js exports values
 import { sanitizeHtml, sanitizeForSharing, quickCleanHtml } from "./js/htmlSanitizer.js";
+import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
 
 // --- Module-level variables (assignments will happen in initialize) ---
 // These are assigned from the static imports for convenience if you prefer this pattern,
@@ -323,16 +324,9 @@ async function validateAndSendToLLM(content) {
   SummaryPopup.enableButtons(false);
 
   chrome.runtime.sendMessage({ action: "getSettings" }, (response) => {
-    if (chrome.runtime.lastError || !response) {
-      if (DEBUG) {
-        console.error(
-          "[LLM Content] getSettings message response error:",
-          chrome.runtime.lastError,
-          response,
-        );
-      }
+    if (handleLastError("getSettings", DEBUG) || !response) {
       const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
-      showError(errorMsg);
+      ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
       SummaryPopup.updatePopupContent(
         errorMsg,
         null,
@@ -401,12 +395,12 @@ async function validateAndSendToLLM(content) {
       { action: "getModelPricing", modelId: summaryModelId },
       (priceResponse) => {
         if (
-          chrome.runtime.lastError ||
+          handleLastError("getModelPricing", DEBUG) ||
           !priceResponse ||
           priceResponse.status !== "success"
         ) {
           const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
-          showError(errorMsg);
+          ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
           SummaryPopup.updatePopupContent(
             errorMsg,
             null,
@@ -474,9 +468,9 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
       hasNewsblurToken: hasNewsblurTokenStatus,
     }, // Pass the token status
     (response) => {
-      if (chrome.runtime.lastError) {
+      if (handleLastError("requestSummary", DEBUG)) {
         const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
-        showError(errorMsg);
+        ErrorHandler.handle(new Error(errorMsg), "sendRequestToBackground", ErrorSeverity.WARNING, true);
         if (SummaryPopup)
           SummaryPopup.updatePopupContent(
             errorMsg,
@@ -734,12 +728,13 @@ function handlePopupClose() {
 function handlePopupOptions() {
   if (DEBUG) console.log("[LLM Content] handlePopupOptions called.");
   chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.error(
-        "[LLM Content] Error opening options page:",
-        chrome.runtime.lastError,
+    if (handleLastError("openOptionsPage", DEBUG)) {
+      ErrorHandler.handle(
+        new Error(chrome.runtime.lastError.message),
+        "handlePopupOptions",
+        ErrorSeverity.WARNING,
+        true
       );
-      showError("Error opening options page.");
     }
   });
   if (SummaryPopup) SummaryPopup.hidePopup();
@@ -793,12 +788,13 @@ function openChatWithContext(targetLang = "") {
   chrome.runtime.sendMessage(
     { action: "setChatContext", ...contextPayload },
     (response) => {
-      if (chrome.runtime.lastError) {
-        console.error(
-          "[LLM Chat Context] Error sending context:",
-          chrome.runtime.lastError,
+      if (handleLastError("setChatContext", DEBUG)) {
+        ErrorHandler.handle(
+          new Error(chrome.runtime.lastError.message),
+          "openChatWithContext",
+          ErrorSeverity.WARNING,
+          true
         );
-        showError(`Error preparing chat: ${chrome.runtime.lastError.message}`);
         return;
       }
       if (response && response.status === "ok") {
@@ -809,10 +805,12 @@ function openChatWithContext(targetLang = "") {
         chrome.runtime.sendMessage(
           { action: "openChatTab" },
           (openResponse) => {
-            if (chrome.runtime.lastError) {
-              console.error(
-                "[LLM Chat Context] Error requesting tab open:",
-                chrome.runtime.lastError,
+            if (handleLastError("openChatTab", DEBUG)) {
+              ErrorHandler.handle(
+                new Error(chrome.runtime.lastError.message),
+                "openChatWithContext",
+                ErrorSeverity.WARNING,
+                false
               );
             } else {
               if (DEBUG)
@@ -1031,14 +1029,15 @@ function handlePopupNewsblur(hasNewsblurToken) {
     return;
   }
 
-  chrome.storage.sync.get(
+      chrome.storage.sync.get(
     [constants.STORAGE_KEY_ALSO_SEND_TO_JOPLIN],
     (settings) => {
-      if (chrome.runtime.lastError) {
-        showError("Could not retrieve settings for sharing.");
-        console.error(
-          "[LLM Content] Error getting settings for share:",
-          chrome.runtime.lastError,
+      if (handleLastError("getSettingsForShare", DEBUG)) {
+        ErrorHandler.handle(
+          new Error(chrome.runtime.lastError.message),
+          "handlePopupNewsblur",
+          ErrorSeverity.WARNING,
+          true
         );
         return;
       }
@@ -1099,13 +1098,12 @@ function handlePopupNewsblur(hasNewsblurToken) {
           },
         },
         (response) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "[LLM Content] Error sending shareToNewsblur message:",
-              chrome.runtime.lastError,
-            );
-            showError(
-              "Error sharing to NewsBlur: " + chrome.runtime.lastError.message,
+          if (handleLastError("shareToNewsblur", DEBUG)) {
+            ErrorHandler.handle(
+              new Error(chrome.runtime.lastError.message),
+              "handlePopupNewsblur",
+              ErrorSeverity.WARNING,
+              true
             );
             return;
           }

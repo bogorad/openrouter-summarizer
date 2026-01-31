@@ -44,6 +44,7 @@ import {
 } from "./js/chatContextManager.js";
 import { handleOpenChatTab, handleOpenOptionsPage } from "./js/uiActions.js";
 import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
+import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
 
 console.log(
   `[LLM Background] Service Worker Start (v3.8.0 - HTML Summary Format)`,
@@ -198,24 +199,25 @@ chrome.runtime.onInstalled.addListener(async () => {
         }
       }
 
-      // Only set if there are new initial settings to save
-      if (Object.keys(initialSettings).length > 0) {
-        chrome.storage.sync.set(initialSettings, () => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "[LLM Background] Error setting initial storage values:",
-              chrome.runtime.lastError,
-              initialSettings,
-            );
-          } else if (DEBUG) {
-            // Only log success if DEBUG is true
-            console.log(
-              "[LLM Background] Initial default settings applied:",
-              initialSettings,
-            );
-          }
-        });
-      }
+    // Only set if there are new initial settings to save
+    if (Object.keys(initialSettings).length > 0) {
+      chrome.storage.sync.set(initialSettings, () => {
+        if (handleLastError("setInitialSettings", DEBUG)) {
+          ErrorHandler.handle(
+            new Error(chrome.runtime.lastError.message),
+            "onInstalled",
+            ErrorSeverity.WARNING,
+            false
+          );
+        } else if (DEBUG) {
+          // Only log success if DEBUG is true
+          console.log(
+            "[LLM Background] Initial default settings applied:",
+            initialSettings,
+          );
+        }
+      });
+    }
     },
   );
 });
@@ -370,10 +372,7 @@ async function handleAsyncMessage(request, sender, sendResponse) {
     }
   } catch (error) {
     // Catch-all for any uncaught errors during message processing
-    console.info(
-      `[LLM Background] Uncaught error in handleAsyncMessage for action ${request.action}:`,
-      error,
-    ); // Unconditional info log
+    ErrorHandler.handle(error, `handleAsyncMessage:${request.action}`, ErrorSeverity.FATAL, false);
     // Ensure sendResponse is called even on unexpected errors
     try {
       sendResponse({
@@ -381,10 +380,7 @@ async function handleAsyncMessage(request, sender, sendResponse) {
         message: `An unexpected error occurred: ${error.message}`,
       });
     } catch (e) {
-      console.warn(
-        "[LLM Background] Could not send error response: Channel already closed or other issue.",
-        e,
-      );
+      ErrorHandler.handle(e, "sendResponseFallback", ErrorSeverity.WARNING, false);
     }
   }
 }

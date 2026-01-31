@@ -14,6 +14,7 @@ import {
 
 import { decryptSensitiveData } from "./encryption.js";
 import { isTabClosedError, getSystemPrompt } from "./backgroundUtils.js";
+import { ErrorHandler, ErrorSeverity } from "./errorHandler.js";
 
 // Helper function to detect language of content
 async function detectLanguage(apiKey, contentSnippet, DEBUG = false) {
@@ -362,10 +363,7 @@ export async function handleRequestSummary(
 
     sendResponse({ status: "processing" });
   } catch (error) {
-    console.error(
-      "[LLM Summary Handler] Error in handleRequestSummary:",
-      error,
-    );
+    ErrorHandler.handle(error, "handleRequestSummary", ErrorSeverity.FATAL, false);
     sendResponse({ status: "error", message: error.message });
   }
 }
