@@ -1,3 +1,7 @@
+- **Version 3.9.12:** Fixed HTML sanitizer to use word-boundary CSS selectors instead of partial XPath matching, preventing removal of legitimate content
+
+- **Version 3.9.11:** Added language code validation with ISO 639-2 whitelist to prevent injection from malformed LLM responses
+
 - **Version 3.9.10:** Fixed message handler return patterns to always return true, preventing 'disconnected port object' errors
 
 - **Version 3.9.9:** Fixed memory leak in highlighter.js by implementing proper event listener cleanup on content script unload

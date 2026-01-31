@@ -92,6 +92,31 @@ export const SANITIZATION_CONFIG = {
  * @param {boolean} options.debug - Enable debug logging
  * @returns {string} - Sanitized HTML string
  */
+/**
+ * Removes elements by class name using word-boundary matching
+ * @param {Element} container - The container element
+ * @param {string[]} classNames - Array of class names to remove
+ * @param {boolean} debug - Enable debug logging
+ */
+const removeElementsByClassNames = (container, classNames, debug = false) => {
+  classNames.forEach(className => {
+    if (!className || typeof className !== 'string') return;
+
+    try {
+      // Use CSS selector with word boundary matching (~=)
+      // This matches elements where the class attribute contains the exact word
+      const elements = container.querySelectorAll(`[class~="${className}"]`);
+      elements.forEach(el => {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      });
+    } catch (e) {
+      if (debug) console.warn(`[HTML Sanitizer] Invalid class name skipped: ${className}`, e);
+    }
+  });
+};
+
 export function sanitizeHtml(htmlString, options = {}) {
   const {
     debug = false
@@ -129,23 +154,8 @@ export function sanitizeHtml(htmlString, options = {}) {
       });
     });
 
-    // Build XPath selectors for classes (exactly like Node-RED)
-    const classSelectors = classesToRemove.map(cls => `//*[contains(@class, "${cls}")]`);
-
-    // Remove elements using XPath selectors
-    classSelectors.forEach(selector => {
-      try {
-        const result = document.evaluate(selector, tempDiv, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
-        for (let i = 0; i < result.snapshotLength; i++) {
-          const node = result.snapshotItem(i);
-          if (node && node.parentNode) {
-            node.parentNode.removeChild(node);
-          }
-        }
-      } catch (e) {
-        if (debug) console.warn(`[HTML Sanitizer] XPath selector error: ${selector}`, e);
-      }
-    });
+    // Remove elements by class names using word-boundary matching
+    removeElementsByClassNames(tempDiv, classesToRemove, debug);
 
     // Remove elements by specific selectors
     SANITIZATION_CONFIG.UNWANTED_SELECTORS.forEach(selector => {
