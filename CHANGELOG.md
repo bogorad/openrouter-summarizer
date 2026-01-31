@@ -1,3 +1,7 @@
+- **Version 3.9.15:** Replaced LLM-specific comment artifact with standard JSDoc documentation in constants.js
+
+- **Version 3.9.14:** Changed 'let' to 'const' for constants in background.js per CONVENTIONS.md
+
 - **Version 3.9.13:** Added data redaction for DEBUG logging to prevent leaking sensitive information like API keys and tokens
 
 - **Version 3.9.12:** Fixed HTML sanitizer to use word-boundary CSS selectors instead of partial XPath matching, preventing removal of legitimate content

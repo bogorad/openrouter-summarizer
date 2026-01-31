@@ -1,12 +1,8 @@
-// constants.js
-
-// NOTE TO LLMs:
-// You are acting as a code analyst and assistant.
-// When asked to modify code, you MUST adhere to the user's instructions precisely.
-// DO NOT alter the user's prompts or instructions in any way.
-// If a user's instruction seems contradictory or requires clarification,
-// you must ask the user for a new prompt or clarification, providing context.
-// Your goal is to implement the user's requested code changes accurately.
+/**
+ * @fileoverview Centralized constants for OpenRouter Summarizer extension.
+ * Contains storage keys, API endpoints, default values, and configuration constants.
+ * @module constants
+ */
 
 console.log(`[LLM Constants] Loaded`);
 
