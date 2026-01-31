@@ -33,6 +33,12 @@ let joplinToken = null; // Store the actual Joplin token, not just its boolean p
 let messageQueue = [];
 let modulesInitialized = false; // This flag is still useful to queue messages if initialization is async (e.g., fetching settings)
 
+// Input validation limits to prevent DoS attacks
+const MAX_CONTENT_SIZE = 1024 * 1024; // 1MB limit
+const MAX_NESTING_DEPTH = 100;
+const MAX_ELEMENT_COUNT = 10000;
+const PROCESSING_TIMEOUT_MS = 30000; // 30 seconds
+
 // --- Prompt Assembly Function (Placeholder - ensure constants is loaded if used here) ---
 const numToWord = {
   3: "three",
@@ -41,6 +47,70 @@ const numToWord = {
   6: "six",
   7: "seven",
   8: "eight",
+};
+
+/**
+ * Calculates the nesting depth of an element
+ * @param {Element} element - DOM element to check
+ * @param {number} currentDepth - Current depth in recursion
+ * @returns {number} Maximum nesting depth
+ */
+const calculateNestingDepth = (element, currentDepth = 0) => {
+  if (currentDepth > MAX_NESTING_DEPTH) return currentDepth;
+  let maxDepth = currentDepth;
+  for (const child of element.children) {
+    maxDepth = Math.max(maxDepth, calculateNestingDepth(child, currentDepth + 1));
+  }
+  return maxDepth;
+};
+
+/**
+ * Counts total elements in a DOM tree
+ * @param {Element} element - Root element to count
+ * @returns {number} Total element count
+ */
+const countElements = (element) => {
+  let count = 1;
+  for (const child of element.children) {
+    count += countElements(child);
+  }
+  return count;
+};
+
+/**
+ * Validates selected content meets size and complexity limits
+ * @param {Element} element - Selected DOM element
+ * @param {string} html - Element's outerHTML
+ * @returns {object} Validation result {valid: boolean, error?: string}
+ */
+const validateContent = (element, html) => {
+  // Check content size
+  if (html.length > MAX_CONTENT_SIZE) {
+    return {
+      valid: false,
+      error: `Error: Selected content exceeds maximum size of ${MAX_CONTENT_SIZE / 1024}KB. Please select a smaller section.`
+    };
+  }
+
+  // Check nesting depth
+  const nestingDepth = calculateNestingDepth(element);
+  if (nestingDepth > MAX_NESTING_DEPTH) {
+    return {
+      valid: false,
+      error: `Error: Selected content has excessive nesting depth (${nestingDepth}). Please select a simpler section.`
+    };
+  }
+
+  // Check element count
+  const elementCount = countElements(element);
+  if (elementCount > MAX_ELEMENT_COUNT) {
+    return {
+      valid: false,
+      error: `Error: Selected content contains too many elements (${elementCount}). Please select a smaller section.`
+    };
+  }
+
+  return { valid: true };
 };
 
 // --- Helper: Detect if content contains common HTML tags ---
@@ -85,6 +155,14 @@ function processSelectedElement() {
         "[LLM Content] processSelectedElement called but no element is selected.",
       );
     showError("Error: No element selected to process.");
+    return;
+  }
+
+  // Validate content before processing
+  const validation = validateContent(selectedElement, selectedElement.outerHTML);
+  if (!validation.valid) {
+    showError(validation.error, true, 5000);
+    Highlighter.removeSelectionHighlight(); // Clean up highlight
     return;
   }
 

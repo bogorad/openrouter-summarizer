@@ -1,3 +1,5 @@
+- **Version 3.9.6:** Added input validation to prevent DoS attacks - limits on content size (1MB), nesting depth (100), and element count (10000)
+
 - **Version 3.9.5:** Reduced host permissions to follow least privilege principle - removed `<all_urls>` from required permissions, relying on activeTab for on-demand access.
 
 - **Version 3.9.4:** Secured API token storage: moved from chrome.storage.sync to encrypted chrome.storage.local using AES-GCM encryption. This prevents API keys from being synchronized to Google servers and protects against account compromise, browser forensic analysis, and malicious extensions with storage permissions.
