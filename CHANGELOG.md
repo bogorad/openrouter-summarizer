@@ -1,3 +1,5 @@
+- **Version 3.9.7:** Fixed race condition in chat abort handling by using in-memory Map for AbortController storage instead of chrome.storage.session
+
 - **Version 3.9.6:** Added input validation to prevent DoS attacks - limits on content size (1MB), nesting depth (100), and element count (10000)
 
 - **Version 3.9.5:** Reduced host permissions to follow least privilege principle - removed `<all_urls>` from required permissions, relying on activeTab for on-demand access.
