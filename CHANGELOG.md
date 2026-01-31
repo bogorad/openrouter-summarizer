@@ -1,3 +1,5 @@
+- **Version 3.9.10:** Fixed message handler return patterns to always return true, preventing 'disconnected port object' errors
+
 - **Version 3.9.9:** Fixed memory leak in highlighter.js by implementing proper event listener cleanup on content script unload
 
 - **Version 3.9.8:** Refactored error handling: created centralized ErrorHandler class for consistent error processing across all modules

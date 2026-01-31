@@ -838,51 +838,91 @@ function openChatWithContext(targetLang = "") {
 }
 
 // --- Core Message Handling Logic ---
-function handleMessage(req, sender, sendResponse) {
+
+/**
+ * Handles processSelection action
+ * @param {function} sendResponse - Response callback
+ */
+const handleProcessSelection = async (sendResponse) => {
+  const currentSelectedElement = Highlighter?.getSelectedElement();
+
+  if (!currentSelectedElement) {
+    console.warn("[LLM Content] Received processSelection but no element selected.");
+    showError("Error: No element selected. Use Alt+Click first.");
+    if (SummaryPopup) {
+      const pageTitleForError = document.title;
+      SummaryPopup.showPopup(
+        "Error: No element selected. Use Alt+Click first.",
+        {
+          onCopy: () => {},
+          onChat: () => {},
+          onClose: SummaryPopup.hidePopup,
+          onNewsblur: handlePopupNewsblur,
+        },
+        null,
+        null,
+        pageTitleForError,
+        true,
+        false,
+      );
+      SummaryPopup.enableButtons(false);
+      setTimeout(SummaryPopup.hidePopup, 3000);
+    }
+    sendResponse({ status: "error", message: "No element selected" });
+    return;
+  }
+
+  try {
+    await processSelectedElement();
+    sendResponse({ status: "processing" });
+  } catch (error) {
+    sendResponse({ status: "error", message: error.message });
+  }
+};
+
+/**
+ * Handles summaryResult action
+ * @param {object} req - Request data
+ * @param {function} sendResponse - Response callback
+ */
+const handleSummaryResult = async (req, sendResponse) => {
+  try {
+    displaySummary(req);
+    sendResponse({ status: "success" });
+  } catch (error) {
+    sendResponse({ status: "error", message: error.message });
+  }
+};
+
+/**
+ * Handles incoming messages from background script
+ * @param {object} req - Message request
+ * @param {object} sender - Message sender info
+ * @param {function} sendResponse - Response callback
+ * @returns {boolean} Always true to keep channel open
+ */
+const handleMessage = (req, sender, sendResponse) => {
   if (DEBUG) console.log("[LLM Content] Handling message:", req.action);
 
-  if (req.action === "processSelection") {
-    if (DEBUG) console.log("[LLM Content] Received processSelection command.");
-    const currentSelectedElement = Highlighter
-      ? Highlighter.getSelectedElement()
-      : null;
-    if (currentSelectedElement) {
-      processSelectedElement();
-      sendResponse({ status: "processing started" });
-      return true;
-    } else {
-      console.warn(
-        "[LLM Content] Received processSelection but no element is selected.",
-      );
-      showError("Error: No element selected. Use Alt+Click first.");
-      if (SummaryPopup) {
-        const pageTitleForError = document.title; // ADDED
-        SummaryPopup.showPopup(
-          "Error: No element selected. Use Alt+Click first.",
-          {
-            onCopy: () => {},
-            onChat: () => {},
-            onClose: SummaryPopup.hidePopup,
-            onNewsblur: handlePopupNewsblur, // Use the new handler even for error state
-          },
-          null, // parsedSummary
-          null, // pageURL
-          pageTitleForError, // ADDED: Pass pageTitle
-          true, // errorState true
-          false, // hasNewsblurToken: False in this specific error UI state
-        );
-        SummaryPopup.enableButtons(false); // Chat button is always disabled in error state
-        setTimeout(SummaryPopup.hidePopup, 3000);
+  // Always handle asynchronously and return true
+  (async () => {
+    try {
+      if (req.action === "processSelection") {
+        await handleProcessSelection(sendResponse);
+      } else if (req.action === "summaryResult") {
+        await handleSummaryResult(req, sendResponse);
+      } else {
+        sendResponse({ status: "error", message: `Unknown action: ${req.action}` });
       }
-      sendResponse({ status: "no element selected" });
-      return false;
+    } catch (error) {
+      console.error("[LLM Content] Error handling message:", error);
+      sendResponse({ status: "error", message: error.message });
     }
-  } else if (req.action === "summaryResult") {
-    displaySummary(req);
-    return true;
-  }
-  return false;
-}
+  })();
+
+  // Always return true to indicate async response
+  return true;
+};
 
 /**
  * Handles the successful summary response from the background script.
