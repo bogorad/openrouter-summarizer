@@ -163,10 +163,12 @@ export function renderTextAsHtml(text) {
   }
 
   // Sanitize with DOMPurify to prevent XSS attacks
+  // Note: 'a' tags and 'href' attributes are intentionally excluded to prevent
+  // javascript: URL injection attacks via malicious LLM responses (XSS vulnerability)
   if (typeof DOMPurify !== "undefined") {
     return DOMPurify.sanitize(htmlContent, {
-      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-      ALLOWED_ATTR: ['href', 'title', 'class']
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+      ALLOWED_ATTR: ['title', 'class']
     });
   }
 

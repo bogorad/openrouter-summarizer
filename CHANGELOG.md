@@ -1,3 +1,5 @@
+- **Version 3.9.19:** Fixed XSS vulnerability in HTML rendering pipeline: removed anchor tags from DOMPurify allowlist in utils.js to prevent javascript: URL injection, and added DOMPurify sanitization to summaryPopup.js innerHTML assignments
+
 - **Version 3.9.18:** Removed unused numToWord object from pageInteraction.js (dead code cleanup)
 
 - **Version 3.9.17:** Added fallback models for language detection to improve reliability when primary model is unavailable
