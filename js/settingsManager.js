@@ -4,14 +4,15 @@ import {
   STORAGE_KEY_SUMMARY_MODEL_ID,
   STORAGE_KEY_CHAT_MODEL_ID,
   STORAGE_KEY_MODELS,
-  STORAGE_KEY_API_KEY,
+  STORAGE_KEY_API_KEY_LOCAL,
+  STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
   STORAGE_KEY_DEBUG,
   STORAGE_KEY_BULLET_COUNT,
   STORAGE_KEY_LANGUAGE_INFO,
   STORAGE_KEY_MAX_REQUEST_PRICE,
-  STORAGE_KEY_NEWSBLUR_TOKEN,
 } from "../constants.js";
 import * as constants from "../constants.js"; // Import all constants as an object
+import { decryptSensitiveData } from "./encryption.js";
 
 // These were originally in background.js, if they are truly global defaults,
 // they might better reside in constants.js or be passed as parameters.
@@ -24,10 +25,9 @@ import * as constants from "../constants.js"; // Import all constants as an obje
 // const LOCAL_DEFAULT_MAX_REQUEST_PRICE = 0.001; // Example
 
 
-export function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaults) {
+export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaults) {
   if (DEBUG) console.log("[LLM Settings Manager] handleGetSettings: Request received. Fetching keys...");
   const keysToFetch = [
-    STORAGE_KEY_API_KEY,
     STORAGE_KEY_MODELS,
     STORAGE_KEY_SUMMARY_MODEL_ID,
     STORAGE_KEY_CHAT_MODEL_ID,
@@ -35,21 +35,31 @@ export function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaults) {
     STORAGE_KEY_BULLET_COUNT,
     STORAGE_KEY_LANGUAGE_INFO,
     STORAGE_KEY_MAX_REQUEST_PRICE,
-    STORAGE_KEY_NEWSBLUR_TOKEN,
   ];
 
-  chrome.storage.sync.get(keysToFetch, (data) => {
+  chrome.storage.sync.get(keysToFetch, async (data) => {
     try {
       if (chrome.runtime.lastError) {
         throw new Error(`Storage error: ${chrome.runtime.lastError.message}`);
       }
+
+      // Get encrypted tokens from local storage and decrypt them
+      const localData = await chrome.storage.local.get([
+        STORAGE_KEY_API_KEY_LOCAL,
+        STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
+      ]);
+      const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
+      const encryptedNewsblurToken = localData[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
+      const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
+      const newsblurToken = encryptedNewsblurToken ? await decryptSensitiveData(encryptedNewsblurToken) : "";
+
       if (DEBUG) {
         console.log("[LLM Settings Manager] handleGetSettings: Storage data retrieved.", {
           ...data,
-          [STORAGE_KEY_API_KEY]: data[STORAGE_KEY_API_KEY] ? "[API Key Hidden]" : undefined,
-          [STORAGE_KEY_NEWSBLUR_TOKEN]: data[STORAGE_KEY_NEWSBLUR_TOKEN] ? "[NewsBlur Token Hidden]" : undefined,
+          apiKey: apiKey ? "[API Key Hidden]" : undefined,
+          newsblurToken: newsblurToken ? "[NewsBlur Token Hidden]" : undefined,
           // Explicitly log raw storage data for exhaustive debugging
-          rawAllData: { ...data, [STORAGE_KEY_API_KEY]: '[REDACTED]', [STORAGE_KEY_NEWSBLUR_TOKEN]: '[REDACTED]' }
+          rawAllData: { ...data, apiKey: '[REDACTED]', newsblurToken: '[REDACTED]' }
         });
       }
 
@@ -125,7 +135,7 @@ export function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaults) {
       }
 
       const settings = {
-        apiKey: data[STORAGE_KEY_API_KEY] || "",
+        apiKey: apiKey,
         models: loadedModels,
         summaryModelId: finalSummaryModelId,
         chatModelId: finalChatModelId,
@@ -136,7 +146,7 @@ export function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaults) {
           : [],
         maxRequestPrice:
           data[STORAGE_KEY_MAX_REQUEST_PRICE] || currentGlobalDefaults.DEFAULT_MAX_REQUEST_PRICE,
-        newsblurToken: data[STORAGE_KEY_NEWSBLUR_TOKEN] || "",
+        newsblurToken: newsblurToken,
       };
       if (DEBUG) {
         console.log("[LLM Settings Manager] handleGetSettings: Sending settings response - OK.", {

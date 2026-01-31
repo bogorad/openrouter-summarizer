@@ -1,6 +1,6 @@
 // js/summaryHandler.js
 import {
-  STORAGE_KEY_API_KEY,
+  STORAGE_KEY_API_KEY_LOCAL,
   STORAGE_KEY_SUMMARY_MODEL_ID,
   STORAGE_KEY_BULLET_COUNT,
   STORAGE_KEY_LANGUAGE_INFO,
@@ -12,6 +12,7 @@ import {
   OPENROUTER_API_URL,
 } from "../constants.js";
 
+import { decryptSensitiveData } from "./encryption.js";
 import { isTabClosedError, getSystemPrompt } from "./backgroundUtils.js";
 
 // Helper function to detect language of content
@@ -106,7 +107,6 @@ export async function handleRequestSummary(
 
   try {
     const data = await chrome.storage.sync.get([
-      STORAGE_KEY_API_KEY,
       STORAGE_KEY_SUMMARY_MODEL_ID,
       STORAGE_KEY_BULLET_COUNT,
       STORAGE_KEY_LANGUAGE_INFO,
@@ -115,16 +115,17 @@ export async function handleRequestSummary(
       STORAGE_KEY_MODELS,
     ]);
 
+    // Get encrypted API key from local storage and decrypt it
+    const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
+    const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
+    const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
+
     if (DEBUG) {
       console.log("[LLM Summary Handler] Data retrieved for summary request:", {
         ...data,
-        [STORAGE_KEY_API_KEY]: data[STORAGE_KEY_API_KEY]
-          ? "[API Key Hidden]"
-          : "undefined",
+        apiKey: apiKey ? "[API Key Hidden]" : "undefined",
       });
     }
-
-    const apiKey = data[STORAGE_KEY_API_KEY];
     const summaryModelId = data[STORAGE_KEY_SUMMARY_MODEL_ID];
     const language_info = Array.isArray(data[STORAGE_KEY_LANGUAGE_INFO])
       ? data[STORAGE_KEY_LANGUAGE_INFO]

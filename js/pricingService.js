@@ -1,8 +1,9 @@
 // js/pricingService.js
 import {
-  STORAGE_KEY_API_KEY,
+  STORAGE_KEY_API_KEY_LOCAL,
   STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
 } from "../constants.js";
+import { decryptSensitiveData } from "./encryption.js";
 
 // These were originally in background.js, moving them here as they are specific to pricing logic.
 const MAX_PRICING_RETRIES = 2; // Max number of retries for fetching pricing
@@ -114,10 +115,12 @@ export async function handleGetModelPricing(
     return;
   }
 
-  chrome.storage.sync.get([STORAGE_KEY_API_KEY], async (syncData) => {
-    const apiKey = syncData[STORAGE_KEY_API_KEY];
+  // Get encrypted API key from local storage and decrypt it
+  const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
+  const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
+  const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
 
-    const attemptGetPrice = async () => {
+  const attemptGetPrice = async () => {
       const localCacheData = await new Promise((resolve) =>
         chrome.storage.local.get(
           [STORAGE_KEY_KNOWN_MODELS_AND_PRICES],
@@ -213,7 +216,33 @@ export async function handleGetModelPricing(
         message: `Error updating pricing data: ${error.message}`,
       });
     }
-  });
+}
+
+export async function handleUpdateKnownModelsAndPricing(
+  sendResponse,
+  DEBUG = false,
+) {
+  if (DEBUG)
+    console.log(
+      "[LLM Pricing Service] Handling updateKnownModelsAndPricing request for all models.",
+    );
+  // Get encrypted API key from local storage and decrypt it
+  const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
+  const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
+  const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
+  if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
+    if (DEBUG)
+      console.log(
+        "[LLM Pricing Service] API key missing for model and pricing request.",
+      );
+    sendResponse({
+      status: "error",
+      message: "API key required for model and pricing data.",
+    });
+    return;
+  }
+  const result = await _fetchAndCacheModelsPricing(apiKey, DEBUG);
+  sendResponse(result);
 }
 
 export async function handleUpdateKnownModelsAndPricing(

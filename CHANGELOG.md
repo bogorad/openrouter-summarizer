@@ -1,3 +1,5 @@
+- **Version 3.9.4:** Secured API token storage: moved from chrome.storage.sync to encrypted chrome.storage.local using AES-GCM encryption. This prevents API keys from being synchronized to Google servers and protects against account compromise, browser forensic analysis, and malicious extensions with storage permissions.
+
 - **Version 3.9.3:** Fixed critical XSS vulnerability in chat message rendering by implementing DOMPurify sanitization. The deprecated `marked.parse()` sanitize option was replaced with proper DOMPurify sanitization to prevent arbitrary JavaScript execution from malicious LLM responses.
 
 - **Version 3.9.2:** Display model name in summary popup header (e.g., "Summary (google/gemini-2.0-flash-001)") to show which LLM generated the summary.

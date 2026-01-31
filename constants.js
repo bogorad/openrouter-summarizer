@@ -25,6 +25,11 @@ export const STORAGE_KEY_JOPLIN_TOKEN = "joplinToken"; // New: Joplin Token
 export const STORAGE_KEY_ALSO_SEND_TO_JOPLIN = "alsoSendToJoplin";
 export const STORAGE_KEY_ALWAYS_USE_US_ENGLISH = "alwaysUseUsEnglish";
 
+// Storage keys for encrypted tokens (stored in chrome.storage.local)
+export const STORAGE_KEY_API_KEY_LOCAL = "apiKeyLocal";
+export const STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL = "newsblurTokenLocal";
+export const STORAGE_KEY_JOPLIN_TOKEN_LOCAL = "joplinTokenLocal";
+
 // --- Joplin API ---
 export const JOPLIN_API_BASE_URL = "http://localhost:41184";
 export const JOPLIN_API_FOLDERS_ENDPOINT = "/folders";

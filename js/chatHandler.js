@@ -1,9 +1,10 @@
 // js/chatHandler.js
 import {
-  STORAGE_KEY_API_KEY,
+  STORAGE_KEY_API_KEY_LOCAL,
   STORAGE_KEY_MODELS,
   DEFAULT_MODEL_OPTIONS,
 } from "../constants.js";
+import { decryptSensitiveData } from "./encryption.js";
 
 export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
   if (DEBUG) {
@@ -15,9 +16,13 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
   }
 
   chrome.storage.sync.get(
-    [STORAGE_KEY_API_KEY, STORAGE_KEY_MODELS],
-    (storageResult) => {
-      const apiKey = storageResult[STORAGE_KEY_API_KEY];
+    [STORAGE_KEY_MODELS],
+    async (storageResult) => {
+      // Get encrypted API key from local storage and decrypt it
+      const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
+      const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
+      const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
+
       let models = [];
       if (
         Array.isArray(storageResult[STORAGE_KEY_MODELS]) &&

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenRouter Summarizer",
-  "version": "3.9.3",
+  "version": "3.9.4",
   "description": "Summarize web pages with OpenRouter.ai using your chosen model.",
   "permissions": [
     "activeTab",
@@ -51,7 +51,8 @@
         "summaryPopup.js",
         "utils.js",
         "marked.min.js",
-        "purify.min.js"
+        "purify.min.js",
+        "js/encryption.js"
       ],
       "matches": [
         "<all_urls>"

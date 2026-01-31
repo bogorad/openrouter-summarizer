@@ -13,6 +13,11 @@ import {
   STORAGE_KEY_MAX_REQUEST_PRICE,
   STORAGE_KEY_PROMPT_TEMPLATE,
   DEFAULT_XML_PROMPT_TEMPLATE,
+  STORAGE_KEY_NEWSBLUR_TOKEN,
+  STORAGE_KEY_JOPLIN_TOKEN,
+  STORAGE_KEY_API_KEY_LOCAL,
+  STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
+  STORAGE_KEY_JOPLIN_TOKEN_LOCAL,
 } from "./constants.js";
 import * as constants from "./constants.js"; // Import all constants as an object to resolve potential redeclaration issues
 const JOPLIN_API_BASE_URL = constants.JOPLIN_API_BASE_URL;
@@ -38,6 +43,7 @@ import {
   handleSetChatContext,
 } from "./js/chatContextManager.js";
 import { handleOpenChatTab, handleOpenOptionsPage } from "./js/uiActions.js";
+import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
 
 console.log(
   `[LLM Background] Service Worker Start (v3.8.0 - HTML Summary Format)`,
@@ -52,7 +58,44 @@ chrome.storage.sync.get(STORAGE_KEY_DEBUG, (data) => {
   DEBUG = !!data[STORAGE_KEY_DEBUG];
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+// Migration: Move tokens from sync to encrypted local storage
+async function migrateTokensToEncryptedStorage() {
+  const syncData = await chrome.storage.sync.get([
+    STORAGE_KEY_API_KEY,
+    STORAGE_KEY_NEWSBLUR_TOKEN,
+    STORAGE_KEY_JOPLIN_TOKEN,
+  ]);
+
+  if (syncData[STORAGE_KEY_API_KEY] || syncData[STORAGE_KEY_NEWSBLUR_TOKEN] || syncData[STORAGE_KEY_JOPLIN_TOKEN]) {
+    // Migrate to encrypted local storage
+    const migrations = {};
+    if (syncData[STORAGE_KEY_API_KEY]) {
+      migrations[STORAGE_KEY_API_KEY_LOCAL] = await encryptSensitiveData(syncData[STORAGE_KEY_API_KEY]);
+    }
+    if (syncData[STORAGE_KEY_NEWSBLUR_TOKEN]) {
+      migrations[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL] = await encryptSensitiveData(syncData[STORAGE_KEY_NEWSBLUR_TOKEN]);
+    }
+    if (syncData[STORAGE_KEY_JOPLIN_TOKEN]) {
+      migrations[STORAGE_KEY_JOPLIN_TOKEN_LOCAL] = await encryptSensitiveData(syncData[STORAGE_KEY_JOPLIN_TOKEN]);
+    }
+
+    await chrome.storage.local.set(migrations);
+
+    // Clear from sync storage
+    await chrome.storage.sync.remove([
+      STORAGE_KEY_API_KEY,
+      STORAGE_KEY_NEWSBLUR_TOKEN,
+      STORAGE_KEY_JOPLIN_TOKEN,
+    ]);
+
+    console.log("[Migration] Tokens migrated to encrypted local storage");
+  }
+}
+
+chrome.runtime.onInstalled.addListener(async () => {
+  // Run migration first
+  await migrateTokensToEncryptedStorage();
+
   chrome.contextMenus.create({
     id: "sendToLLM",
     title: "Send to LLM",
@@ -60,7 +103,6 @@ chrome.runtime.onInstalled.addListener(() => {
   // On install/update, set initial default values if not already set
   chrome.storage.sync.get(
     [
-      STORAGE_KEY_API_KEY,
       STORAGE_KEY_DEBUG,
       STORAGE_KEY_SUMMARY_MODEL_ID,
       STORAGE_KEY_CHAT_MODEL_ID,
@@ -68,10 +110,17 @@ chrome.runtime.onInstalled.addListener(() => {
       STORAGE_KEY_MAX_REQUEST_PRICE,
       STORAGE_KEY_PROMPT_TEMPLATE,
     ],
-    (data) => {
+    async (data) => {
       DEBUG = !!data[STORAGE_KEY_DEBUG]; // Update DEBUG status from settings
       const initialSettings = {};
-      if (!data[STORAGE_KEY_API_KEY]) {
+
+      // Check for API key in encrypted local storage
+      const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
+      const apiKey = localData[STORAGE_KEY_API_KEY_LOCAL]
+        ? await decryptSensitiveData(localData[STORAGE_KEY_API_KEY_LOCAL])
+        : "";
+
+      if (!apiKey) {
         chrome.runtime.openOptionsPage(); // Open options page if API key is missing
       }
       if (DEBUG) {
@@ -269,10 +318,11 @@ async function handleAsyncMessage(request, sender, sendResponse) {
       },
       getNewsblurToken: async () => {
         try {
-          const tokenResult = await chrome.storage.sync.get(
-            constants.STORAGE_KEY_NEWSBLUR_TOKEN,
+          const tokenResult = await chrome.storage.local.get(
+            constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
           );
-          const token = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN];
+          const encryptedToken = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
+          const token = encryptedToken ? await decryptSensitiveData(encryptedToken) : "";
           sendResponse({ status: "success", token: token });
         } catch (e) {
           console.error("[LLM Background] Error getting NewsBlur token:", e);
@@ -346,10 +396,11 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
   // Added DEBUG_API parameter
   let token = options.token;
   if (!token) {
-    const tokenResult = await chrome.storage.sync.get(
-      constants.STORAGE_KEY_NEWSBLUR_TOKEN,
+    const tokenResult = await chrome.storage.local.get(
+      constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
     );
-    token = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN];
+    const encryptedToken = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
+    token = encryptedToken ? await decryptSensitiveData(encryptedToken) : "";
   }
   const domain = options.domain || "www.newsblur.com";
   const apiUrl = `https://${domain}/api/share_story/${token}`;

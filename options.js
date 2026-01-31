@@ -10,9 +10,13 @@ import {
   DEFAULT_CACHE_EXPIRY_DAYS,
   STORAGE_KEY_NEWSBLUR_TOKEN,
   STORAGE_KEY_JOPLIN_TOKEN, // New: Import Joplin token storage key
+  STORAGE_KEY_API_KEY_LOCAL,
+  STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
+  STORAGE_KEY_JOPLIN_TOKEN_LOCAL,
   DEBOUNCE_DELAY,
   TOKENS_PER_KB,
 } from "./constants.js";
+import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
 import { showError } from "./utils.js";
 
 console.log(`[LLM Options] Script Start v3.4.5`);
@@ -1138,7 +1142,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }));
 
       const keysToGet = [
-        "apiKey",
         "models",
         "summaryModelId",
         "chatModelId",
@@ -1149,22 +1152,39 @@ document.addEventListener("DOMContentLoaded", async () => {
         STORAGE_KEY_ALWAYS_USE_US_ENGLISH,
         STORAGE_KEY_MAX_REQUEST_PRICE,
         STORAGE_KEY_MAX_PRICE_BEHAVIOR,
-        STORAGE_KEY_NEWSBLUR_TOKEN,
-        STORAGE_KEY_JOPLIN_TOKEN, // New: Joplin API Token
         STORAGE_KEY_ALSO_SEND_TO_JOPLIN,
       ];
       const data = await chrome.storage.sync.get(keysToGet);
+
+      // Load encrypted tokens from local storage
+      const localData = await chrome.storage.local.get([
+        STORAGE_KEY_API_KEY_LOCAL,
+        STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
+        STORAGE_KEY_JOPLIN_TOKEN_LOCAL,
+      ]);
 
       if (chrome.runtime.lastError) {
         throw new Error(chrome.runtime.lastError.message);
       }
 
       DEBUG = data.debug ?? DEFAULT_DEBUG_MODE;
-      if (apiKeyInput) apiKeyInput.value = data.apiKey || "";
+
+      // Decrypt tokens from local storage
+      const decryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL]
+        ? await decryptSensitiveData(localData[STORAGE_KEY_API_KEY_LOCAL])
+        : "";
+      const decryptedNewsblurToken = localData[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL]
+        ? await decryptSensitiveData(localData[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL])
+        : "";
+      const decryptedJoplinToken = localData[STORAGE_KEY_JOPLIN_TOKEN_LOCAL]
+        ? await decryptSensitiveData(localData[STORAGE_KEY_JOPLIN_TOKEN_LOCAL])
+        : "";
+
+      if (apiKeyInput) apiKeyInput.value = decryptedApiKey;
       if (newsblurTokenInput)
-        newsblurTokenInput.value = data[STORAGE_KEY_NEWSBLUR_TOKEN] || "";
+        newsblurTokenInput.value = decryptedNewsblurToken;
       if (joplinTokenInput)
-        joplinTokenInput.value = data[STORAGE_KEY_JOPLIN_TOKEN] || ""; // New: Populate Joplin Token Input
+        joplinTokenInput.value = decryptedJoplinToken;
       if (debugCheckbox) debugCheckbox.checked = DEBUG;
 
       const alsoSendToJoplin = data[STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ?? false;
@@ -1358,8 +1378,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     checkModelAndPricingData(); // Check pricing data on load
   }
 
-  // UPDATED Save Settings function (No Labels)
-  function saveSettings() {
+  // UPDATED Save Settings function (No Labels) with encryption
+  async function saveSettings() {
     if (DEBUG) console.log("[LLM Options] Attempting to save settings...");
     const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
     const debug = debugCheckbox ? debugCheckbox.checked : false;
@@ -1433,9 +1453,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       .filter((item) => item !== null)
       .slice(0, MAX_LANGUAGES);
 
+    // Encrypt sensitive tokens
+    const encryptedApiKey = apiKey ? await encryptSensitiveData(apiKey) : "";
+    const encryptedNewsblurToken = newsblurTokenInput?.value.trim()
+      ? await encryptSensitiveData(newsblurTokenInput.value.trim())
+      : "";
+    const encryptedJoplinToken = joplinTokenInput?.value.trim()
+      ? await encryptSensitiveData(joplinTokenInput.value.trim())
+      : "";
+
+    // Non-sensitive settings go to sync
     const settingsToSave = {
-      apiKey,
-      models: modelsToSave, // Now saves array of {id: string}
+      models: modelsToSave,
       summaryModelId: finalSummaryModelId,
       chatModelId: finalChatModelId,
       debug,
@@ -1445,32 +1474,26 @@ document.addEventListener("DOMContentLoaded", async () => {
       [STORAGE_KEY_ALWAYS_USE_US_ENGLISH]: alwaysUseUsEnglish,
       [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice,
       [STORAGE_KEY_MAX_PRICE_BEHAVIOR]: currentMaxPriceBehavior,
-      [STORAGE_KEY_NEWSBLUR_TOKEN]: newsblurTokenInput
-        ? newsblurTokenInput.value.trim()
-        : "", // New: Save NewsBlur Token
-      [STORAGE_KEY_JOPLIN_TOKEN]: joplinTokenInput
-        ? joplinTokenInput.value.trim()
-        : "", // New: Save Joplin Token
       [STORAGE_KEY_ALSO_SEND_TO_JOPLIN]: alsoSendToJoplinCheckbox
         ? alsoSendToJoplinCheckbox.checked
         : false,
     };
 
+    // Save encrypted tokens to local storage
+    const localSettings = {
+      [STORAGE_KEY_API_KEY_LOCAL]: encryptedApiKey,
+      [STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL]: encryptedNewsblurToken,
+      [STORAGE_KEY_JOPLIN_TOKEN_LOCAL]: encryptedJoplinToken,
+    };
+
     if (DEBUG) {
-      // Create a copy of settingsToSave and mask sensitive fields
-      const logSettings = { ...settingsToSave };
-      if (logSettings.apiKey)
-        logSettings.apiKey = maskToken(logSettings.apiKey);
-      if (logSettings.newsblurToken)
-        logSettings.newsblurToken = maskToken(logSettings.newsblurToken);
-      if (logSettings.joplinToken)
-        logSettings.joplinToken = maskToken(logSettings.joplinToken);
       console.log(
-        "[LLM Options] Settings prepared for saving (no labels):",
-        logSettings,
+        "[LLM Options] Settings prepared for saving (tokens encrypted):",
+        { ...settingsToSave, tokensEncrypted: true }
       );
     }
 
+    // Save non-sensitive settings to sync
     chrome.storage.sync.set(settingsToSave, () => {
       if (chrome.runtime.lastError) {
         showError(`Error saving settings: ${chrome.runtime.lastError.message}`);
@@ -1516,6 +1539,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             statusMessage.className = "status-message";
           }, 1000); // Reduced timeout for immediate saves to be less intrusive
         }
+      }
+    });
+
+    // Save encrypted tokens to local storage
+    chrome.storage.local.set(localSettings, () => {
+      if (chrome.runtime.lastError) {
+        console.error(
+          "[LLM Options] Error saving encrypted tokens:",
+          chrome.runtime.lastError,
+        );
+      } else {
+        if (DEBUG)
+          console.log("[LLM Options] Encrypted tokens saved successfully.");
       }
     });
   }
