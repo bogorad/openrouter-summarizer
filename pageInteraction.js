@@ -1295,5 +1295,16 @@ async function initialize() {
 // --- Start Initialization ---
 initialize();
 
-
+// Add cleanup on window unload to prevent memory leaks
+window.addEventListener('unload', () => {
+  if (typeof Highlighter !== 'undefined' && Highlighter.cleanupHighlighter) {
+    Highlighter.cleanupHighlighter();
+  }
+  if (typeof FloatingIcon !== 'undefined' && FloatingIcon.cleanup) {
+    FloatingIcon.cleanup();
+  }
+  if (typeof SummaryPopup !== 'undefined' && SummaryPopup.cleanup) {
+    SummaryPopup.cleanup();
+  }
+});
 

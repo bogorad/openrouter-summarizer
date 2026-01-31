@@ -12,6 +12,21 @@ let onElementSelectedCallback = null;
 let onElementDeselectedCallback = null;
 let DEBUG = false; // Will be set by initializeHighlighter
 
+// Track event listeners for cleanup
+let eventListeners = [];
+
+/**
+ * Adds an event listener and tracks it for cleanup
+ * @param {EventTarget} element - Element to attach listener to
+ * @param {string} event - Event name
+ * @param {Function} handler - Event handler
+ * @param {boolean|object} options - Event listener options
+ */
+const addTrackedEventListener = (element, event, handler, options) => {
+  element.addEventListener(event, handler, options);
+  eventListeners.push({ element, event, handler, options });
+};
+
 // Alt must be down with no Shift and no Control
 function isPureAlt(e) {
   return e.altKey && !e.shiftKey && !e.ctrlKey;
@@ -251,18 +266,47 @@ export function initializeHighlighter(options) {
   onElementDeselectedCallback = options.onElementDeselected;
   DEBUG = !!options.initialDebugState;
 
-  // Add event listeners managed by this module
-  window.addEventListener("keydown", handleKeyDown, true); // Use capture for keydown
-  window.addEventListener("keyup", handleKeyUp, true); // Use capture for keyup
-  window.addEventListener("blur", resetHighlightState); // Use new reset function
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      resetHighlightState(); // Use new reset function
-    }
-  });
-  document.addEventListener("mousemove", handleMouseOver, true); // Use capture for mousemove
-  window.addEventListener("mouseout", handleMouseOut);
-  document.addEventListener("mousedown", handleMouseDown, true); // Use capture for mousedown
+  // Track all event listeners for cleanup
+  addTrackedEventListener(window, "keydown", handleKeyDown, true);
+  addTrackedEventListener(window, "keyup", handleKeyUp, true);
+  addTrackedEventListener(window, "blur", resetHighlightState);
+  addTrackedEventListener(document, "visibilitychange", handleVisibilityChange);
+  addTrackedEventListener(document, "mousemove", handleMouseOver, true);
+  addTrackedEventListener(window, "mouseout", handleMouseOut);
+  addTrackedEventListener(document, "mousedown", handleMouseDown, true);
 
   if (DEBUG) console.log("[LLM Highlighter] Initialized.");
-}
+};
+
+// Handler for visibility change
+const handleVisibilityChange = () => {
+  if (document.visibilityState === "hidden") {
+    resetHighlightState();
+  }
+};
+
+/**
+ * Cleans up all event listeners and state
+ * Call this when content script is being unloaded
+ */
+export const cleanupHighlighter = () => {
+  // Remove all tracked event listeners
+  eventListeners.forEach(({ element, event, handler, options }) => {
+    try {
+      element.removeEventListener(event, handler, options);
+    } catch (e) {
+      // Silent fail for cleanup
+    }
+  });
+  eventListeners = [];
+
+  // Clear all state
+  altKeyDown = false;
+  removePreviewHighlight();
+  removeSelectionHighlight();
+  selectedElement = null;
+  onElementSelectedCallback = null;
+  onElementDeselectedCallback = null;
+
+  if (DEBUG) console.log("[LLM Highlighter] Cleaned up.");
+};
