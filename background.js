@@ -529,10 +529,14 @@ async function fetchJoplinFoldersAPI(joplinToken, DEBUG_API) {
   if (!joplinToken) {
     throw new Error("Joplin API token is missing.");
   }
-  const apiUrl = `${JOPLIN_API_BASE_URL}${JOPLIN_API_FOLDERS_ENDPOINT}?token=${joplinToken}`;
+  if (!isValidJoplinToken(joplinToken)) {
+    throw new Error("Invalid Joplin API token format.");
+  }
+  const apiUrl = new URL(JOPLIN_API_FOLDERS_ENDPOINT, JOPLIN_API_BASE_URL);
+  apiUrl.searchParams.append("token", joplinToken);
 
   try {
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl.href);
     if (!response.ok) {
       const errorText = await response.text();
       console.error("[LLM Joplin API] Error fetching folders:", response.status, errorText);
@@ -564,7 +568,11 @@ async function createJoplinNoteAPI(joplinToken, title, source_url, body_html, pa
   if (!joplinToken || !title || !body_html || !parent_id) { // Simplified validation, now always requires body_html
     throw new Error("Missing required parameters for creating Joplin note (token, title, HTML content, or parentId).");
   }
-  const apiUrl = `${JOPLIN_API_BASE_URL}${JOPLIN_API_NOTES_ENDPOINT}?token=${joplinToken}`;
+  if (!isValidJoplinToken(joplinToken)) {
+    throw new Error("Invalid Joplin API token format.");
+  }
+  const apiUrl = new URL(JOPLIN_API_NOTES_ENDPOINT, JOPLIN_API_BASE_URL);
+  apiUrl.searchParams.append("token", joplinToken);
 
   const noteData = {
     title: title,
@@ -574,7 +582,7 @@ async function createJoplinNoteAPI(joplinToken, title, source_url, body_html, pa
   };
 
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetch(apiUrl.href, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -595,6 +603,18 @@ async function createJoplinNoteAPI(joplinToken, title, source_url, body_html, pa
     console.error("[LLM Joplin API] Network error during note creation:", error);
     throw new Error(`Network error or invalid Joplin API URL. Ensure Joplin is running and API is enabled: ${error.message}`);
   }
+}
+
+/**
+ * Validates Joplin API token format.
+ * Joplin tokens are alphanumeric strings, typically 32-64 characters.
+ * @param {string} token - The token to validate.
+ * @returns {boolean} True if valid, false otherwise.
+ */
+function isValidJoplinToken(token) {
+  if (typeof token !== "string") return false;
+  // Joplin tokens are alphanumeric, 10-100 chars (conservative range)
+  return /^[a-zA-Z0-9]{10,100}$/.test(token);
 }
 
 // Pricing functions moved to js/pricingService.js

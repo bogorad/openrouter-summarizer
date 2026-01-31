@@ -1,3 +1,5 @@
+- **Version 3.9.24:** Fixed insufficient URL validation in Joplin API calls: added token format validation with regex, replaced string concatenation with URL API for safe URL construction
+
 - **Version 3.9.23:** Fixed memory leak in activeControllers Map: added MAX_ACTIVE_CONTROLLERS limit (100), eviction of oldest 20% when limit reached, periodic cleanup interval every 30 seconds as backup, and wrapped abort() calls in try/catch to prevent cleanup failures
 
 - **Version 3.9.22:** Refactored decryptSensitiveData to return a result object { success, data, error } instead of empty string on failure, enabling callers to distinguish between missing data and decryption failures for better error handling and security
