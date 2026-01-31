@@ -5,6 +5,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://openrouter.ai;">
   <title>OpenRouter Summarizer — Chat</title>
   <link rel="stylesheet" href="chat.css"> <!-- Link to the CSS -->
 </head>
@@ -74,6 +75,7 @@
   </div> <!-- End chatContainer -->
 
   <!-- === Scripts at the end === -->
+  <script src="purify.min.js"></script> <!-- DOMPurify for XSS protection -->
   <script src="marked.min.js"></script> <!-- Ensure marked.min.js exists -->
   <script src="chat.js" type="module"></script> <!-- Updated to type="module" -->
   <!-- === End Scripts === -->

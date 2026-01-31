@@ -103,34 +103,43 @@ export function showError(message, isFatal = true, duration = 0) {
  * @returns {string} - The rendered HTML.
  */
 export function renderTextAsHtml(text) {
-  // Spec: Renders plain text or markdown as HTML.
+  // Spec: Renders plain text or markdown as HTML with DOMPurify sanitization.
   // Arguments: text (string) - The input text.
   // Called from: renderMessages.
-  // Returns: string - The HTML representation of the text.
+  // Returns: string - The sanitized HTML representation of the text.
   // Call site: Inside renderMessages for assistant messages (if no JSON) and user messages.
-  // Dependencies: marked library (optional).
+  // Dependencies: marked library (optional), DOMPurify library (optional).
   // State changes: None.
   // Error handling: Logs error if marked parsing fails.
   // Side effects: None.
   // Accessibility: N/A.
-  // Performance: Markdown parsing or simple string replacement.
+  // Performance: Markdown parsing or simple string replacement, plus sanitization.
 
   if (typeof text !== "string" || !text.trim()) {
     return "";
   }
+
+  let htmlContent;
   if (typeof marked !== "undefined") {
     try {
-      // Use marked.parse for markdown rendering
-      return marked.parse(text, { sanitize: true });
+      htmlContent = marked.parse(text, { sanitize: false });
     } catch (parseError) {
       console.error("[LLM Utils] Marked parse error:", parseError);
-      // Fallback to simple line breaks if marked fails
-      return text.replace(/\n/g, "<br>");
+      htmlContent = text.replace(/\n/g, "<br>");
     }
   } else {
-    // Fallback to simple line breaks if marked is not available
-    return text.replace(/\n/g, "<br>");
+    htmlContent = text.replace(/\n/g, "<br>");
   }
+
+  // Sanitize with DOMPurify to prevent XSS attacks
+  if (typeof DOMPurify !== "undefined") {
+    return DOMPurify.sanitize(htmlContent, {
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+      ALLOWED_ATTR: ['href', 'title', 'class']
+    });
+  }
+
+  return htmlContent;
 }
 
 

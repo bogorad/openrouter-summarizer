@@ -1,3 +1,5 @@
+- **Version 3.9.3:** Fixed critical XSS vulnerability in chat message rendering by implementing DOMPurify sanitization. The deprecated `marked.parse()` sanitize option was replaced with proper DOMPurify sanitization to prevent arbitrary JavaScript execution from malicious LLM responses.
+
 - **Version 3.9.2:** Display model name in summary popup header (e.g., "Summary (google/gemini-2.0-flash-001)") to show which LLM generated the summary.
 
 - **Version 3.9.0:** Shadow DOM Migration (Robustness)
