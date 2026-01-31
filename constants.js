@@ -11,25 +11,75 @@ console.log(`[LLM Constants] Loaded`);
 // --- Storage Keys (DEFINED AND EXPORTED HERE) ---
 export const STORAGE_KEY_API_KEY = "apiKey";
 export const STORAGE_KEY_MODELS = "models";
-export const STORAGE_KEY_SUMMARY_MODEL_ID = "summaryModelId";
+export const STORAGE_KEY_SUMMARY_MODEL_ID =
+  "summaryModelId";
 export const STORAGE_KEY_CHAT_MODEL_ID = "chatModelId";
 export const STORAGE_KEY_DEBUG = "debug";
 export const STORAGE_KEY_BULLET_COUNT = "bulletCount";
 export const STORAGE_KEY_LANGUAGE_INFO = "language_info";
-export const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
-export const STORAGE_KEY_KNOWN_MODELS_AND_PRICES = "knownModelsAndPrices";
+export const STORAGE_KEY_MAX_REQUEST_PRICE =
+  "maxRequestPrice";
+export const STORAGE_KEY_KNOWN_MODELS_AND_PRICES =
+  "knownModelsAndPrices";
 export const STORAGE_KEY_NEWSBLUR_TOKEN = "newsblurToken";
 export const STORAGE_KEY_JOPLIN_TOKEN = "joplinToken"; // New: Joplin Token
-export const STORAGE_KEY_ALSO_SEND_TO_JOPLIN = "alsoSendToJoplin";
-export const STORAGE_KEY_ALWAYS_USE_US_ENGLISH = "alwaysUseUsEnglish";
+export const STORAGE_KEY_ALSO_SEND_TO_JOPLIN =
+  "alsoSendToJoplin";
+export const STORAGE_KEY_ALWAYS_USE_US_ENGLISH =
+  "alwaysUseUsEnglish";
 
 // Valid ISO 639-2 language codes for validation
 export const VALID_LANGUAGE_CODES = new Set([
-  'eng', 'spa', 'fra', 'deu', 'ita', 'por', 'chi', 'jpn', 'kor', 'ara',
-  'rus', 'hin', 'tur', 'vie', 'tha', 'pol', 'dut', 'gre', 'heb', 'dan',
-  'swe', 'nor', 'fin', 'cze', 'rom', 'hun', 'bul', 'hrv', 'slk', 'slv',
-  'ukr', 'cat', 'eus', 'glg', 'nno', 'srp', 'ind', 'mal', 'tam', 'tel',
-  'ben', 'mar', 'kan', 'guj', 'ori', 'asm', 'pan', 'sun', 'afr', 'zul'
+  "eng",
+  "spa",
+  "fra",
+  "deu",
+  "ita",
+  "por",
+  "chi",
+  "jpn",
+  "kor",
+  "ara",
+  "rus",
+  "hin",
+  "tur",
+  "vie",
+  "tha",
+  "pol",
+  "dut",
+  "gre",
+  "heb",
+  "dan",
+  "swe",
+  "nor",
+  "fin",
+  "cze",
+  "rom",
+  "hun",
+  "bul",
+  "hrv",
+  "slk",
+  "slv",
+  "ukr",
+  "cat",
+  "eus",
+  "glg",
+  "nno",
+  "srp",
+  "ind",
+  "mal",
+  "tam",
+  "tel",
+  "ben",
+  "mar",
+  "kan",
+  "guj",
+  "ori",
+  "asm",
+  "pan",
+  "sun",
+  "afr",
+  "zul",
 ]);
 
 /**
@@ -38,10 +88,12 @@ export const VALID_LANGUAGE_CODES = new Set([
  * @returns {boolean} True if valid
  */
 export const isValidLanguageCode = (code) => {
-  return typeof code === 'string' && 
-         code.length === 3 && 
-         /^[a-z]{3}$/.test(code) &&
-         VALID_LANGUAGE_CODES.has(code);
+  return (
+    typeof code === "string" &&
+    code.length === 3 &&
+    /^[a-z]{3}$/.test(code) &&
+    VALID_LANGUAGE_CODES.has(code)
+  );
 };
 
 /**
@@ -50,15 +102,22 @@ export const isValidLanguageCode = (code) => {
  * @param {string} fallback - Fallback code if invalid
  * @returns {string} Valid language code
  */
-export const sanitizeLanguageCode = (code, fallback = 'eng') => {
+export const sanitizeLanguageCode = (
+  code,
+  fallback = "eng",
+) => {
   const sanitized = code?.trim().toLowerCase() || fallback;
-  return isValidLanguageCode(sanitized) ? sanitized : fallback;
+  return isValidLanguageCode(sanitized)
+    ? sanitized
+    : fallback;
 };
 
 // Storage keys for encrypted tokens (stored in chrome.storage.local)
 export const STORAGE_KEY_API_KEY_LOCAL = "apiKeyLocal";
-export const STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL = "newsblurTokenLocal";
-export const STORAGE_KEY_JOPLIN_TOKEN_LOCAL = "joplinTokenLocal";
+export const STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL =
+  "newsblurTokenLocal";
+export const STORAGE_KEY_JOPLIN_TOKEN_LOCAL =
+  "joplinTokenLocal";
 
 // --- Joplin API ---
 export const JOPLIN_API_BASE_URL = "http://localhost:41184";
@@ -152,15 +211,20 @@ export const DEFAULT_PREPOPULATE_LANGUAGES = [
 
 // --- Paths ---
 // These paths are relative to the extension root, used by background.js
-export const LANGUAGES_JSON_PATH = "country-flags/languages.json";
+export const LANGUAGES_JSON_PATH =
+  "country-flags/languages.json";
 export const SVG_PATH_PREFIX = "country-flags/svg/";
 export const FALLBACK_SVG_PATH = "country-flags/svg/un.svg"; // Generic placeholder flag
 
 // --- Other Defaults (Confirmed) ---
 export const DEFAULT_SELECTED_SUMMARY_MODEL_ID =
-  DEFAULT_MODEL_OPTIONS.length > 0 ? DEFAULT_MODEL_OPTIONS[0].id : "";
+  DEFAULT_MODEL_OPTIONS.length > 0
+    ? DEFAULT_MODEL_OPTIONS[0].id
+    : "";
 export const DEFAULT_SELECTED_CHAT_MODEL_ID =
-  DEFAULT_MODEL_OPTIONS.length > 0 ? DEFAULT_MODEL_OPTIONS[0].id : "";
+  DEFAULT_MODEL_OPTIONS.length > 0
+    ? DEFAULT_MODEL_OPTIONS[0].id
+    : "";
 export const DEFAULT_BULLET_COUNT_NUM = 5; // As a number
 export const DEFAULT_DEBUG_MODE = false;
 export const DEFAULT_SUMMARY_HISTORY_COUNT = 20; // Max number of summaries to keep
@@ -203,8 +267,10 @@ export const ERROR_RATE_LIMIT =
 export const ERROR_API_KEY_INVALID =
   "Invalid API key. Please verify your OpenRouter key in the options.";
 export const ERROR_UNKNOWN = "An unknown error occurred.";
-export const ERROR_CONTENT_FILTERED = "Content filtered by API provider.";
-export const ERROR_BAD_REQUEST = "Bad request. Check model ID and parameters."; // 400
+export const ERROR_CONTENT_FILTERED =
+  "Content filtered by API provider.";
+export const ERROR_BAD_REQUEST =
+  "Bad request. Check model ID and parameters."; // 400
 export const ERROR_SERVER_ERROR =
   "OpenRouter server error. Please try again later."; // 500+
 
@@ -215,7 +281,7 @@ export const TOKENS_PER_KB = 320; // Approximation based on 4.5 characters per t
 
 // Language detection models with fallback options
 export const LANGUAGE_DETECTION_MODELS = [
-  "moonshotai/kimi-k2",
+  "moonshotai/kimi-k2-0905",
   "google/gemini-flash-1.5",
-  "anthropic/claude-3-haiku-20240307"
+  "anthropic/claude-3-haiku-20240307",
 ];
