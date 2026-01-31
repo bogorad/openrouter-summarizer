@@ -1,13 +1,79 @@
 // js/chatHandler.js
+/**
+ * @fileoverview Handles LLM chat streaming requests and abort functionality.
+ * Manages AbortControllers with size limits and automatic cleanup to prevent memory leaks.
+ */
 import {
   STORAGE_KEY_API_KEY_LOCAL,
   STORAGE_KEY_MODELS,
   DEFAULT_MODEL_OPTIONS,
+  MAX_ACTIVE_CONTROLLERS,
+  CONTROLLER_TIMEOUT_MS,
+  CONTROLLER_CLEANUP_INTERVAL_MS,
 } from "../constants.js";
 import { decryptSensitiveData } from "./encryption.js";
 
 // In-memory storage for AbortControllers (not serializable, can't use chrome.storage)
 const activeControllers = new Map();
+
+/**
+ * Safely aborts an AbortController, catching any errors.
+ * @param {AbortController} controller - The controller to abort
+ * @returns {boolean} True if abort succeeded, false otherwise
+ */
+const safeAbort = (controller) => {
+  try {
+    if (controller && typeof controller.abort === "function") {
+      controller.abort();
+      return true;
+    }
+  } catch (error) {
+    console.warn("[LLM Chat Handler] Error during abort:", error);
+  }
+  return false;
+};
+
+/**
+ * Evicts oldest entries from activeControllers when size limit is reached.
+ * Removes approximately 20% of entries to avoid frequent evictions.
+ * @param {boolean} DEBUG - Enable debug logging
+ */
+const evictOldestControllers = (DEBUG = false) => {
+  if (activeControllers.size < MAX_ACTIVE_CONTROLLERS) {
+    return;
+  }
+
+  const evictCount = Math.ceil(MAX_ACTIVE_CONTROLLERS * 0.2);
+  const sortedEntries = [...activeControllers.entries()].sort(
+    (a, b) => a[1].timestamp - b[1].timestamp
+  );
+
+  for (let i = 0; i < evictCount && i < sortedEntries.length; i++) {
+    const [requestId, data] = sortedEntries[i];
+    safeAbort(data.controller);
+    activeControllers.delete(requestId);
+    if (DEBUG) {
+      console.log(`[LLM Chat Handler] Evicted stale controller ${requestId}`);
+    }
+  }
+};
+
+/**
+ * Periodic cleanup of stale controllers as a backup safety mechanism.
+ * Removes entries older than CONTROLLER_TIMEOUT_MS.
+ */
+const cleanupStaleControllers = () => {
+  const now = Date.now();
+  for (const [requestId, data] of activeControllers.entries()) {
+    if (now - data.timestamp > CONTROLLER_TIMEOUT_MS) {
+      safeAbort(data.controller);
+      activeControllers.delete(requestId);
+    }
+  }
+};
+
+// Start periodic cleanup interval as backup safety mechanism
+setInterval(cleanupStaleControllers, CONTROLLER_CLEANUP_INTERVAL_MS);
 
 export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
   if (DEBUG) {
@@ -76,6 +142,9 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
       // Generate unique request ID
       const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+      // Evict oldest controllers if at size limit before adding new one
+      evictOldestControllers(DEBUG);
+
       // Store controller in memory map
       activeControllers.set(requestId, {
         controller,
@@ -83,14 +152,15 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
         model: request.model
       });
 
-      // Set up automatic cleanup after 60 seconds (prevent memory leaks)
+      // Set up automatic cleanup after timeout (prevent memory leaks)
       setTimeout(() => {
         if (activeControllers.has(requestId)) {
-          activeControllers.get(requestId).controller.abort();
+          const data = activeControllers.get(requestId);
+          safeAbort(data.controller);
           activeControllers.delete(requestId);
           if (DEBUG) console.log(`[LLM Chat Handler] Auto-cleaned stale request ${requestId}`);
         }
-      }, 60000);
+      }, CONTROLLER_TIMEOUT_MS);
 
       // Store only requestId in session storage for abort lookup
       chrome.storage.session.set({ currentChatRequestId: requestId });
@@ -169,24 +239,27 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
   );
 }
 
+/**
+ * Handles abort request for active chat.
+ * Looks up the current request ID from session storage and aborts it.
+ * @param {Function} sendResponse - Callback to send response
+ * @param {boolean} DEBUG - Enable debug logging
+ * @returns {boolean} True to keep message channel open
+ */
 export function handleAbortChatRequest(sendResponse, DEBUG = false) {
   if (DEBUG) console.log("[LLM Chat Handler] Handling abortChatRequest.");
   chrome.storage.session.get("currentChatRequestId", (data) => {
     const requestId = data.currentChatRequestId;
     const requestData = activeControllers.get(requestId);
 
-    if (requestData && requestData.controller && typeof requestData.controller.abort === "function") {
-      try {
-        requestData.controller.abort();
-        activeControllers.delete(requestId);
-        chrome.storage.session.remove("currentChatRequestId");
-        if (DEBUG)
-          console.log("[LLM Chat Handler] AbortController triggered abort.");
-        sendResponse({ status: "aborted" });
-      } catch (abortError) {
-        console.error("[LLM Chat Handler] Error calling abort():", abortError);
-        sendResponse({ status: "error", message: "Failed to abort request" });
+    if (requestData && requestData.controller) {
+      const aborted = safeAbort(requestData.controller);
+      activeControllers.delete(requestId);
+      chrome.storage.session.remove("currentChatRequestId");
+      if (DEBUG) {
+        console.log("[LLM Chat Handler] AbortController triggered abort.");
       }
+      sendResponse({ status: aborted ? "aborted" : "error", message: aborted ? undefined : "Failed to abort request" });
     } else {
       if (DEBUG) {
         console.log(

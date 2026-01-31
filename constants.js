@@ -173,6 +173,11 @@ export const MAX_RETRIES = 2; // Max retries for API calls
 export const RETRY_DELAY = 1000; // ms delay between retries
 export const REQUEST_TIMEOUT = 45000; // ms timeout for API requests (45 seconds)
 
+// --- AbortController Management ---
+export const MAX_ACTIVE_CONTROLLERS = 100; // Maximum concurrent AbortControllers to prevent memory leaks
+export const CONTROLLER_TIMEOUT_MS = 60000; // Auto-cleanup stale controllers after 60 seconds
+export const CONTROLLER_CLEANUP_INTERVAL_MS = 30000; // Periodic backup cleanup every 30 seconds
+
 // --- Error Messages (Confirmed) ---
 export const ERROR_NO_API_KEY =
   "API key is missing. Please set it in the extension options.";
