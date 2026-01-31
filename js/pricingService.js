@@ -118,7 +118,11 @@ export async function handleGetModelPricing(
   // Get encrypted API key from local storage and decrypt it
   const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
   const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
-  const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
+  const decryptResult = await decryptSensitiveData(encryptedApiKey);
+  if (!decryptResult.success) {
+    console.error("[LLM Pricing Service] Failed to decrypt API key:", decryptResult.error);
+  }
+  const apiKey = decryptResult.data;
 
   const attemptGetPrice = async () => {
       const localCacheData = await new Promise((resolve) =>
@@ -229,7 +233,11 @@ export async function handleUpdateKnownModelsAndPricing(
   // Get encrypted API key from local storage and decrypt it
   const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
   const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
-  const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
+  const decryptResult = await decryptSensitiveData(encryptedApiKey);
+  if (!decryptResult.success) {
+    console.error("[LLM Pricing Service] Failed to decrypt API key:", decryptResult.error);
+  }
+  const apiKey = decryptResult.data;
   if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
     if (DEBUG)
       console.log(

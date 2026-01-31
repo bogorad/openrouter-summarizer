@@ -138,9 +138,11 @@ chrome.runtime.onInstalled.addListener(async () => {
 
       // Check for API key in encrypted local storage
       const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
-      const apiKey = localData[STORAGE_KEY_API_KEY_LOCAL]
-        ? await decryptSensitiveData(localData[STORAGE_KEY_API_KEY_LOCAL])
-        : "";
+      const decryptResult = await decryptSensitiveData(localData[STORAGE_KEY_API_KEY_LOCAL]);
+      if (!decryptResult.success) {
+        console.error("[LLM Background] Failed to decrypt API key:", decryptResult.error);
+      }
+      const apiKey = decryptResult.data;
 
       if (!apiKey) {
         chrome.runtime.openOptionsPage(); // Open options page if API key is missing
@@ -345,7 +347,11 @@ async function handleAsyncMessage(request, sender, sendResponse) {
             constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
           );
           const encryptedToken = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
-          const token = encryptedToken ? await decryptSensitiveData(encryptedToken) : "";
+          const decryptResult = await decryptSensitiveData(encryptedToken);
+          if (!decryptResult.success) {
+            console.error("[LLM Background] Failed to decrypt NewsBlur token:", decryptResult.error);
+          }
+          const token = decryptResult.data;
           sendResponse({ status: "success", token: token });
         } catch (e) {
           console.error("[LLM Background] Error getting NewsBlur token:", e);
@@ -417,7 +423,11 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
       constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
     );
     const encryptedToken = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
-    token = encryptedToken ? await decryptSensitiveData(encryptedToken) : "";
+    const decryptResult = await decryptSensitiveData(encryptedToken);
+    if (!decryptResult.success) {
+      console.error("[LLM Background] Failed to decrypt NewsBlur token:", decryptResult.error);
+    }
+    token = decryptResult.data;
   }
   const domain = options.domain || "www.newsblur.com";
   const apiUrl = `https://${domain}/api/share_story/${token}`;

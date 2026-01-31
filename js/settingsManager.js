@@ -50,8 +50,17 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
       ]);
       const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
       const encryptedNewsblurToken = localData[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
-      const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
-      const newsblurToken = encryptedNewsblurToken ? await decryptSensitiveData(encryptedNewsblurToken) : "";
+      const apiKeyResult = await decryptSensitiveData(encryptedApiKey);
+      if (!apiKeyResult.success) {
+        console.error("[LLM Settings Manager] Failed to decrypt API key:", apiKeyResult.error);
+      }
+      const apiKey = apiKeyResult.data;
+
+      const newsblurResult = await decryptSensitiveData(encryptedNewsblurToken);
+      if (!newsblurResult.success) {
+        console.error("[LLM Settings Manager] Failed to decrypt NewsBlur token:", newsblurResult.error);
+      }
+      const newsblurToken = newsblurResult.data;
 
       if (DEBUG) {
         console.log("[LLM Settings Manager] handleGetSettings: Storage data retrieved.", {

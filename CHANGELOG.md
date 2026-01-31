@@ -1,3 +1,5 @@
+- **Version 3.9.22:** Refactored decryptSensitiveData to return a result object { success, data, error } instead of empty string on failure, enabling callers to distinguish between missing data and decryption failures for better error handling and security
+
 - **Version 3.9.21:** Fixed insecure token migration: added encryption validation, read-back verification after storage write, and try/catch rollback to prevent permanent token loss if migration fails
 
 - **Version 3.9.20:** Added explicit Content Security Policy to manifest.json restricting scripts to 'self', blocking object embeds, and limiting network requests to approved API endpoints (OpenRouter, NewsBlur, localhost for Joplin)

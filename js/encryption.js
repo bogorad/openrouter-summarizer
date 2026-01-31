@@ -61,10 +61,14 @@ export async function encryptSensitiveData(plaintext) {
 /**
  * Decrypts encrypted data using AES-GCM
  * @param {string} encrypted - Base64 encoded encrypted data
- * @returns {Promise<string>} Decrypted plaintext
+ * @returns {Promise<{success: boolean, data: string, error: string|null}>} Result object
+ *   - success: true if decryption succeeded or input was empty, false on failure
+ *   - data: decrypted plaintext (empty string if failed or input was empty)
+ *   - error: error message if decryption failed, null otherwise
+ * Called by: background.js, options.js, chatHandler.js, summaryHandler.js, settingsManager.js, pricingService.js
  */
 export async function decryptSensitiveData(encrypted) {
-  if (!encrypted) return '';
+  if (!encrypted) return { success: true, data: '', error: null };
   try {
     const key = await getOrCreateEncryptionKey();
     const combined = new Uint8Array(
@@ -80,9 +84,9 @@ export async function decryptSensitiveData(encrypted) {
       ciphertext
     );
     
-    return new TextDecoder().decode(decrypted);
+    return { success: true, data: new TextDecoder().decode(decrypted), error: null };
   } catch (e) {
     console.error('[Encryption] Decryption failed:', e);
-    return '';
+    return { success: false, data: '', error: e.message || 'Decryption failed' };
   }
 }

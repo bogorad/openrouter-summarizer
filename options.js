@@ -1181,15 +1181,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       DEBUG = data.debug ?? DEFAULT_DEBUG_MODE;
 
       // Decrypt tokens from local storage
-      const decryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL]
-        ? await decryptSensitiveData(localData[STORAGE_KEY_API_KEY_LOCAL])
-        : "";
-      const decryptedNewsblurToken = localData[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL]
-        ? await decryptSensitiveData(localData[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL])
-        : "";
-      const decryptedJoplinToken = localData[STORAGE_KEY_JOPLIN_TOKEN_LOCAL]
-        ? await decryptSensitiveData(localData[STORAGE_KEY_JOPLIN_TOKEN_LOCAL])
-        : "";
+      const apiKeyResult = await decryptSensitiveData(localData[STORAGE_KEY_API_KEY_LOCAL]);
+      if (!apiKeyResult.success) {
+        console.error("[Options] Failed to decrypt API key:", apiKeyResult.error);
+      }
+      const decryptedApiKey = apiKeyResult.data;
+
+      const newsblurResult = await decryptSensitiveData(localData[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL]);
+      if (!newsblurResult.success) {
+        console.error("[Options] Failed to decrypt NewsBlur token:", newsblurResult.error);
+      }
+      const decryptedNewsblurToken = newsblurResult.data;
+
+      const joplinResult = await decryptSensitiveData(localData[STORAGE_KEY_JOPLIN_TOKEN_LOCAL]);
+      if (!joplinResult.success) {
+        console.error("[Options] Failed to decrypt Joplin token:", joplinResult.error);
+      }
+      const decryptedJoplinToken = joplinResult.data;
 
       if (apiKeyInput) apiKeyInput.value = decryptedApiKey;
       if (newsblurTokenInput)

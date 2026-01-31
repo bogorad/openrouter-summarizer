@@ -100,7 +100,11 @@ export async function handleRequestSummary(
     // Get encrypted API key from local storage and decrypt it
     const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
     const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
-    const apiKey = encryptedApiKey ? await decryptSensitiveData(encryptedApiKey) : "";
+    const decryptResult = await decryptSensitiveData(encryptedApiKey);
+    if (!decryptResult.success) {
+      console.error("[LLM Summary Handler] Failed to decrypt API key:", decryptResult.error);
+    }
+    const apiKey = decryptResult.data;
 
     if (DEBUG) {
       console.log("[LLM Summary Handler] Data retrieved for summary request:", {
