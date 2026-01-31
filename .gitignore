@@ -8,3 +8,6 @@ package-lock.json
 .vscode/
 repomix-output.xml
 *-testpage.html
+
+# bv (beads viewer) local config and caches
+.bv/
