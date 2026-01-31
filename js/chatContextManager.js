@@ -4,24 +4,19 @@ import {
   STORAGE_KEY_LANGUAGE_INFO,
   DEFAULT_MODEL_OPTIONS,
 } from "../constants.js";
+import { Logger } from "./logger.js";
 
 export function handleGetChatContext(sendResponse, DEBUG = false) {
-  if (DEBUG) console.log("[LLM Chat Context Manager] Handling getChatContext request.");
+  Logger.debug("[LLM Chat Context Manager]", "Handling getChatContext request.");
   chrome.storage.sync.get(
     [STORAGE_KEY_MODELS, STORAGE_KEY_LANGUAGE_INFO],
     (syncData) => {
       if (DEBUG) {
-        console.log(
-          "[LLM Chat Context Manager] Sync data for models and language_info:",
-          syncData,
-        );
+        Logger.info("[LLM Chat Context Manager]", "Sync data for models and language_info:", syncData);
       }
       chrome.storage.session.get(["chatContext"], (sessionData) => {
         if (DEBUG) {
-          console.log(
-            "[LLM Chat Context Manager] Session data for chatContext:",
-            sessionData,
-          );
+          Logger.info("[LLM Chat Context Manager]", "Session data for chatContext:", sessionData);
         }
         const storedContext = sessionData.chatContext || {};
 
@@ -41,9 +36,7 @@ export function handleGetChatContext(sendResponse, DEBUG = false) {
           }));
         } else if (syncData[STORAGE_KEY_MODELS]) {
           if (DEBUG) {
-            console.warn(
-              "[LLM Chat Context Manager] Loaded models data for chat context is invalid, using defaults.",
-            );
+            Logger.warn("[LLM Chat Context Manager]", "Loaded models data for chat context is invalid, using defaults.");
           }
         }
 
@@ -59,10 +52,7 @@ export function handleGetChatContext(sendResponse, DEBUG = false) {
           debug: DEBUG, // Pass the current DEBUG state
         };
         if (DEBUG) {
-          console.log(
-            "[LLM Chat Context Manager] Sending getChatContext response - OK.",
-            responsePayload,
-          );
+          Logger.info("[LLM Chat Context Manager]", "Sending getChatContext response - OK.", responsePayload);
         }
         sendResponse(responsePayload);
       });
@@ -71,7 +61,7 @@ export function handleGetChatContext(sendResponse, DEBUG = false) {
 }
 
 export function handleSetChatContext(request, sendResponse, DEBUG = false) {
-  if (DEBUG) console.log("[LLM Chat Context Manager] Handling setChatContext request.");
+  Logger.debug("[LLM Chat Context Manager]", "Handling setChatContext request.");
   const contextToSave = {
     domSnippet: request.domSnippet,
     summary: request.summary,
@@ -80,16 +70,13 @@ export function handleSetChatContext(request, sendResponse, DEBUG = false) {
   };
   chrome.storage.session.set({ chatContext: contextToSave }, () => {
     if (DEBUG) {
-      console.log(
-        "[LLM Chat Context Manager] Chat context set in session storage:",
-        contextToSave,
-      );
+      Logger.info("[LLM Chat Context Manager]", "Chat context set in session storage:", contextToSave);
     }
     try {
       sendResponse({ status: "ok" });
     } catch (e) {
       if (DEBUG) {
-        console.warn("[LLM Chat Context Manager] Failed to send setChatContext response:", e.message);
+        Logger.warn("[LLM Chat Context Manager]", "Failed to send setChatContext response:", e.message);
       }
     }
   });

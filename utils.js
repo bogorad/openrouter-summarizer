@@ -1,6 +1,8 @@
 // utils.js
 
-console.log(`[LLM Utils] Loaded`);
+import { Logger } from "./js/logger.js";
+
+Logger.info("[LLM Utils]", "Loaded");
 
 // utils.js: Provides shared utility functions for the extension. Reduces duplication by centralizing common logic. Called from: pageInteraction.js, chat.js, options.js, background.js.
 //import { marked } from "marked"; // Try this first
@@ -47,7 +49,7 @@ export const redactSensitiveData = (obj, sensitiveKeys = ['apiKey', 'token', 'pa
 export function tryParseJson(text, logWarningOnFail = true) {
   if (typeof text !== "string" || text.trim() === "") {
     if (logWarningOnFail) {
-      console.warn("[LLM Utils] Input is not a string or is empty.");
+      Logger.warn("[LLM Utils]", "Input is not a string or is empty.");
     }
     return null;
   }
@@ -56,8 +58,7 @@ export function tryParseJson(text, logWarningOnFail = true) {
     return parsed;
   } catch (error) {
     if (logWarningOnFail) {
-      console.warn(
-        "[LLM Utils] Parsing failed:",
+      Logger.warn("[LLM Utils]", "Parsing failed:",
         error.message,
         "Input was:",
         text.substring(0, 300) + (text.length > 300 ? "..." : ""),
@@ -97,7 +98,7 @@ export function showError(message, isFatal = true, duration = 0) {
     // Fallback to the old system for pages without the container (chat.html, options.html)
     let errorDisplay = document.getElementById("errorDisplay");
     if (!errorDisplay) {
-      console.error("No error display element found on this page. Cannot show error:", message);
+      Logger.error("[LLM Utils]", "No error display element found on this page. Cannot show error:", message);
       return;
     }
 
@@ -155,7 +156,7 @@ export function renderTextAsHtml(text) {
     try {
       htmlContent = marked.parse(text, { sanitize: false });
     } catch (parseError) {
-      console.error("[LLM Utils] Marked parse error:", parseError);
+      Logger.error("[LLM Utils]", "Marked parse error:", parseError);
       htmlContent = text.replace(/\n/g, "<br>");
     }
   } else {

@@ -13,6 +13,7 @@ import {
 } from "../constants.js";
 import * as constants from "../constants.js"; // Import all constants as an object
 import { decryptSensitiveData } from "./encryption.js";
+import { Logger } from "./logger.js";
 
 // These were originally in background.js, if they are truly global defaults,
 // they might better reside in constants.js or be passed as parameters.
@@ -26,7 +27,7 @@ import { decryptSensitiveData } from "./encryption.js";
 
 
 export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaults) {
-  if (DEBUG) console.log("[LLM Settings Manager] handleGetSettings: Request received. Fetching keys...");
+  Logger.debug("[LLM Settings Manager]", "handleGetSettings: Request received. Fetching keys...");
   const keysToFetch = [
     STORAGE_KEY_MODELS,
     STORAGE_KEY_SUMMARY_MODEL_ID,
@@ -52,18 +53,18 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
       const encryptedNewsblurToken = localData[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
       const apiKeyResult = await decryptSensitiveData(encryptedApiKey);
       if (!apiKeyResult.success) {
-        console.error("[LLM Settings Manager] Failed to decrypt API key:", apiKeyResult.error);
+        Logger.error("[LLM Settings Manager]", "Failed to decrypt API key:", apiKeyResult.error);
       }
       const apiKey = apiKeyResult.data;
 
       const newsblurResult = await decryptSensitiveData(encryptedNewsblurToken);
       if (!newsblurResult.success) {
-        console.error("[LLM Settings Manager] Failed to decrypt NewsBlur token:", newsblurResult.error);
+        Logger.error("[LLM Settings Manager]", "Failed to decrypt NewsBlur token:", newsblurResult.error);
       }
       const newsblurToken = newsblurResult.data;
 
       if (DEBUG) {
-        console.log("[LLM Settings Manager] handleGetSettings: Storage data retrieved.", {
+        Logger.info("[LLM Settings Manager]", "handleGetSettings: Storage data retrieved.", {
           ...data,
           apiKey: apiKey ? "[API Key Hidden]" : undefined,
           newsblurToken: newsblurToken ? "[NewsBlur Token Hidden]" : undefined,
@@ -84,8 +85,7 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
         loadedModels = data[STORAGE_KEY_MODELS].map((m) => ({ id: m.id }));
       } else if (data[STORAGE_KEY_MODELS]) { // Check if it exists but is invalid
         if (DEBUG) {
-          console.warn(
-            "[LLM Settings Manager] handleGetSettings: Loaded models data is invalid, using defaults.",
+          Logger.warn("[LLM Settings Manager]", "handleGetSettings: Loaded models data is invalid, using defaults.",
             { invalidModelsData: data[STORAGE_KEY_MODELS] }
           );
         }
@@ -93,7 +93,7 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
     
       const availableModelIds = loadedModels.map((m) => m.id);
       if (DEBUG) {
-        console.log("[LLM Settings Manager] Available model IDs (from loadedModels):", availableModelIds);
+        Logger.info("[LLM Settings Manager]", "Available model IDs (from loadedModels):", availableModelIds);
       }
 
       // Initialize with definitive defaults before checking storage.
@@ -106,18 +106,18 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
         availableModelIds.includes(data[STORAGE_KEY_SUMMARY_MODEL_ID])
       ) {
         finalSummaryModelId = data[STORAGE_KEY_SUMMARY_MODEL_ID];
-        if (DEBUG) console.log("[LLM Settings Manager] Using stored summaryModelId:", finalSummaryModelId);
+        Logger.debug("[LLM Settings Manager]", "Using stored summaryModelId:", finalSummaryModelId);
       } else if (availableModelIds.length > 0) {
         finalSummaryModelId = availableModelIds[0];
         if (DEBUG) { // Only log if DEBUG is true and there was an attempt to get a stored value
-          console.warn(
-            `[LLM Settings Manager] handleGetSettings: Stored summaryModelId "${data[STORAGE_KEY_SUMMARY_MODEL_ID]}" invalid or not found in available models, defaulting to "${finalSummaryModelId}".`,
+          Logger.warn("[LLM Settings Manager]",
+            `handleGetSettings: Stored summaryModelId "${data[STORAGE_KEY_SUMMARY_MODEL_ID]}" invalid or not found in available models, defaulting to "${finalSummaryModelId}".`,
             { rawStorageValue: data[STORAGE_KEY_SUMMARY_MODEL_ID], availableModels: availableModelIds }
           );
         }
       } else { // Fallback if no available models
         if (DEBUG) {
-          console.warn("[LLM Settings Manager] No available models to set summaryModelId, using hardcoded default from constants:", constants.DEFAULT_SELECTED_SUMMARY_MODEL_ID);
+          Logger.warn("[LLM Settings Manager]", "No available models to set summaryModelId, using hardcoded default from constants:", constants.DEFAULT_SELECTED_SUMMARY_MODEL_ID);
         }
         finalSummaryModelId = constants.DEFAULT_SELECTED_SUMMARY_MODEL_ID;
       }
@@ -127,18 +127,18 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
         availableModelIds.includes(data[STORAGE_KEY_CHAT_MODEL_ID])
       ) {
         finalChatModelId = data[STORAGE_KEY_CHAT_MODEL_ID];
-        if (DEBUG) console.log("[LLM Settings Manager] Using stored chatModelId:", finalChatModelId);
+        Logger.debug("[LLM Settings Manager]", "Using stored chatModelId:", finalChatModelId);
       } else if (availableModelIds.length > 0) {
         finalChatModelId = availableModelIds[0];
         if (DEBUG) { // Only log if DEBUG is true and there was an attempt to get a stored value
-          console.warn(
-            `[LLM Settings Manager] handleGetSettings: Stored chatModelId "${data[STORAGE_KEY_CHAT_MODEL_ID]}" invalid or not found in available models, defaulting to "${finalChatModelId}".`,
+          Logger.warn("[LLM Settings Manager]",
+            `handleGetSettings: Stored chatModelId "${data[STORAGE_KEY_CHAT_MODEL_ID]}" invalid or not found in available models, defaulting to "${finalChatModelId}".`,
             { rawStorageValue: data[STORAGE_KEY_CHAT_MODEL_ID], availableModels: availableModelIds }
           );
         }
       } else { // Fallback if no available models
         if (DEBUG) {
-          console.warn("[LLM Settings Manager] No available models to set chatModelId, using hardcoded default from constants:", constants.DEFAULT_SELECTED_CHAT_MODEL_ID);
+          Logger.warn("[LLM Settings Manager]", "No available models to set chatModelId, using hardcoded default from constants:", constants.DEFAULT_SELECTED_CHAT_MODEL_ID);
         }
         finalChatModelId = constants.DEFAULT_SELECTED_CHAT_MODEL_ID;
       }
@@ -158,7 +158,7 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
         newsblurToken: newsblurToken,
       };
       if (DEBUG) {
-        console.log("[LLM Settings Manager] handleGetSettings: Sending settings response - OK.", {
+        Logger.info("[LLM Settings Manager]", "handleGetSettings: Sending settings response - OK.", {
           ...settings,
           apiKey: settings.apiKey ? "[Hidden]" : "",
           newsblurToken: settings.newsblurToken ? "[Hidden]" : "", // Ensure sensitive tokens are hidden
@@ -170,7 +170,7 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
       }
       sendResponse(settings);
     } catch (error) {
-      console.error("[LLM Settings Manager] handleGetSettings: Error during settings processing:", error);
+      Logger.error("[LLM Settings Manager]", "handleGetSettings: Error during settings processing:", error);
       sendResponse({
         status: "error",
         message: `Failed to load settings: ${error.message}`,

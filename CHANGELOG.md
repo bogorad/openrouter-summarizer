@@ -1,3 +1,5 @@
+- **Version 3.9.27:** Implemented centralized Logger utility in js/logger.js with debug, info, warn, and error methods for consistent log levels and prefixes across the codebase. Updated background.js, settingsManager.js, chatHandler.js, summaryHandler.js, chatContextManager.js, uiActions.js, pricingService.js, errorHandler.js, htmlSanitizer.js, encryption.js, and utils.js to use Logger. Fixed duplicate handleUpdateKnownModelsAndPricing function in pricingService.js.
+
 - **Version 3.9.26:** Fixed error tracking to check chrome.runtime.lastError in storage callbacks: added checks after get() and set() operations, using console.warn to log failures without recursion
 
 - **Version 3.9.25:** Replaced magic numbers with named constants: added SNIPPET_TRUNCATION_LIMIT, MAX_ERROR_LOG_ENTRIES, and notification timeout constants (NOTIFICATION_TIMEOUT_MINOR_MS, NOTIFICATION_TIMEOUT_SUCCESS_MS, NOTIFICATION_TIMEOUT_CRITICAL_MS) to constants.js, updated all files to use these imports instead of hardcoded values

@@ -45,10 +45,9 @@ import {
 import { handleOpenChatTab, handleOpenOptionsPage } from "./js/uiActions.js";
 import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
 import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
+import { Logger, setDebugMode } from "./js/logger.js";
 
-console.log(
-  `[LLM Background] Service Worker Start (v3.8.0 - HTML Summary Format)`,
-); // Updated version
+Logger.info("[LLM Background]", "Service Worker Start (v3.8.0 - HTML Summary Format)");
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";
@@ -57,6 +56,7 @@ const DEFAULT_DEBUG_MODE = false;
 // Initial debug state load
 chrome.storage.sync.get(STORAGE_KEY_DEBUG, (data) => {
   DEBUG = !!data[STORAGE_KEY_DEBUG];
+  setDebugMode(DEBUG);
 });
 
 // Migration: Move tokens from sync to encrypted local storage
@@ -84,7 +84,7 @@ async function migrateTokensToEncryptedStorage() {
     for (const { syncKey, localKey } of tokensToMigrate) {
       const encrypted = await encryptSensitiveData(syncData[syncKey]);
       if (!encrypted) {
-        console.error(`[Migration] Encryption failed for ${syncKey} - aborting migration`);
+        Logger.error("[Migration]", `Encryption failed for ${syncKey} - aborting migration`);
         return; // Abort: keep sync tokens intact
       }
       migrations[localKey] = encrypted;
@@ -98,7 +98,7 @@ async function migrateTokensToEncryptedStorage() {
     const verification = await chrome.storage.local.get(localKeys);
     for (const { localKey } of tokensToMigrate) {
       if (verification[localKey] !== migrations[localKey]) {
-        console.error(`[Migration] Verification failed for ${localKey} - aborting migration`);
+        Logger.error("[Migration]", `Verification failed for ${localKey} - aborting migration`);
         return; // Abort: keep sync tokens intact
       }
     }
@@ -107,10 +107,10 @@ async function migrateTokensToEncryptedStorage() {
     const syncKeysToRemove = tokensToMigrate.map(t => t.syncKey);
     await chrome.storage.sync.remove(syncKeysToRemove);
 
-    console.log(`[Migration] Successfully migrated ${tokensToMigrate.length} token(s) to encrypted local storage`);
+    Logger.info("[Migration]", `Successfully migrated ${tokensToMigrate.length} token(s) to encrypted local storage`);
   } catch (e) {
     // Keep sync tokens on any error - user can retry migration on next install/update
-    console.error('[Migration] Token migration failed, keeping sync tokens:', e);
+    Logger.error("[Migration]", "Token migration failed, keeping sync tokens:", e);
   }
 }
 
@@ -140,7 +140,7 @@ chrome.runtime.onInstalled.addListener(async () => {
       const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
       const decryptResult = await decryptSensitiveData(localData[STORAGE_KEY_API_KEY_LOCAL]);
       if (!decryptResult.success) {
-        console.error("[LLM Background] Failed to decrypt API key:", decryptResult.error);
+        Logger.error("[LLM Background]", "Failed to decrypt API key:", decryptResult.error);
       }
       const apiKey = decryptResult.data;
 
@@ -148,9 +148,7 @@ chrome.runtime.onInstalled.addListener(async () => {
         chrome.runtime.openOptionsPage(); // Open options page if API key is missing
       }
       if (DEBUG) {
-        console.log(
-          "[LLM Background] Checking initial settings on install/update.",
-        );
+        Logger.info("[LLM Background]", "Checking initial settings on install/update.");
       }
       if (!data[STORAGE_KEY_SUMMARY_MODEL_ID]) {
         initialSettings[STORAGE_KEY_SUMMARY_MODEL_ID] =
@@ -188,7 +186,7 @@ chrome.runtime.onInstalled.addListener(async () => {
             endIndex
           );
           if (DEBUG) {
-            console.log("[LLM Background] Extracted user formatting content for preservation");
+            Logger.info("[LLM Background]", "Extracted user formatting content for preservation");
           }
         }
 
@@ -205,20 +203,20 @@ chrome.runtime.onInstalled.addListener(async () => {
 
           initialSettings[STORAGE_KEY_PROMPT_TEMPLATE] = newTemplate;
           if (DEBUG) {
-            console.log("[LLM Background] Reset prompt template with preserved user formatting");
+            Logger.info("[LLM Background]", "Reset prompt template with preserved user formatting");
           }
         } else {
           // Fallback: use completely new default template
           initialSettings[STORAGE_KEY_PROMPT_TEMPLATE] = DEFAULT_XML_PROMPT_TEMPLATE;
           if (DEBUG) {
-            console.log("[LLM Background] Reset prompt template to complete default (no user formatting preserved)");
+            Logger.info("[LLM Background]", "Reset prompt template to complete default (no user formatting preserved)");
           }
         }
       } else {
         // No existing template, set default
         initialSettings[STORAGE_KEY_PROMPT_TEMPLATE] = DEFAULT_XML_PROMPT_TEMPLATE;
         if (DEBUG) {
-          console.log("[LLM Background] Set default prompt template (first install)");
+          Logger.info("[LLM Background]", "Set default prompt template (first install)");
         }
       }
 
@@ -234,10 +232,7 @@ chrome.runtime.onInstalled.addListener(async () => {
           );
         } else if (DEBUG) {
           // Only log success if DEBUG is true
-          console.log(
-            "[LLM Background] Initial default settings applied:",
-            initialSettings,
-          );
+          Logger.info("[LLM Background]", "Initial default settings applied:", initialSettings);
         }
       });
     }
@@ -265,14 +260,10 @@ async function handleAsyncMessage(request, sender, sendResponse) {
     // Dynamically load DEBUG state (safer and consistent)
     const result = await chrome.storage.sync.get("debug");
     DEBUG = !!result.debug;
+    setDebugMode(DEBUG);
 
     if (DEBUG)
-      console.log(
-        "[LLM Background] Received message:",
-        request.action,
-        "from sender:",
-        sender,
-      );
+      Logger.info("[LLM Background]", "Received message:", request.action, "from sender:", sender);
 
     // This object maps message actions to their corresponding handler functions.
     // Each handler must ensure it calls sendResponse.
@@ -284,10 +275,7 @@ async function handleAsyncMessage(request, sender, sendResponse) {
         }; // Use constants.DEFAULT_MAX_REQUEST_PRICE
         // handleGetSettings already calls sendResponse internally
         if (DEBUG) {
-          console.log(
-            "[LLM Background] Calling handleGetSettings with global defaults:",
-            currentGlobalDefaults,
-          );
+          Logger.info("[LLM Background]", "Calling handleGetSettings with global defaults:", currentGlobalDefaults);
         }
         handleGetSettings(sendResponse, DEBUG, currentGlobalDefaults);
       },
@@ -315,17 +303,17 @@ async function handleAsyncMessage(request, sender, sendResponse) {
       requestSummary: async () =>
         handleRequestSummary(request, sender, sendResponse, DEBUG),
       fetchJoplinNotebooks: async () => {
-        if (DEBUG) console.log("[LLM Background] Received fetchJoplinNotebooks request.");
+        Logger.debug("[LLM Background]", "Received fetchJoplinNotebooks request.");
         try {
           const folders = await fetchJoplinFoldersAPI(request.joplinToken, DEBUG);
           sendResponse({ status: "success", folders: folders });
         } catch (error) {
-          console.error("[LLM Background] fetchJoplinNotebooks handler caught an error:", error);
+          Logger.error("[LLM Background]", "fetchJoplinNotebooks handler caught an error:", error);
           sendResponse({ status: "error", message: error.message });
         }
       },
       createJoplinNote: async () => {
-        if (DEBUG) console.log("[LLM Background] Received createJoplinNote request.", request);
+        Logger.debug("[LLM Background]", "Received createJoplinNote request.", request);
         try {
           const result = await createJoplinNoteAPI(
             request.joplinToken,
@@ -337,7 +325,7 @@ async function handleAsyncMessage(request, sender, sendResponse) {
           );
           sendResponse({ status: "success", result: result });
         } catch (error) {
-          console.error("[LLM Background] createJoplinNote handler caught an error:", error);
+          Logger.error("[LLM Background]", "createJoplinNote handler caught an error:", error);
           sendResponse({ status: "error", message: error.message });
         }
       },
@@ -349,12 +337,12 @@ async function handleAsyncMessage(request, sender, sendResponse) {
           const encryptedToken = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
           const decryptResult = await decryptSensitiveData(encryptedToken);
           if (!decryptResult.success) {
-            console.error("[LLM Background] Failed to decrypt NewsBlur token:", decryptResult.error);
+            Logger.error("[LLM Background]", "Failed to decrypt NewsBlur token:", decryptResult.error);
           }
           const token = decryptResult.data;
           sendResponse({ status: "success", token: token });
         } catch (e) {
-          console.error("[LLM Background] Error getting NewsBlur token:", e);
+          Logger.error("[LLM Background]", "Error getting NewsBlur token:", e);
           sendResponse({
             status: "error",
             message: `Failed to get NewsBlur token: ${e.message}`,
@@ -363,19 +351,13 @@ async function handleAsyncMessage(request, sender, sendResponse) {
       },
       shareToNewsblur: async () => {
         if (DEBUG)
-          console.log(
-            "[LLM Background] Received shareToNewsblur request:",
-            request.options,
-          );
+          Logger.info("[LLM Background]", "Received shareToNewsblur request:", request.options);
         try {
           const apiResult = await shareToNewsblurAPI(request.options, DEBUG); // Pass DEBUG to shareToNewsblurAPI
           sendResponse({ status: "success", result: apiResult });
         } catch (error) {
           // This error is caught from shareToNewsblurAPI throwing it, or an unexpected error before that.
-          console.error(
-            "[LLM Background] shareToNewsblur handler caught an error:",
-            error,
-          ); // Unconditional info log
+          Logger.error("[LLM Background]", "shareToNewsblur handler caught an error:", error);
           sendResponse({
             status: "error",
             message: error.message,
@@ -391,7 +373,7 @@ async function handleAsyncMessage(request, sender, sendResponse) {
     } else {
       // Handle unrecognized actions
       if (DEBUG)
-        console.log("[LLM Background] Unrecognized action:", request.action);
+        Logger.info("[LLM Background]", "Unrecognized action:", request.action);
       sendResponse({
         status: "error",
         message: `Unhandled action: ${request.action}`,
@@ -425,7 +407,7 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
     const encryptedToken = tokenResult[constants.STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL];
     const decryptResult = await decryptSensitiveData(encryptedToken);
     if (!decryptResult.success) {
-      console.error("[LLM Background] Failed to decrypt NewsBlur token:", decryptResult.error);
+      Logger.error("[LLM Background]", "Failed to decrypt NewsBlur token:", decryptResult.error);
     }
     token = decryptResult.data;
   }
@@ -456,11 +438,9 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
         try {
           responseBody = await response.text();
         } catch (e) {
-          console.info("[LLM NewsBlur] Failed to read 502 response body:", e); // Info log
+          Logger.info("[LLM NewsBlur]", "Failed to read 502 response body:", e);
         }
-        console.warn(
-          `[LLM NewsBlur] NewsBlur API returned 502 (Normal). Treating as success. Raw response: ${responseBody}`,
-        ); // Changed to console.warn
+        Logger.warn("[LLM NewsBlur]", `NewsBlur API returned 502 (Normal). Treating as success. Raw response: ${responseBody}`);
         return {
           code: 0,
           message: `NewsBlur API 502 received, treated as success: ${responseBody}`,
@@ -478,43 +458,32 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
         } catch (parseError) {
           // If not JSON, the raw text is already appended.
           if (DEBUG_API)
-            console.warn(
-              "[LLM NewsBlur] Failed to parse NewsBlur error response as JSON.",
-              parseError,
-            );
+            Logger.warn("[LLM NewsBlur]", "Failed to parse NewsBlur error response as JSON.", parseError);
         }
       } catch (e) {
         errorText += ` - Failed to read response body: ${e.message}`; // Fallback if body can't be read
       }
-      console.error(
-        "[LLM NewsBlur] NewsBlur API non-OK response (error):",
-        response.status,
-        responseBody,
-      ); // Changed to console.info
+      Logger.error("[LLM NewsBlur]", "NewsBlur API non-OK response (error):", response.status, responseBody);
       throw new Error(errorText); // Still throw for other errors
     }
 
     const result = await response.json();
-    if (DEBUG_API) console.log("NewsBlur Share Response:", result);
+    if (DEBUG_API) Logger.info("[LLM NewsBlur]", "NewsBlur Share Response:", result);
 
     if (result.code < 0 || (result.result && result.result === "error")) {
-      console.error(
-        "Error sharing to NewsBlur:",
+      Logger.error("[LLM NewsBlur]", "Error sharing to NewsBlur:",
         result.message || JSON.stringify(result.errors || result),
-      ); // Changed to console.info
+      );
       return {
         code: -1,
         message: result.message || JSON.stringify(result.errors || result),
       };
     } else {
-      if (DEBUG_API) console.log("Successfully shared to NewsBlur!");
+      if (DEBUG_API) Logger.info("[LLM NewsBlur]", "Successfully shared to NewsBlur!");
       return result;
     }
   } catch (error) {
-    console.error(
-      "[LLM NewsBlur] Failed to share to NewsBlur (caught error):",
-      error,
-    ); // Changed to console.error
+    Logger.error("[LLM NewsBlur]", "Failed to share to NewsBlur (caught error):", error);
     return { code: -1, message: error.message };
   }
 }
@@ -539,17 +508,17 @@ async function fetchJoplinFoldersAPI(joplinToken, DEBUG_API) {
     const response = await fetch(apiUrl.href);
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[LLM Joplin API] Error fetching folders:", response.status, errorText);
+      Logger.error("[LLM Joplin API]", "Error fetching folders:", response.status, errorText);
       throw new Error(`Failed to fetch Joplin notebooks: ${response.statusText} - ${errorText}`);
     }
     const data = await response.json();
     if (!data || !Array.isArray(data.items)) {
       throw new Error("Invalid response format from Joplin API.");
     }
-    if (DEBUG_API) console.log("[LLM Joplin API] Fetched folders:", data.items);
+    if (DEBUG_API) Logger.info("[LLM Joplin API]", "Fetched folders:", data.items);
     return data.items;
   } catch (error) {
-    console.error("[LLM Joplin API] Network error during folder fetch:", error);
+    Logger.error("[LLM Joplin API]", "Network error during folder fetch:", error);
     throw new Error(`Network error or invalid Joplin API URL. Ensure Joplin is running and API is enabled: ${error.message}`);
   }
 }
@@ -592,15 +561,15 @@ async function createJoplinNoteAPI(joplinToken, title, source_url, body_html, pa
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[LLM Joplin API] Error creating note:", response.status, errorText);
+      Logger.error("[LLM Joplin API]", "Error creating note:", response.status, errorText);
       throw new Error(`Failed to create Joplin note: ${response.statusText} - ${errorText}`);
     }
 
     const result = await response.json();
-    if (DEBUG_API) console.log("[LLM Joplin API] Note created:", result);
+    if (DEBUG_API) Logger.info("[LLM Joplin API]", "Note created:", result);
     return result;
   } catch (error) {
-    console.error("[LLM Joplin API] Network error during note creation:", error);
+    Logger.error("[LLM Joplin API]", "Network error during note creation:", error);
     throw new Error(`Network error or invalid Joplin API URL. Ensure Joplin is running and API is enabled: ${error.message}`);
   }
 }

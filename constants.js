@@ -4,6 +4,8 @@
  * @module constants
  */
 
+// Note: Logger is not imported here to avoid circular dependency.
+// This file is loaded first and provides constants to all other modules.
 console.log(`[LLM Constants] Loaded`);
 
 // --- Storage Keys (DEFINED AND EXPORTED HERE) ---

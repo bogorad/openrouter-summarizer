@@ -12,6 +12,7 @@ import {
   CONTROLLER_CLEANUP_INTERVAL_MS,
 } from "../constants.js";
 import { decryptSensitiveData } from "./encryption.js";
+import { Logger } from "./logger.js";
 
 // In-memory storage for AbortControllers (not serializable, can't use chrome.storage)
 const activeControllers = new Map();
@@ -28,7 +29,7 @@ const safeAbort = (controller) => {
       return true;
     }
   } catch (error) {
-    console.warn("[LLM Chat Handler] Error during abort:", error);
+    Logger.warn("[LLM Chat Handler]", "Error during abort:", error);
   }
   return false;
 };
@@ -53,7 +54,7 @@ const evictOldestControllers = (DEBUG = false) => {
     safeAbort(data.controller);
     activeControllers.delete(requestId);
     if (DEBUG) {
-      console.log(`[LLM Chat Handler] Evicted stale controller ${requestId}`);
+      Logger.info("[LLM Chat Handler]", `Evicted stale controller ${requestId}`);
     }
   }
 };
@@ -77,8 +78,7 @@ setInterval(cleanupStaleControllers, CONTROLLER_CLEANUP_INTERVAL_MS);
 
 export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
   if (DEBUG) {
-    console.log(
-      "[LLM Chat Handler] Received llmChatStream request:",
+    Logger.info("[LLM Chat Handler]", "Received llmChatStream request:",
       // Mask API key for security
       { ...request, messages: "[MESSAGES]" },
     );
@@ -92,7 +92,7 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
       const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
       const decryptResult = await decryptSensitiveData(encryptedApiKey);
       if (!decryptResult.success) {
-        console.error("[LLM Chat Handler] Failed to decrypt API key:", decryptResult.error);
+        Logger.error("[LLM Chat Handler]", "Failed to decrypt API key:", decryptResult.error);
       }
       const apiKey = decryptResult.data;
 
@@ -121,9 +121,7 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
         !modelIds.includes(request.model)
       ) {
         const errorMsg = `Invalid or missing model ID: '${request.model}'. Please select a valid model in options.`;
-        console.error(
-          "[LLM Chat Handler] Aborting chat request due to invalid model.",
-        );
+        Logger.error("[LLM Chat Handler]", "Aborting chat request due to invalid model.");
         sendResponse({
           status: "error",
           message: errorMsg,
@@ -158,7 +156,7 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
           const data = activeControllers.get(requestId);
           safeAbort(data.controller);
           activeControllers.delete(requestId);
-          if (DEBUG) console.log(`[LLM Chat Handler] Auto-cleaned stale request ${requestId}`);
+          if (DEBUG) Logger.info("[LLM Chat Handler]", `Auto-cleaned stale request ${requestId}`);
         }
       }, CONTROLLER_TIMEOUT_MS);
 
@@ -196,9 +194,7 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
           }
 
           if (DEBUG)
-            console.warn(
-              "[LLM Chat Handler] Non-streaming response received, which is unexpected. Processing direct content.",
-            );
+            Logger.warn("[LLM Chat Handler]", "Non-streaming response received, which is unexpected. Processing direct content.");
 
           // Clean up the request ID from session storage on successful completion
           chrome.storage.session.remove("currentChatRequestId");
@@ -206,8 +202,7 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
           const directContent = data?.choices?.[0]?.message?.content?.trim();
           if (directContent) {
             if (DEBUG)
-              console.log(
-                "[LLM Chat Handler] Success with direct content:",
+              Logger.info("[LLM Chat Handler]", "Success with direct content:",
                 directContent.substring(0, 100) + "...",
                 "Model:",
                 data.model,
@@ -228,10 +223,10 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
           chrome.storage.session.remove("currentChatRequestId");
 
           if (error.name === "AbortError") {
-            if (DEBUG) console.log("[LLM Chat Handler] Chat fetch aborted.");
+            Logger.debug("[LLM Chat Handler]", "Chat fetch aborted.");
             sendResponse({ status: "aborted" });
           } else {
-            console.error("[LLM Chat Handler] Fetch error:", error);
+            Logger.error("[LLM Chat Handler]", "Fetch error:", error);
             sendResponse({ status: "error", message: error.message });
           }
         });
@@ -247,7 +242,7 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
  * @returns {boolean} True to keep message channel open
  */
 export function handleAbortChatRequest(sendResponse, DEBUG = false) {
-  if (DEBUG) console.log("[LLM Chat Handler] Handling abortChatRequest.");
+  Logger.debug("[LLM Chat Handler]", "Handling abortChatRequest.");
   chrome.storage.session.get("currentChatRequestId", (data) => {
     const requestId = data.currentChatRequestId;
     const requestData = activeControllers.get(requestId);
@@ -257,14 +252,12 @@ export function handleAbortChatRequest(sendResponse, DEBUG = false) {
       activeControllers.delete(requestId);
       chrome.storage.session.remove("currentChatRequestId");
       if (DEBUG) {
-        console.log("[LLM Chat Handler] AbortController triggered abort.");
+        Logger.info("[LLM Chat Handler]", "AbortController triggered abort.");
       }
       sendResponse({ status: aborted ? "aborted" : "error", message: aborted ? undefined : "Failed to abort request" });
     } else {
       if (DEBUG) {
-        console.log(
-          "[LLM Chat Handler] No active request or valid controller to abort.",
-        );
+        Logger.info("[LLM Chat Handler]", "No active request or valid controller to abort.");
       }
       sendResponse({ status: "no active request" });
     }

@@ -1,5 +1,7 @@
 // js/encryption.js - Encryption utilities for sensitive tokens
 
+import { Logger } from "./logger.js";
+
 const ENCRYPTION_KEY_NAME = 'encryptionKey_v1';
 
 /**
@@ -86,7 +88,7 @@ export async function decryptSensitiveData(encrypted) {
     
     return { success: true, data: new TextDecoder().decode(decrypted), error: null };
   } catch (e) {
-    console.error('[Encryption] Decryption failed:', e);
+    Logger.error('[Encryption]', 'Decryption failed:', e);
     return { success: false, data: '', error: e.message || 'Decryption failed' };
   }
 }

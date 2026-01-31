@@ -1,6 +1,9 @@
 // js/errorHandler.js - Centralized error handling for the extension
+// NOTE: This file intentionally uses console.warn/error in trackError to avoid
+// recursion (Logger errors would trigger more error tracking).
 
 import { MAX_ERROR_LOG_ENTRIES } from "../constants.js";
+import { Logger } from "./logger.js";
 
 export const ErrorSeverity = {
   FATAL: 'fatal',
@@ -33,7 +36,7 @@ export class ErrorHandler {
     };
     
     // Log structured error
-    console.error(`[Error ${errorId}]`, errorInfo);
+    Logger.error(`[Error ${errorId}]`, errorInfo);
     
     // Track for analytics/monitoring
     this.trackError(errorInfo);

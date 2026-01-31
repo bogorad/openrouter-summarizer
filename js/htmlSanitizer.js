@@ -1,6 +1,8 @@
 // js/htmlSanitizer.js
 // Comprehensive HTML sanitization utilities based on Node-RED cleanup strategies
 
+import { Logger } from "./logger.js";
+
 /**
  * Configuration object for HTML sanitization
  */
@@ -112,7 +114,7 @@ const removeElementsByClassNames = (container, classNames, debug = false) => {
         }
       });
     } catch (e) {
-      if (debug) console.warn(`[HTML Sanitizer] Invalid class name skipped: ${className}`, e);
+      if (debug) Logger.warn("[HTML Sanitizer]", `Invalid class name skipped: ${className}`, e);
     }
   });
 };
@@ -123,7 +125,7 @@ export function sanitizeHtml(htmlString, options = {}) {
   } = options;
 
   if (!htmlString || typeof htmlString !== 'string') {
-    if (debug) console.warn("[HTML Sanitizer] Invalid HTML input for sanitization");
+    if (debug) Logger.warn("[HTML Sanitizer]", "Invalid HTML input for sanitization");
     return '';
   }
 
@@ -136,8 +138,8 @@ export function sanitizeHtml(htmlString, options = {}) {
     const originalLength = htmlString.length;
 
     if (debug) {
-      console.log("[HTML Sanitizer] Starting sanitization");
-      console.log("[HTML Sanitizer] Original HTML length:", originalLength);
+      Logger.info("[HTML Sanitizer]", "Starting sanitization");
+      Logger.info("[HTML Sanitizer]", "Original HTML length:", originalLength);
     }
 
     // Use the single list of classes to remove
@@ -167,7 +169,7 @@ export function sanitizeHtml(htmlString, options = {}) {
           }
         });
       } catch (e) {
-        if (debug) console.warn(`[HTML Sanitizer] Invalid selector: ${selector}`, e);
+        if (debug) Logger.warn("[HTML Sanitizer]", `Invalid selector: ${selector}`, e);
       }
     });
 
@@ -217,26 +219,26 @@ export function sanitizeHtml(htmlString, options = {}) {
       const finalLength = cleanedHtml.length;
       const reduction = ((originalLength - finalLength) / originalLength * 100).toFixed(1);
 
-      console.log("[HTML Sanitizer] Sanitization complete");
-      console.log("[HTML Sanitizer] Final HTML length:", finalLength);
-      console.log("[HTML Sanitizer] Text content length:", textContent.trim().length);
-      console.log("[HTML Sanitizer] Has images:", hasImages);
-      console.log("[HTML Sanitizer] Has links:", hasLinks);
-      console.log("[HTML Sanitizer] Size reduction:", reduction + "%");
-      console.log("[HTML Sanitizer] Processing time:", (endTime - startTime).toFixed(2) + "ms");
+      Logger.info("[HTML Sanitizer]", "Sanitization complete");
+      Logger.info("[HTML Sanitizer]", "Final HTML length:", finalLength);
+      Logger.info("[HTML Sanitizer]", "Text content length:", textContent.trim().length);
+      Logger.info("[HTML Sanitizer]", "Has images:", hasImages);
+      Logger.info("[HTML Sanitizer]", "Has links:", hasLinks);
+      Logger.info("[HTML Sanitizer]", "Size reduction:", reduction + "%");
+      Logger.info("[HTML Sanitizer]", "Processing time:", (endTime - startTime).toFixed(2) + "ms");
 
       // Warn if content seems to be completely removed
       if (textContent.trim().length === 0 && !hasImages && !hasLinks) {
-        console.warn("[HTML Sanitizer] WARNING: Sanitization may have removed all meaningful content!");
-        console.log("[HTML Sanitizer] Original HTML preview:", htmlString.substring(0, 200));
-        console.log("[HTML Sanitizer] Cleaned HTML:", cleanedHtml);
+        Logger.warn("[HTML Sanitizer]", "WARNING: Sanitization may have removed all meaningful content!");
+        Logger.info("[HTML Sanitizer]", "Original HTML preview:", htmlString.substring(0, 200));
+        Logger.info("[HTML Sanitizer]", "Cleaned HTML:", cleanedHtml);
       }
     }
 
     return cleanedHtml;
 
   } catch (error) {
-    console.error("[HTML Sanitizer] Error during HTML sanitization:", error);
+    Logger.error("[HTML Sanitizer]", "Error during HTML sanitization:", error);
     // Return original HTML as fallback
     return htmlString;
   }

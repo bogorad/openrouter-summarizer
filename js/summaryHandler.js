@@ -17,6 +17,7 @@ import {
 import { decryptSensitiveData } from "./encryption.js";
 import { isTabClosedError, getSystemPrompt } from "./backgroundUtils.js";
 import { ErrorHandler, ErrorSeverity } from "./errorHandler.js";
+import { Logger } from "./logger.js";
 
 // Helper function to detect language of content
 const detectLanguage = async (apiKey, contentSnippet, DEBUG = false) => {
@@ -57,18 +58,18 @@ const detectLanguage = async (apiKey, contentSnippet, DEBUG = false) => {
       const detectedCode = responseData.choices?.[0]?.message?.content?.trim();
 
       if (detectedCode && /^[a-z]{3}$/.test(detectedCode)) {
-        if (DEBUG) console.log(`[LLM Summary Handler] Language detected using ${model}: ${detectedCode}`);
+        Logger.debug("[LLM Summary Handler]", `Language detected using ${model}: ${detectedCode}`);
         return sanitizeLanguageCode(detectedCode, "eng");
       }
     } catch (error) {
       lastError = error;
-      if (DEBUG) console.warn(`[LLM Summary Handler] Language detection with ${model} failed:`, error);
+      Logger.debug("[LLM Summary Handler]", `Language detection with ${model} failed:`, error);
       continue; // Try next model
     }
   }
 
   // All models failed
-  console.warn("[LLM Summary Handler] All language detection models failed, using fallback:", lastError);
+  Logger.warn("[LLM Summary Handler]", "All language detection models failed, using fallback:", lastError);
   return "eng";
 };
 
@@ -79,8 +80,7 @@ export async function handleRequestSummary(
   DEBUG = false,
 ) {
   if (DEBUG) {
-    console.log(
-      "[LLM Summary Handler] Handling requestSummary for ID:",
+    Logger.info("[LLM Summary Handler]", "Handling requestSummary for ID:",
       request.requestId,
       "with hasNewsblurToken:",
       request.hasNewsblurToken,
@@ -102,12 +102,12 @@ export async function handleRequestSummary(
     const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
     const decryptResult = await decryptSensitiveData(encryptedApiKey);
     if (!decryptResult.success) {
-      console.error("[LLM Summary Handler] Failed to decrypt API key:", decryptResult.error);
+      Logger.error("[LLM Summary Handler]", "Failed to decrypt API key:", decryptResult.error);
     }
     const apiKey = decryptResult.data;
 
     if (DEBUG) {
-      console.log("[LLM Summary Handler] Data retrieved for summary request:", {
+      Logger.info("[LLM Summary Handler]", "Data retrieved for summary request:", {
         ...data,
         apiKey: apiKey ? "[API Key Hidden]" : "undefined",
       });
@@ -131,9 +131,7 @@ export async function handleRequestSummary(
 
     if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
       const errorMsg = "API key is required and must be a non-empty string.";
-      console.error(
-        "[LLM Summary Handler] API key is missing or invalid for summary request.",
-      );
+      Logger.error("[LLM Summary Handler]", "API key is missing or invalid for summary request.");
       sendResponse({ status: "error", message: errorMsg });
       if (sender.tab?.id) {
         chrome.tabs.sendMessage(sender.tab.id, {
@@ -154,7 +152,7 @@ export async function handleRequestSummary(
       !modelIds.includes(summaryModelId)
     ) {
       const errorMsg = `Default Summary Model ("${summaryModelId || "None"}") is not selected or is invalid.`;
-      console.error(`[LLM Summary Handler] ${errorMsg} Available:`, modelIds);
+      Logger.error("[LLM Summary Handler]", `${errorMsg} Available:`, modelIds);
       sendResponse({ status: "error", message: errorMsg });
       if (sender.tab?.id) {
         chrome.tabs.sendMessage(sender.tab.id, {
@@ -173,24 +171,12 @@ export async function handleRequestSummary(
 
     if (alwaysUseUsEnglish) {
       targetLanguage = "eng";
-      if (DEBUG)
-        console.log(
-          "[LLM Summary Handler] Using forced US English language setting:",
-          targetLanguage,
-        );
+      Logger.debug("[LLM Summary Handler]", "Using forced US English language setting:", targetLanguage);
     } else {
       const snippet = request.selectedHtml.substring(0, 1024);
-      if (DEBUG)
-        console.log(
-          "[LLM Summary Handler] Detecting language for snippet:",
-          snippet.substring(0, 80) + "...",
-        );
+      Logger.debug("[LLM Summary Handler]", "Detecting language for snippet:", snippet.substring(0, 80) + "...");
       targetLanguage = await detectLanguage(apiKey, snippet, DEBUG);
-      if (DEBUG)
-        console.log(
-          "[LLM Summary Handler] Detected language code:",
-          targetLanguage,
-        );
+      Logger.debug("[LLM Summary Handler]", "Detected language code:", targetLanguage);
     }
 
     const promptTemplate =
@@ -211,10 +197,7 @@ export async function handleRequestSummary(
     };
 
     if (DEBUG) {
-      console.log(
-        "[LLM Summary Handler] Sending payload to OpenRouter for summary:",
-        payload,
-      );
+      Logger.info("[LLM Summary Handler]", "Sending payload to OpenRouter for summary:", payload);
     }
 
     const response = await fetch(
@@ -239,18 +222,12 @@ export async function handleRequestSummary(
     const responseData = await response.json();
 
     if (DEBUG) {
-      console.log(
-        "[LLM Summary Handler] Received raw summary response data:",
-        responseData,
-      );
+      Logger.info("[LLM Summary Handler]", "Received raw summary response data:", responseData);
     }
 
     if (responseData?.error?.message) {
       const errorMsg = `ERROR: ${responseData.error.message}`;
-      console.error(
-        "[LLM Summary Handler] API returned an error during summary:",
-        responseData.error,
-      );
+      Logger.error("[LLM Summary Handler]", "API returned an error during summary:", responseData.error);
       if (sender.tab?.id) {
         chrome.tabs.sendMessage(sender.tab.id, {
           action: "summaryResult",
@@ -277,24 +254,15 @@ export async function handleRequestSummary(
         .replace(/^```[a-z]*\s*/, "")
         .replace(/\s*```$/, "")
         .trim();
-      if (DEBUG)
-        console.log(
-          "[LLM Summary Handler] Stripped markdown code block wrapper.",
-        );
+      Logger.debug("[LLM Summary Handler]", "Stripped markdown code block wrapper.");
     }
 
     if (DEBUG) {
-      console.log(
-        "[LLM Summary Handler] Cleaned summary content:",
-        summaryContent.substring(0, 200) + "...",
-      );
+      Logger.info("[LLM Summary Handler]", "Cleaned summary content:", summaryContent.substring(0, 200) + "...");
     }
 
     if (DEBUG) {
-      console.log(
-        "[LLM Summary Handler] Received HTML summary content:",
-        summaryContent,
-      );
+      Logger.info("[LLM Summary Handler]", "Received HTML summary content:", summaryContent);
     }
 
     const completeResponse = {
@@ -308,10 +276,7 @@ export async function handleRequestSummary(
     };
 
     if (DEBUG) {
-      console.log(
-        "[LLM Summary Handler] Complete response being sent to content script:",
-        completeResponse,
-      );
+      Logger.info("[LLM Summary Handler]", "Complete response being sent to content script:", completeResponse);
     }
 
     if (sender.tab?.id) {
@@ -319,14 +284,14 @@ export async function handleRequestSummary(
         if (chrome.runtime.lastError) {
           if (isTabClosedError(chrome.runtime.lastError)) {
             if (DEBUG) {
-              console.log(
-                `[LLM Summary Handler] Tab ${sender.tab.id} closed before summary response could be sent.`,
+              Logger.info("[LLM Summary Handler]",
+                `Tab ${sender.tab.id} closed before summary response could be sent.`,
                 chrome.runtime.lastError.message,
               );
             }
           } else {
-            console.error(
-              `[LLM Summary Handler] Error sending summary response to tab ${sender.tab.id}:`,
+            Logger.error("[LLM Summary Handler]",
+              `Error sending summary response to tab ${sender.tab.id}:`,
               chrome.runtime.lastError.message,
             );
           }
@@ -334,16 +299,12 @@ export async function handleRequestSummary(
       });
     } else {
       if (DEBUG) {
-        console.warn(
-          "[LLM Summary Handler] No tab ID available to send summary response.",
-        );
+        Logger.warn("[LLM Summary Handler]", "No tab ID available to send summary response.");
       }
     }
 
     if (DEBUG) {
-      console.log(
-        "[LLM Summary Handler] Sending requestSummary response - OK (processing).",
-      );
+      Logger.info("[LLM Summary Handler]", "Sending requestSummary response - OK (processing).");
     }
 
     sendResponse({ status: "processing" });
