@@ -1,5 +1,7 @@
 // js/errorHandler.js - Centralized error handling for the extension
 
+import { MAX_ERROR_LOG_ENTRIES } from "../constants.js";
+
 export const ErrorSeverity = {
   FATAL: 'fatal',
   WARNING: 'warning',
@@ -80,7 +82,7 @@ export class ErrorHandler {
       chrome.storage.local.get(['errorLog'], (data) => {
         const log = data.errorLog || [];
         log.push(errorInfo);
-        if (log.length > 50) log.shift(); // Keep last 50 errors
+        if (log.length > MAX_ERROR_LOG_ENTRIES) log.shift(); // Keep last MAX_ERROR_LOG_ENTRIES errors
         chrome.storage.local.set({ errorLog: log });
       });
     } catch (e) {

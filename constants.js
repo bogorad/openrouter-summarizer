@@ -178,6 +178,15 @@ export const MAX_ACTIVE_CONTROLLERS = 100; // Maximum concurrent AbortController
 export const CONTROLLER_TIMEOUT_MS = 60000; // Auto-cleanup stale controllers after 60 seconds
 export const CONTROLLER_CLEANUP_INTERVAL_MS = 30000; // Periodic backup cleanup every 30 seconds
 
+// --- Notification Timeouts (per ADR: notification-timeout-methodology.md) ---
+export const NOTIFICATION_TIMEOUT_MINOR_MS = 2000; // Minor success (clipboard, selection feedback)
+export const NOTIFICATION_TIMEOUT_SUCCESS_MS = 3000; // Major success (API operations, integrations)
+export const NOTIFICATION_TIMEOUT_CRITICAL_MS = 5000; // Critical errors (auth failures, config issues)
+
+// --- Content Processing ---
+export const SNIPPET_TRUNCATION_LIMIT = 65568; // Max characters for DOM snippets in chat context
+export const MAX_ERROR_LOG_ENTRIES = 50; // Maximum errors to keep in error log
+
 // --- Error Messages (Confirmed) ---
 export const ERROR_NO_API_KEY =
   "API key is missing. Please set it in the extension options.";

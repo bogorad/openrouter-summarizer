@@ -1,6 +1,11 @@
 // joplinManager.js
 
 import { showError } from "./utils.js"; // For displaying errors
+import {
+  NOTIFICATION_TIMEOUT_MINOR_MS,
+  NOTIFICATION_TIMEOUT_SUCCESS_MS,
+  NOTIFICATION_TIMEOUT_CRITICAL_MS,
+} from "./constants.js";
 
 console.log(`[LLM JoplinManager] Script Loaded`);
 
@@ -209,7 +214,7 @@ function handleAutocompleteKeydown(event, inputElement, folders, joplinToken) {
                 } else {
                     // No match and no selection, just prevent default newline in input
                     event.preventDefault();
-                    showError("No matching notebook found. Please select from the list.", false, 2000);
+                    showError("No matching notebook found. Please select from the list.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
                     selectedNotebookId = null;
                     enableJoplinButtons(false);
                 }
@@ -254,7 +259,7 @@ function handleAutocompleteKeydown(event, inputElement, folders, joplinToken) {
                 if (DEBUG) console.log("[LLM JoplinManager] Notebook immediately selected on Enter (exact match) with suggestions visible but none highlighted:", exactMatch.title, "ID:", selectedNotebookId);
                 sendNoteToJoplin(joplinToken, selectedNotebookId, exactMatch.title); // Trigger save for exact match
             } else {
-                showError("No matching notebook found. Please select from the list.", false, 2000);
+                showError("No matching notebook found. Please select from the list.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
                 selectedNotebookId = null;
                 enableJoplinButtons(false);
                 hideAutocompleteSuggestions(); // Close dropdown as action is taken
@@ -356,7 +361,7 @@ export function hideJoplinPopup() {
  */
 export async function fetchAndShowNotebookSelection(joplinToken, content, sourceUrl) {
     if (!joplinToken) {
-        showError("Joplin API token not found. Please set it in extension options.", true, 5000);
+        showError("Joplin API token not found. Please set it in extension options.", true, NOTIFICATION_TIMEOUT_CRITICAL_MS);
         if (DEBUG) console.error("[LLM JoplinManager] Fetch failed: Joplin token missing.");
         return;
     }
@@ -402,7 +407,7 @@ export async function fetchAndShowNotebookSelection(joplinToken, content, source
         }
     } catch (error) {
         console.error("[LLM JoplinManager] Error fetching Joplin notebooks:", error);
-        showError(`Error fetching Joplin notebooks: ${error.message}`, true, 5000);
+        showError(`Error fetching Joplin notebooks: ${error.message}`, true, NOTIFICATION_TIMEOUT_CRITICAL_MS);
         updateJoplinPopupBodyContent(`<p>Error: ${error.message}</p>`, true); // Pass true for placeholder flag
         enableJoplinButtons(false);
          // Keep popup visible for error message unless it's a transient error
@@ -522,11 +527,11 @@ function renderNotebookSelectionPopup(joplinToken, folders) {
                         selectedNotebookId = reMatchedFolder.id;
                         await sendNoteToJoplin(joplinToken, selectedNotebookId, reMatchedFolder.title);
                     } else {
-                        showError("Please select a valid notebook from the list.", true, 3000);
+                        showError("Please select a valid notebook from the list.", true, NOTIFICATION_TIMEOUT_SUCCESS_MS);
                     }
                 }
             } else {
-                showError("Please select a notebook first.", true, 3000);
+                showError("Please select a notebook first.", true, NOTIFICATION_TIMEOUT_SUCCESS_MS);
             }
         };
     }
@@ -550,7 +555,7 @@ function renderNotebookSelectionPopup(joplinToken, folders) {
  */
 async function sendNoteToJoplin(joplinToken, parentId, notebookName = "") {
     if (!joplinToken || !parentId || !currentJoplinContent) {
-        showError("Invalid data for sending note to Joplin.", true, 5000);
+        showError("Invalid data for sending note to Joplin.", true, NOTIFICATION_TIMEOUT_CRITICAL_MS);
         if (DEBUG) console.error("[LLM JoplinManager] Create note failed: Missing token, parentId, or content.");
         hideJoplinPopup(); // Hide if critical data is missing
         return;
@@ -583,7 +588,7 @@ async function sendNoteToJoplin(joplinToken, parentId, notebookName = "") {
         }
 
         if (response.status === "success") {
-            showError("Note sent to Joplin successfully!", false, 3000);
+            showError("Note sent to Joplin successfully!", false, NOTIFICATION_TIMEOUT_SUCCESS_MS);
             if (DEBUG) console.log("[LLM JoplinManager] Note created successfully:", response.result);
             
             // Only save the last used notebook if we have a name
@@ -604,7 +609,7 @@ async function sendNoteToJoplin(joplinToken, parentId, notebookName = "") {
         }
     } catch (error) {
         console.error("[LLM JoplinManager] Error sending note to Joplin:", error);
-        showError(`Error sending note to Joplin: ${error.message}`, true, 5000);
+        showError(`Error sending note to Joplin: ${error.message}`, true, NOTIFICATION_TIMEOUT_CRITICAL_MS);
     } finally {
         hideJoplinPopup(); // Always hide the Joplin popup after action attempt
     }

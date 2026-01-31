@@ -1,3 +1,5 @@
+- **Version 3.9.25:** Replaced magic numbers with named constants: added SNIPPET_TRUNCATION_LIMIT, MAX_ERROR_LOG_ENTRIES, and notification timeout constants (NOTIFICATION_TIMEOUT_MINOR_MS, NOTIFICATION_TIMEOUT_SUCCESS_MS, NOTIFICATION_TIMEOUT_CRITICAL_MS) to constants.js, updated all files to use these imports instead of hardcoded values
+
 - **Version 3.9.24:** Fixed insufficient URL validation in Joplin API calls: added token format validation with regex, replaced string concatenation with URL API for safe URL construction
 
 - **Version 3.9.23:** Fixed memory leak in activeControllers Map: added MAX_ACTIVE_CONTROLLERS limit (100), eviction of oldest 20% when limit reached, periodic cleanup interval every 30 seconds as backup, and wrapped abort() calls in try/catch to prevent cleanup failures

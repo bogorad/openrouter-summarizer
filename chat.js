@@ -16,6 +16,8 @@ import {
   CHAT_SYSTEM_PROMPT_TEMPLATE,
   CHAT_USER_CONTEXT_TEMPLATE,
   CHAT_TRANSLATION_REQUEST_TEMPLATE,
+  SNIPPET_TRUNCATION_LIMIT,
+  NOTIFICATION_TIMEOUT_MINOR_MS,
 } from "./constants.js";
 
 let models = []; // Array of {id: string}
@@ -26,7 +28,6 @@ let streaming = false;
 let currentStreamModel = ""; // Stores the model ID used for the *current* stream
 let DEBUG = false; // Updated by getSettings response
 let chatMessagesInnerDiv = null;
-const SNIPPET_TRUNCATION_LIMIT = 65568;
 let modelUsedForSummary = ""; // Stores the model ID used for the *initial* summary
 let language_info = []; // Store configured languages {language_name: string, svg_path: string}
 
@@ -113,7 +114,7 @@ const handleFormSubmit = (event) => {
     chatInput.value = "";
     chatInput.style.height = "auto";
   } else if (streaming) {
-      showError("Please wait for the current response to finish.", false, 2000);
+      showError("Please wait for the current response to finish.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
   }
 };
 
@@ -257,7 +258,7 @@ function renderLanguageFlags() {
 function handleFlagButtonClick(event) {
   if (streaming) {
     if (DEBUG) console.log("[LLM Chat] Flag click ignored: Chat is currently streaming.");
-    showError("Chat is busy. Please wait for the current response to finish.", false, 2000);
+    showError("Chat is busy. Please wait for the current response to finish.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
     return;
   }
 

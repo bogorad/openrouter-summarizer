@@ -14,6 +14,11 @@ import * as FloatingIcon from "./floatingIcon.js";
 import * as SummaryPopup from "./summaryPopup.js";
 import * as JoplinManager from "./joplinManager.js"; // New: Import JoplinManager
 import * as constants from "./constants.js"; // Assuming constants.js exports values
+import {
+  NOTIFICATION_TIMEOUT_MINOR_MS,
+  NOTIFICATION_TIMEOUT_SUCCESS_MS,
+  NOTIFICATION_TIMEOUT_CRITICAL_MS,
+} from "./constants.js";
 import { sanitizeHtml, sanitizeForSharing, quickCleanHtml } from "./js/htmlSanitizer.js";
 import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
 
@@ -154,7 +159,7 @@ function processSelectedElement() {
   // Validate content before processing
   const validation = validateContent(selectedElement, selectedElement.outerHTML);
   if (!validation.valid) {
-    showError(validation.error, true, 5000);
+    showError(validation.error, true, NOTIFICATION_TIMEOUT_CRITICAL_MS);
     Highlighter.removeSelectionHighlight(); // Clean up highlight
     return;
   }
@@ -260,7 +265,7 @@ function processSelectedElement() {
     showError(
       "Warning: Content processing incomplete, using raw data.",
       false,
-      3000,
+      NOTIFICATION_TIMEOUT_SUCCESS_MS,
     ); // Example: non-fatal, timed
     // Fallback to sending the original outerHTML snippet
     sendToLLM(rawHtml);
@@ -574,7 +579,7 @@ async function handleCopyHtmlIconClick() {
   // Get the currently selected element
   const selectedElement = Highlighter.getSelectedElement();
   if (!selectedElement) {
-    showError("No element selected to copy.", false, 2000);
+    showError("No element selected to copy.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
     if (DEBUG) console.error("[LLM Content] No element selected for HTML copy.");
     return;
   }
@@ -587,7 +592,7 @@ async function handleCopyHtmlIconClick() {
     const sanitizedHtml = sanitizeHtml(rawHtml, { debug: DEBUG });
 
     if (!sanitizedHtml || sanitizedHtml.trim() === "") {
-      showError("Element HTML became empty after cleaning.", false, 2000);
+      showError("Element HTML became empty after cleaning.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
       if (DEBUG) console.error("[LLM Content] HTML sanitization resulted in empty content.");
       return;
     }
@@ -605,12 +610,12 @@ async function handleCopyHtmlIconClick() {
     await navigator.clipboard.write([clipboardItem]);
 
     // Show success message
-    showError("Element HTML copied to clipboard.", false, 2000);
+    showError("Element HTML copied to clipboard.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
     if (DEBUG) console.log("[LLM Content] Element HTML copied successfully.");
 
   } catch (error) {
     console.error("[LLM Content] Failed to copy element HTML:", error);
-    showError("Failed to copy element HTML to clipboard.", false, 3000);
+    showError("Failed to copy element HTML to clipboard.", false, NOTIFICATION_TIMEOUT_SUCCESS_MS);
   } finally {
     // Clean up - remove floating icon, highlight, and deselect element
     FloatingIcon.removeFloatingIcon();
@@ -635,7 +640,7 @@ async function handleJoplinIconClick() {
     showError(
       "Joplin API token is not set. Please go to extension options to set it.",
       true,
-      5000,
+      NOTIFICATION_TIMEOUT_CRITICAL_MS,
     );
     if (DEBUG)
       console.error("[LLM Content] Joplin token is missing, cannot proceed.");
@@ -644,7 +649,7 @@ async function handleJoplinIconClick() {
 
   // Now, check if we have content
   if (!rawContent || rawContent.trim() === "") {
-    showError("No content available to send to Joplin.", true, 3000);
+    showError("No content available to send to Joplin.", true, NOTIFICATION_TIMEOUT_SUCCESS_MS);
     if (DEBUG)
       console.error("[LLM Content] No content (HTML) to send to Joplin.");
     return;
@@ -665,7 +670,7 @@ async function handleJoplinIconClick() {
     // Fallback to quick clean (only remove extension classes) if full sanitization removes everything
     const fallbackContent = quickCleanHtml(rawContent);
     if (!fallbackContent || fallbackContent.trim() === "") {
-      showError("Content became empty after cleaning. Cannot send to Joplin.", true, 3000);
+      showError("Content became empty after cleaning. Cannot send to Joplin.", true, NOTIFICATION_TIMEOUT_SUCCESS_MS);
       if (DEBUG) console.error("[LLM Content] Even fallback cleaning resulted in empty content.");
       return;
     }
@@ -858,7 +863,7 @@ const handleProcessSelection = async (sendResponse) => {
         false,
       );
       SummaryPopup.enableButtons(false);
-      setTimeout(SummaryPopup.hidePopup, 3000);
+      setTimeout(SummaryPopup.hidePopup, NOTIFICATION_TIMEOUT_SUCCESS_MS);
     }
     sendResponse({ status: "error", message: "No element selected" });
     return;
@@ -1144,7 +1149,7 @@ function handlePopupNewsblur(hasNewsblurToken) {
               "[LLM Content] Successfully sent NewsBlur share request:",
               response.result,
             );
-            showError("Shared to NewsBlur successfully!", false, 3000);
+            showError("Shared to NewsBlur successfully!", false, NOTIFICATION_TIMEOUT_SUCCESS_MS);
           } else {
             showError(
               `Failed to share to NewsBlur: ${response.message || "Unknown error"}`,

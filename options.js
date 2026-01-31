@@ -15,6 +15,7 @@ import {
   STORAGE_KEY_JOPLIN_TOKEN_LOCAL,
   DEBOUNCE_DELAY,
   TOKENS_PER_KB,
+  NOTIFICATION_TIMEOUT_MINOR_MS,
 } from "./constants.js";
 import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
 import { showError, redactSensitiveData } from "./utils.js";
@@ -1659,7 +1660,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         setTimeout(() => {
           statusMessage.textContent = "";
           statusMessage.className = "status-message";
-        }, 2000);
+        }, NOTIFICATION_TIMEOUT_MINOR_MS);
       }
       if (DEBUG)
         console.log("[LLM Options] Reset operation completed and saved.");
