@@ -80,13 +80,24 @@ export class ErrorHandler {
   static trackError(errorInfo) {
     try {
       chrome.storage.local.get(['errorLog'], (data) => {
+        // Check for storage read errors - use console.warn to avoid recursion
+        if (chrome.runtime.lastError) {
+          console.warn('[ErrorHandler] Failed to read error log:', chrome.runtime.lastError.message);
+          return;
+        }
         const log = data.errorLog || [];
         log.push(errorInfo);
         if (log.length > MAX_ERROR_LOG_ENTRIES) log.shift(); // Keep last MAX_ERROR_LOG_ENTRIES errors
-        chrome.storage.local.set({ errorLog: log });
+        chrome.storage.local.set({ errorLog: log }, () => {
+          // Check for storage write errors - use console.warn to avoid recursion
+          if (chrome.runtime.lastError) {
+            console.warn('[ErrorHandler] Failed to write error log:', chrome.runtime.lastError.message);
+          }
+        });
       });
     } catch (e) {
-      // Silent fail for error tracking
+      // Silent fail for error tracking - outer try/catch prevents crashes
+      console.warn('[ErrorHandler] Error tracking failed:', e.message);
     }
   }
   

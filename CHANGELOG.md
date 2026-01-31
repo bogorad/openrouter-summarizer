@@ -1,3 +1,5 @@
+- **Version 3.9.26:** Fixed error tracking to check chrome.runtime.lastError in storage callbacks: added checks after get() and set() operations, using console.warn to log failures without recursion
+
 - **Version 3.9.25:** Replaced magic numbers with named constants: added SNIPPET_TRUNCATION_LIMIT, MAX_ERROR_LOG_ENTRIES, and notification timeout constants (NOTIFICATION_TIMEOUT_MINOR_MS, NOTIFICATION_TIMEOUT_SUCCESS_MS, NOTIFICATION_TIMEOUT_CRITICAL_MS) to constants.js, updated all files to use these imports instead of hardcoded values
 
 - **Version 3.9.24:** Fixed insufficient URL validation in Joplin API calls: added token format validation with regex, replaced string concatenation with URL API for safe URL construction
