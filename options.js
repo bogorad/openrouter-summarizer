@@ -17,7 +17,7 @@ import {
   TOKENS_PER_KB,
 } from "./constants.js";
 import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
-import { showError } from "./utils.js";
+import { showError, redactSensitiveData } from "./utils.js";
 
 console.log(`[LLM Options] Script Start v3.4.5`);
 
@@ -206,8 +206,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         .addEventListener("blur", handleMaxPriceBlur);
       if (DEBUG)
         console.log(
-          `[LLM Options] Used cached data for ${currentSummaryModelId}:`,
-          modelData,
+          "[LLM Options] Used cached data for ${currentSummaryModelId}:",
+          redactSensitiveData(modelData),
         );
       return;
     }
@@ -1041,7 +1041,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               if (DEBUG)
                 console.log(
                   "[LLM Options] Reloaded model and pricing data:",
-                  knownModelsAndPrices,
+                  redactSensitiveData(knownModelsAndPrices),
                 );
               calculateKbLimitForSummary(); // Recalculate KB limit after updating data
               validateCurrentModels(); // Validate models after update
@@ -1312,7 +1312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (DEBUG)
         console.log(
           "[LLM Options] Loaded known models and pricing data:",
-          knownModelsAndPrices,
+          redactSensitiveData(knownModelsAndPrices),
         );
 
       // Populate allModels from knownModelsAndPrices for autocomplete
@@ -1489,7 +1489,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (DEBUG) {
       console.log(
         "[LLM Options] Settings prepared for saving (tokens encrypted):",
-        { ...settingsToSave, tokensEncrypted: true }
+        redactSensitiveData({ ...settingsToSave, tokensEncrypted: true })
       );
     }
 

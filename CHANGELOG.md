@@ -1,3 +1,5 @@
+- **Version 3.9.13:** Added data redaction for DEBUG logging to prevent leaking sensitive information like API keys and tokens
+
 - **Version 3.9.12:** Fixed HTML sanitizer to use word-boundary CSS selectors instead of partial XPath matching, preventing removal of legitimate content
 
 - **Version 3.9.11:** Added language code validation with ISO 639-2 whitelist to prevent injection from malformed LLM responses

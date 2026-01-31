@@ -8,6 +8,37 @@ console.log(`[LLM Utils] Loaded`);
 let errorTimeoutId = null; // Keep track of the timeout for temporary errors - FIX: Declared with 'let'
 
 /**
+ * Recursively redacts sensitive data from objects
+ * @param {*} obj - Object to redact
+ * @param {string[]} sensitiveKeys - Keys to redact
+ * @returns {*} Redacted object
+ */
+export const redactSensitiveData = (obj, sensitiveKeys = ['apiKey', 'token', 'password', 'secret', 'auth', 'bearer']) => {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  const redacted = Array.isArray(obj) ? [] : {};
+
+  for (const key in obj) {
+    const keyLower = key.toLowerCase();
+    const isSensitive = sensitiveKeys.some(sk => keyLower.includes(sk.toLowerCase()));
+
+    if (isSensitive && typeof obj[key] === 'string') {
+      const value = obj[key];
+      // Show first 2 and last 2 chars, mask the rest
+      redacted[key] = value ? `${value.substring(0, 2)}***${value.substring(value.length - 2)}` : '';
+    } else if (typeof obj[key] === 'object') {
+      redacted[key] = redactSensitiveData(obj[key], sensitiveKeys);
+    } else {
+      redacted[key] = obj[key];
+    }
+  }
+
+  return redacted;
+};
+
+/**
  * Attempts to parse a string as JSON.
  * @param {string} text - The string to parse.
  * @param {boolean} [logWarningOnFail=true] - Whether to log a console warning if parsing fails.

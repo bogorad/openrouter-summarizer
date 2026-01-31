@@ -10,6 +10,7 @@ import {
   DEFAULT_MODEL_OPTIONS,
   DEFAULT_XML_PROMPT_TEMPLATE,
   OPENROUTER_API_URL,
+  sanitizeLanguageCode,
 } from "../constants.js";
 
 import { decryptSensitiveData } from "./encryption.js";
@@ -63,21 +64,18 @@ async function detectLanguage(apiKey, contentSnippet, DEBUG = false) {
         responseData,
       );
 
-    if (responseData.choices && responseData.choices.length > 0) {
-      const detectedCode = responseData.choices[0].message.content.trim();
-      if (DEBUG)
-        console.log(
-          "[LLM Summary Handler] Raw detected language code:",
-          detectedCode,
-        );
-
-      // Ensure we have a valid 3-character code, fallback to English if not
-      const finalCode = detectedCode.length === 3 ? detectedCode : "eng";
-      if (DEBUG)
-        console.log(
-          "[LLM Summary Handler] Final language code after validation:",
-          finalCode,
-        );
+    if (responseData.choices?.length > 0) {
+      let detectedCode = responseData.choices[0].message.content.trim().toLowerCase();
+      
+      // Strict validation using sanitizeLanguageCode
+      const finalCode = sanitizeLanguageCode(detectedCode, "eng");
+      
+      if (DEBUG) {
+        if (finalCode !== detectedCode) {
+          console.warn(`[LLM Summary Handler] Invalid language code '${detectedCode}', using fallback '${finalCode}'`);
+        }
+        console.log("[LLM Summary Handler] Final validated language code:", finalCode);
+      }
       return finalCode;
     } else {
       console.warn(

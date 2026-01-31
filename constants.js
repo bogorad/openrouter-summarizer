@@ -25,6 +25,38 @@ export const STORAGE_KEY_JOPLIN_TOKEN = "joplinToken"; // New: Joplin Token
 export const STORAGE_KEY_ALSO_SEND_TO_JOPLIN = "alsoSendToJoplin";
 export const STORAGE_KEY_ALWAYS_USE_US_ENGLISH = "alwaysUseUsEnglish";
 
+// Valid ISO 639-2 language codes for validation
+export const VALID_LANGUAGE_CODES = new Set([
+  'eng', 'spa', 'fra', 'deu', 'ita', 'por', 'chi', 'jpn', 'kor', 'ara',
+  'rus', 'hin', 'tur', 'vie', 'tha', 'pol', 'dut', 'gre', 'heb', 'dan',
+  'swe', 'nor', 'fin', 'cze', 'rom', 'hun', 'bul', 'hrv', 'slk', 'slv',
+  'ukr', 'cat', 'eus', 'glg', 'nno', 'srp', 'ind', 'mal', 'tam', 'tel',
+  'ben', 'mar', 'kan', 'guj', 'ori', 'asm', 'pan', 'sun', 'afr', 'zul'
+]);
+
+/**
+ * Validates a language code
+ * @param {string} code - Language code to validate
+ * @returns {boolean} True if valid
+ */
+export const isValidLanguageCode = (code) => {
+  return typeof code === 'string' && 
+         code.length === 3 && 
+         /^[a-z]{3}$/.test(code) &&
+         VALID_LANGUAGE_CODES.has(code);
+};
+
+/**
+ * Sanitizes language code with fallback
+ * @param {string} code - Language code to sanitize
+ * @param {string} fallback - Fallback code if invalid
+ * @returns {string} Valid language code
+ */
+export const sanitizeLanguageCode = (code, fallback = 'eng') => {
+  const sanitized = code?.trim().toLowerCase() || fallback;
+  return isValidLanguageCode(sanitized) ? sanitized : fallback;
+};
+
 // Storage keys for encrypted tokens (stored in chrome.storage.local)
 export const STORAGE_KEY_API_KEY_LOCAL = "apiKeyLocal";
 export const STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL = "newsblurTokenLocal";
