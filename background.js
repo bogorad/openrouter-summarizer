@@ -60,36 +60,57 @@ chrome.storage.sync.get(STORAGE_KEY_DEBUG, (data) => {
 });
 
 // Migration: Move tokens from sync to encrypted local storage
+// Verifies encryption and persistence before removing sync tokens to prevent data loss
 async function migrateTokensToEncryptedStorage() {
-  const syncData = await chrome.storage.sync.get([
-    STORAGE_KEY_API_KEY,
-    STORAGE_KEY_NEWSBLUR_TOKEN,
-    STORAGE_KEY_JOPLIN_TOKEN,
-  ]);
-
-  if (syncData[STORAGE_KEY_API_KEY] || syncData[STORAGE_KEY_NEWSBLUR_TOKEN] || syncData[STORAGE_KEY_JOPLIN_TOKEN]) {
-    // Migrate to encrypted local storage
-    const migrations = {};
-    if (syncData[STORAGE_KEY_API_KEY]) {
-      migrations[STORAGE_KEY_API_KEY_LOCAL] = await encryptSensitiveData(syncData[STORAGE_KEY_API_KEY]);
-    }
-    if (syncData[STORAGE_KEY_NEWSBLUR_TOKEN]) {
-      migrations[STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL] = await encryptSensitiveData(syncData[STORAGE_KEY_NEWSBLUR_TOKEN]);
-    }
-    if (syncData[STORAGE_KEY_JOPLIN_TOKEN]) {
-      migrations[STORAGE_KEY_JOPLIN_TOKEN_LOCAL] = await encryptSensitiveData(syncData[STORAGE_KEY_JOPLIN_TOKEN]);
-    }
-
-    await chrome.storage.local.set(migrations);
-
-    // Clear from sync storage
-    await chrome.storage.sync.remove([
+  try {
+    const syncData = await chrome.storage.sync.get([
       STORAGE_KEY_API_KEY,
       STORAGE_KEY_NEWSBLUR_TOKEN,
       STORAGE_KEY_JOPLIN_TOKEN,
     ]);
 
-    console.log("[Migration] Tokens migrated to encrypted local storage");
+    const tokensToMigrate = [
+      { syncKey: STORAGE_KEY_API_KEY, localKey: STORAGE_KEY_API_KEY_LOCAL },
+      { syncKey: STORAGE_KEY_NEWSBLUR_TOKEN, localKey: STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL },
+      { syncKey: STORAGE_KEY_JOPLIN_TOKEN, localKey: STORAGE_KEY_JOPLIN_TOKEN_LOCAL },
+    ].filter(t => syncData[t.syncKey]);
+
+    if (tokensToMigrate.length === 0) {
+      return; // Nothing to migrate
+    }
+
+    // Step 1: Encrypt all tokens and validate results
+    const migrations = {};
+    for (const { syncKey, localKey } of tokensToMigrate) {
+      const encrypted = await encryptSensitiveData(syncData[syncKey]);
+      if (!encrypted) {
+        console.error(`[Migration] Encryption failed for ${syncKey} - aborting migration`);
+        return; // Abort: keep sync tokens intact
+      }
+      migrations[localKey] = encrypted;
+    }
+
+    // Step 2: Save to local storage
+    await chrome.storage.local.set(migrations);
+
+    // Step 3: Verify data was persisted by reading back
+    const localKeys = tokensToMigrate.map(t => t.localKey);
+    const verification = await chrome.storage.local.get(localKeys);
+    for (const { localKey } of tokensToMigrate) {
+      if (verification[localKey] !== migrations[localKey]) {
+        console.error(`[Migration] Verification failed for ${localKey} - aborting migration`);
+        return; // Abort: keep sync tokens intact
+      }
+    }
+
+    // Step 4: Only now safe to remove from sync storage
+    const syncKeysToRemove = tokensToMigrate.map(t => t.syncKey);
+    await chrome.storage.sync.remove(syncKeysToRemove);
+
+    console.log(`[Migration] Successfully migrated ${tokensToMigrate.length} token(s) to encrypted local storage`);
+  } catch (e) {
+    // Keep sync tokens on any error - user can retry migration on next install/update
+    console.error('[Migration] Token migration failed, keeping sync tokens:', e);
   }
 }
 

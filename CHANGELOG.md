@@ -1,3 +1,5 @@
+- **Version 3.9.21:** Fixed insecure token migration: added encryption validation, read-back verification after storage write, and try/catch rollback to prevent permanent token loss if migration fails
+
 - **Version 3.9.20:** Added explicit Content Security Policy to manifest.json restricting scripts to 'self', blocking object embeds, and limiting network requests to approved API endpoints (OpenRouter, NewsBlur, localhost for Joplin)
 
 - **Version 3.9.19:** Fixed XSS vulnerability in HTML rendering pipeline: removed anchor tags from DOMPurify allowlist in utils.js to prevent javascript: URL injection, and added DOMPurify sanitization to summaryPopup.js innerHTML assignments
