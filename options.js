@@ -313,6 +313,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!autocompleteDropdown) {
       autocompleteDropdown = document.createElement("div");
       autocompleteDropdown.className = "autocomplete-dropdown";
+      autocompleteDropdown.setAttribute("role", "listbox");
+      autocompleteDropdown.setAttribute("aria-label", `${type} suggestions`);
       document.body.appendChild(autocompleteDropdown);
       document.addEventListener("click", handleGlobalClick);
     }
@@ -325,6 +327,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     suggestions.forEach((item, index) => {
       const div = document.createElement("div");
       div.className = "autocomplete-item";
+      div.setAttribute("role", "option");
+      div.setAttribute("tabindex", "0");
+      div.setAttribute("aria-selected", "false");
       div.dataset.index = index;
       if (type === "language") {
         div.dataset.languageCode = item.code;
@@ -356,6 +361,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       div.addEventListener("click", () =>
         selectAutocompleteSuggestion(div, inputElement, type),
       );
+      div.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          selectAutocompleteSuggestion(div, inputElement, type);
+        }
+      });
       autocompleteDropdown.appendChild(div);
     });
     const rect = (

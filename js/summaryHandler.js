@@ -11,6 +11,7 @@ import {
   DEFAULT_XML_PROMPT_TEMPLATE,
   OPENROUTER_API_URL,
   sanitizeLanguageCode,
+  LANGUAGE_DETECTION_MODELS,
 } from "../constants.js";
 
 import { decryptSensitiveData } from "./encryption.js";
@@ -18,76 +19,58 @@ import { isTabClosedError, getSystemPrompt } from "./backgroundUtils.js";
 import { ErrorHandler, ErrorSeverity } from "./errorHandler.js";
 
 // Helper function to detect language of content
-async function detectLanguage(apiKey, contentSnippet, DEBUG = false) {
-  try {
-    const payload = {
-      model: "moonshotai/kimi-k2",
-      messages: [
-        {
+const detectLanguage = async (apiKey, contentSnippet, DEBUG = false) => {
+  const models = LANGUAGE_DETECTION_MODELS;
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      const payload = {
+        model: model,
+        messages: [{
           role: "user",
-          content: `Determine the language that this fragment is written in. 
-          If you can not determine the language, the fallback language is US English. 
-          Respond with a "ISO 639-2" code, provide only three characters. 
-          You are forbidden from responding with anything else!!!\n\n---\n\n${contentSnippet}`,
+          content: `Determine the language that this fragment is written in.
+          If you cannot determine the language, the fallback language is US English.
+          Respond with ONLY a valid ISO 639-2 three-letter language code (e.g., "eng", "spa", "fra").
+          Do not include any other text, punctuation, or explanation.
+
+          Fragment:\n${contentSnippet}`
+        }]
+      };
+
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
+          "X-Title": "OR-Summ: Language Detection"
         },
-      ],
-    };
+        body: JSON.stringify(payload)
+      });
 
-    if (DEBUG)
-      console.log(
-        "[LLM Summary Handler] Sending language detection API request with payload:",
-        payload,
-      );
-
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
-        "X-Title": "OR-Summ: Language Detection",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      console.warn(
-        `[LLM Summary Handler] Language detection API error: ${response.status}`,
-      );
-      return "eng"; // ISO 639-2 code for English
-    }
-
-    const responseData = await response.json();
-    if (DEBUG)
-      console.log(
-        "[LLM Summary Handler] Language detection API response:",
-        responseData,
-      );
-
-    if (responseData.choices?.length > 0) {
-      let detectedCode = responseData.choices[0].message.content.trim().toLowerCase();
-      
-      // Strict validation using sanitizeLanguageCode
-      const finalCode = sanitizeLanguageCode(detectedCode, "eng");
-      
-      if (DEBUG) {
-        if (finalCode !== detectedCode) {
-          console.warn(`[LLM Summary Handler] Invalid language code '${detectedCode}', using fallback '${finalCode}'`);
-        }
-        console.log("[LLM Summary Handler] Final validated language code:", finalCode);
+      if (!response.ok) {
+        throw new Error(`Model ${model} failed: ${response.status}`);
       }
-      return finalCode;
-    } else {
-      console.warn(
-        "[LLM Summary Handler] No language detection response received",
-      );
-      return "eng"; // ISO 639-2 code for English
+
+      const responseData = await response.json();
+      const detectedCode = responseData.choices?.[0]?.message?.content?.trim();
+
+      if (detectedCode && /^[a-z]{3}$/.test(detectedCode)) {
+        if (DEBUG) console.log(`[LLM Summary Handler] Language detected using ${model}: ${detectedCode}`);
+        return sanitizeLanguageCode(detectedCode, "eng");
+      }
+    } catch (error) {
+      lastError = error;
+      if (DEBUG) console.warn(`[LLM Summary Handler] Language detection with ${model} failed:`, error);
+      continue; // Try next model
     }
-  } catch (error) {
-    console.warn("[LLM Summary Handler] Language detection failed:", error);
-    return "eng"; // ISO 639-2 code for English
   }
-}
+
+  // All models failed
+  console.warn("[LLM Summary Handler] All language detection models failed, using fallback:", lastError);
+  return "eng";
+};
 
 export async function handleRequestSummary(
   request,
