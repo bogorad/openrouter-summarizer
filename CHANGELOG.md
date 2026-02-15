@@ -1,3 +1,5 @@
+- **Version 3.9.40:** Added stricter Web Crypto capability checks in token encryption/decryption to avoid undefined-subtle crashes and return clear errors on malformed payloads.
+- **Version 3.9.39:** Hardened AES-GCM helpers by adding Web Crypto compatibility handling and invalid payload checks for safer token encryption/decryption.
 - **Version 3.9.38:** Fixed Joplin token handling by trimming and normalizing tokens before validation to avoid false "Invalid Joplin API token format" errors.
 - **Version 3.9.37:** Fixed floating icon Joplin button visibility by reading encrypted Joplin token from local storage when sync token is unavailable.
 - **Version 3.9.36:** Fixed leftover summary popup and floating icon staying on screen after cancelling selection.

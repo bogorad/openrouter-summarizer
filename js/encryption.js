@@ -3,6 +3,48 @@
 import { Logger } from "./logger.js";
 
 const ENCRYPTION_KEY_NAME = 'encryptionKey_v1';
+const MIN_ENCRYPTED_BYTES = 13;
+const MISSING_CRYPTO_HELPER =
+  "Web Crypto API is unavailable in this context.";
+const MISSING_SUBTLE_API =
+  "Web Crypto subtle API is missing or incomplete in this context.";
+const MISSING_RANDOM_SOURCE =
+  "Crypto.getRandomValues is unavailable in this context.";
+
+function getCryptoHelpers() {
+  const scope =
+    typeof globalThis !== "undefined"
+      ? globalThis
+      : typeof self !== "undefined"
+        ? self
+        : typeof window !== "undefined"
+          ? window
+          : null;
+
+  const cryptoObj = (scope && (scope.crypto || scope.msCrypto)) || null;
+  if (!cryptoObj) {
+    throw new Error(MISSING_CRYPTO_HELPER);
+  }
+
+  const subtle = cryptoObj.subtle || cryptoObj.webkitSubtle;
+  if (!subtle) {
+    throw new Error(MISSING_SUBTLE_API);
+  }
+
+  if (typeof subtle.importKey !== "function") {
+    throw new Error(MISSING_SUBTLE_API);
+  }
+
+  if (typeof subtle.encrypt !== "function" || typeof subtle.decrypt !== "function") {
+    throw new Error(MISSING_SUBTLE_API);
+  }
+
+  if (typeof cryptoObj.getRandomValues !== "function") {
+    throw new Error(MISSING_RANDOM_SOURCE);
+  }
+
+  return { cryptoObj, subtle };
+}
 
 /**
  * Gets or creates an AES-GCM encryption key stored in chrome.storage.local
@@ -10,8 +52,10 @@ const ENCRYPTION_KEY_NAME = 'encryptionKey_v1';
  */
 export async function getOrCreateEncryptionKey() {
   const stored = await chrome.storage.local.get(ENCRYPTION_KEY_NAME);
+  const { subtle } = getCryptoHelpers();
+
   if (stored[ENCRYPTION_KEY_NAME]) {
-    return crypto.subtle.importKey(
+    return subtle.importKey(
       'raw',
       new Uint8Array(stored[ENCRYPTION_KEY_NAME]),
       { name: 'AES-GCM', length: 256 },
@@ -21,13 +65,13 @@ export async function getOrCreateEncryptionKey() {
   }
   
   // Generate new key
-  const key = await crypto.subtle.generateKey(
+  const key = await subtle.generateKey(
     { name: 'AES-GCM', length: 256 },
     true,
     ['encrypt', 'decrypt']
   );
   
-  const exported = await crypto.subtle.exportKey('raw', key);
+  const exported = await subtle.exportKey('raw', key);
   await chrome.storage.local.set({ 
     [ENCRYPTION_KEY_NAME]: Array.from(new Uint8Array(exported)) 
   });
@@ -42,11 +86,12 @@ export async function getOrCreateEncryptionKey() {
  */
 export async function encryptSensitiveData(plaintext) {
   if (!plaintext) return '';
+  const { cryptoObj, subtle } = getCryptoHelpers();
   const key = await getOrCreateEncryptionKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const iv = cryptoObj.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(plaintext);
   
-  const ciphertext = await crypto.subtle.encrypt(
+  const ciphertext = await subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
     encoded
@@ -72,15 +117,28 @@ export async function encryptSensitiveData(plaintext) {
 export async function decryptSensitiveData(encrypted) {
   if (!encrypted) return { success: true, data: '', error: null };
   try {
+    const { subtle } = getCryptoHelpers();
     const key = await getOrCreateEncryptionKey();
+
+    if (typeof encrypted !== "string") {
+      return {
+        success: false,
+        data: '',
+        error: "Invalid encrypted payload format.",
+      };
+    }
+
     const combined = new Uint8Array(
       atob(encrypted).split('').map(c => c.charCodeAt(0))
     );
+    if (combined.length < MIN_ENCRYPTED_BYTES) {
+      return { success: false, data: '', error: 'Invalid encrypted token payload.' };
+    }
     
     const iv = combined.slice(0, 12);
     const ciphertext = combined.slice(12);
-    
-    const decrypted = await crypto.subtle.decrypt(
+
+    const decrypted = await subtle.decrypt(
       { name: 'AES-GCM', iv },
       key,
       ciphertext
