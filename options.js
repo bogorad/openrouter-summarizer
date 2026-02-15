@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     7: "seven",
     8: "eight",
   };
-  const MAX_MODELS = 7;
+  const MAX_MODELS = 10;
   const MAX_LANGUAGES = 5;
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
@@ -523,6 +523,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       textInput.placeholder = "Enter OpenRouter Model ID";
       textInput.dataset.index = index;
       textInput.addEventListener("input", handleModelTextChange);
+      textInput.addEventListener("blur", handleModelTextBlur);
 
       modelInfo.appendChild(textInput); // Only append ID input
       group.appendChild(modelInfo);
@@ -673,6 +674,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (oldModelId === currentChatModelId && isNewIdValid) {
       currentChatModelId = newModelId;
     }
+  }
+
+  function handleModelTextBlur(event) {
+    const idx = parseInt(event.target.dataset.index, 10);
+    if (idx < 0 || idx >= currentModels.length) return;
+
+    const modelId = currentModels[idx].id.trim();
+    if (modelId === "") {
+      calculateKbLimitForSummary();
+      return;
+    }
+
+    const baseModelId = getBaseModelId(modelId);
+
+    // Only auto-refresh when the input looks like a complete OpenRouter model ID.
+    // Example: "provider/model-name" (variants like :online are handled via getBaseModelId).
+    if (!baseModelId.includes("/") || baseModelId.endsWith("/")) {
+      calculateKbLimitForSummary();
+      return;
+    }
+
+    // If the model is not present in the cached model/pricing snapshot, refresh it.
+    // This keeps autocomplete + validation + max KiB estimate current as the user edits models.
+    if (!knownModelsAndPrices[baseModelId]) {
+      const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+      if (apiKey) {
+        refreshKnownModelsAndPricesAndUpdateUi({ shouldSaveSettings: false });
+        return;
+      }
+    }
+
+    calculateKbLimitForSummary();
   }
 
   // REMOVED handleModelLabelChange function entirely
@@ -1035,8 +1068,11 @@ document.addEventListener("DOMContentLoaded", async () => {
    * Updates model and pricing data for all models by fetching from the API.
    * Saves settings if the API key is valid and refresh is successful.
    */
-  function updateKnownModelsAndPricing() {
+  function refreshKnownModelsAndPricesAndUpdateUi(
+    { shouldSaveSettings = true } = {},
+  ) {
     if (!pricingNotification || !updatePricingBtn) return;
+    if (updatePricingBtn.disabled) return;
 
     updatePricingBtn.disabled = true;
     pricingNotification.textContent = "Fetching model and pricing data...";
@@ -1057,44 +1093,49 @@ document.addEventListener("DOMContentLoaded", async () => {
               "[LLM Options] Error updating model and pricing data:",
               chrome.runtime.lastError || response?.message,
             );
-        } else {
-          const updated = response.updated || 0;
-          pricingNotification.textContent = `Updated data for ${updated} model(s). Settings saved.`;
-          if (DEBUG)
-            console.log(`[LLM Options] Updated data for ${updated} models.`);
-          // Reload the cache after update
-          chrome.storage.local.get(
-            STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
-            (cacheData) => {
-              knownModelsAndPrices =
-                cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
-              if (DEBUG)
-                console.log(
-                  "[LLM Options] Reloaded model and pricing data:",
-                  redactSensitiveData(knownModelsAndPrices),
-                );
-              calculateKbLimitForSummary(); // Recalculate KB limit after updating data
-              validateCurrentModels(); // Validate models after update
-              updateAllModelsList(); // Update autocomplete list after data refresh
-            },
-          );
-          // Save settings after successful refresh to confirm API key validity
-          if (apiKeyInput && apiKeyInput.value.trim()) {
-            if (DEBUG)
-              console.log(
-                "[LLM Options] API key validated, saving settings automatically.",
-              );
-            saveSettings();
-          } else {
-            if (DEBUG)
-              console.log(
-                "[LLM Options] API key is empty, skipping automatic save.",
-              );
-          }
+          updatePricingBtn.disabled = false;
+          return;
         }
+
+        const updated = response.updated || 0;
+        pricingNotification.textContent = shouldSaveSettings
+          ? `Updated data for ${updated} model(s). Settings saved.`
+          : `Updated data for ${updated} model(s).`;
+        if (DEBUG)
+          console.log(`[LLM Options] Updated data for ${updated} models.`);
+
+        // Reload the cache after update
+        chrome.storage.local.get(
+          STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
+          (cacheData) => {
+            knownModelsAndPrices =
+              cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
+            if (DEBUG)
+              console.log(
+                "[LLM Options] Reloaded model and pricing data:",
+                redactSensitiveData(knownModelsAndPrices),
+              );
+            calculateKbLimitForSummary(); // Recalculate KB limit after updating data
+            validateCurrentModels(); // Validate models after update
+            updateAllModelsList(); // Update autocomplete list after data refresh
+          },
+        );
+
+        if (shouldSaveSettings && apiKeyInput && apiKeyInput.value.trim()) {
+          if (DEBUG)
+            console.log(
+              "[LLM Options] API key validated, saving settings automatically.",
+            );
+          saveSettings();
+        }
+
         updatePricingBtn.disabled = false;
       },
     );
+  }
+
+  function updateKnownModelsAndPricing() {
+    refreshKnownModelsAndPricesAndUpdateUi({ shouldSaveSettings: true });
   }
 
   /**

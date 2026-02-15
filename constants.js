@@ -193,11 +193,12 @@ export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Translate the following text t
 // --- Default Models (Labels Removed) ---
 export const DEFAULT_MODEL_OPTIONS = [
   { id: "google/gemini-2.5-flash-lite" },
-  { id: "google/gemini-2.5-pro" },
-  { id: "anthropic/claude-opus-4.1" },
-  { id: "qwen/qwen3-235b-a22b-thinking-2507" },
+  { id: "google/gemini-3-pro-preview" },
+  { id: "anthropic/claude-haiku-4.5" },
+  { id: "anthropic/claude-opus-4.6" },
+  { id: "qwen/qwen3-max-thinking" },
   { id: "openai/gpt-5-chat" },
-  { id: "x-ai/grok-4" },
+  { id: "x-ai/grok-4.1-fast" },
 ];
 
 // --- Default Languages for Pre-population ---
