@@ -1,3 +1,4 @@
+- **Version 3.9.36:** Fixed leftover summary popup and floating icon staying on screen after cancelling selection.
 - **Version 3.9.35:** Fixed Chrome console noise by replacing the content-script `unload` cleanup handler (blocked by Permissions Policy on some documents) with `pagehide` + bfcache-safe `pageshow` re-init.
 
 - **Version 3.9.34:** Options: increased max price input debounce so values don't snap/reset mid-entry, and normalized the editable `<user_formatting>` section to trim leading/trailing blank lines on load/save.
