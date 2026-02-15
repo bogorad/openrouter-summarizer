@@ -495,14 +495,16 @@ async function shareToNewsblurAPI(options, DEBUG_API) {
  * @returns {Promise<Array>} A promise that resolves to an array of Joplin folders.
  */
 async function fetchJoplinFoldersAPI(joplinToken, DEBUG_API) {
-  if (!joplinToken) {
+  const normalizedJoplinToken = normalizeJoplinToken(joplinToken);
+
+  if (!normalizedJoplinToken) {
     throw new Error("Joplin API token is missing.");
   }
-  if (!isValidJoplinToken(joplinToken)) {
+  if (!isValidJoplinToken(normalizedJoplinToken)) {
     throw new Error("Invalid Joplin API token format.");
   }
   const apiUrl = new URL(JOPLIN_API_FOLDERS_ENDPOINT, JOPLIN_API_BASE_URL);
-  apiUrl.searchParams.append("token", joplinToken);
+  apiUrl.searchParams.append("token", normalizedJoplinToken);
 
   try {
     const response = await fetch(apiUrl.href);
@@ -534,14 +536,16 @@ async function fetchJoplinFoldersAPI(joplinToken, DEBUG_API) {
  * @returns {Promise<object>} A promise that resolves to the Joplin API response for the created note.
  */
 async function createJoplinNoteAPI(joplinToken, title, source_url, body_html, parent_id, DEBUG_API) {
-  if (!joplinToken || !title || !body_html || !parent_id) { // Simplified validation, now always requires body_html
+  const normalizedJoplinToken = normalizeJoplinToken(joplinToken);
+
+  if (!normalizedJoplinToken || !title || !body_html || !parent_id) { // Simplified validation, now always requires body_html
     throw new Error("Missing required parameters for creating Joplin note (token, title, HTML content, or parentId).");
   }
-  if (!isValidJoplinToken(joplinToken)) {
+  if (!isValidJoplinToken(normalizedJoplinToken)) {
     throw new Error("Invalid Joplin API token format.");
   }
   const apiUrl = new URL(JOPLIN_API_NOTES_ENDPOINT, JOPLIN_API_BASE_URL);
-  apiUrl.searchParams.append("token", joplinToken);
+  apiUrl.searchParams.append("token", normalizedJoplinToken);
 
   const noteData = {
     title: title,
@@ -582,8 +586,21 @@ async function createJoplinNoteAPI(joplinToken, title, source_url, body_html, pa
  */
 function isValidJoplinToken(token) {
   if (typeof token !== "string") return false;
-  // Joplin tokens are alphanumeric, 10-100 chars (conservative range)
-  return /^[a-zA-Z0-9]{10,100}$/.test(token);
+  const normalizedToken = token.trim();
+
+  // Token should be a non-empty string with realistic length and no whitespace.
+  // Keep checks permissive to avoid rejecting valid tokens from newer Joplin releases.
+  return normalizedToken.length >= 10 && normalizedToken.length <= 512 &&
+    !/[\s\n\r\t]/.test(normalizedToken);
+}
+
+/**
+ * Normalizes and validates Joplin token input before API calls.
+ * @param {*} token - Token value from storage or message payload.
+ * @returns {string} trimmed token or empty string.
+ */
+function normalizeJoplinToken(token) {
+  return typeof token === "string" ? token.trim() : "";
 }
 
 // Pricing functions moved to js/pricingService.js
