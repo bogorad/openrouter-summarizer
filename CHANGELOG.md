@@ -1,3 +1,4 @@
+- **Version 3.9.37:** Fixed floating icon Joplin button visibility by reading encrypted Joplin token from local storage when sync token is unavailable.
 - **Version 3.9.36:** Fixed leftover summary popup and floating icon staying on screen after cancelling selection.
 - **Version 3.9.35:** Fixed Chrome console noise by replacing the content-script `unload` cleanup handler (blocked by Permissions Policy on some documents) with `pagehide` + bfcache-safe `pageshow` re-init.
 

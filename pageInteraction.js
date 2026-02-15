@@ -21,6 +21,7 @@ import {
 } from "./constants.js";
 import { sanitizeHtml, sanitizeForSharing, quickCleanHtml } from "./js/htmlSanitizer.js";
 import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
+import { decryptSensitiveData } from "./js/encryption.js";
 
 // --- Module-level variables (assignments will happen in initialize) ---
 // These are assigned from the static imports for convenience if you prefer this pattern,
@@ -1194,9 +1195,29 @@ function handlePopupNewsblur(hasNewsblurToken) {
 // --- Initialization Function ---
 async function initialize() {
   try {
-    const result = await chrome.storage.sync.get(["debug", "joplinToken"]); // Retrieve joplinToken
-    DEBUG = !!result.debug;
-    joplinToken = result.joplinToken || null; // Set actual Joplin token
+    const [syncResult, localResult] = await Promise.all([
+      chrome.storage.sync.get(["debug", "joplinToken"]),
+      chrome.storage.local.get([constants.STORAGE_KEY_JOPLIN_TOKEN_LOCAL]),
+    ]);
+
+    DEBUG = !!syncResult.debug;
+
+    let resolvedJoplinToken = syncResult.joplinToken || null;
+    if (!resolvedJoplinToken && localResult[constants.STORAGE_KEY_JOPLIN_TOKEN_LOCAL]) {
+      const decryptedJoplinToken = await decryptSensitiveData(
+        localResult[constants.STORAGE_KEY_JOPLIN_TOKEN_LOCAL],
+      );
+      if (decryptedJoplinToken.success) {
+        resolvedJoplinToken = decryptedJoplinToken.data;
+      } else if (DEBUG) {
+        console.warn(
+          "[LLM Content] Failed to load encrypted Joplin token from local storage:",
+          decryptedJoplinToken.error,
+        );
+      }
+    }
+
+    joplinToken = resolvedJoplinToken || null;
     if (DEBUG)
       console.log(
         "[LLM Content] Initial Debug mode:",
