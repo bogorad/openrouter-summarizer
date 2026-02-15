@@ -1,3 +1,5 @@
+- **Version 3.9.34:** Options: increased max price input debounce so values don't snap/reset mid-entry, and normalized the editable `<user_formatting>` section to trim leading/trailing blank lines on load/save.
+
 - **Version 3.9.33:** Updated default model list. Increased Options model limit to 10 and auto-refreshes model/pricing cache when you finish editing a model ID so autocomplete/validation and Max KiB stay current.
 
 - **Version 3.9.32:** Compacted Options > Models > Model Selection layout (tighter row spacing, reduced padding, smaller radio cluster) so more configured models fit on screen.

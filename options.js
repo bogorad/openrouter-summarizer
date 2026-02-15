@@ -67,6 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const MAX_LANGUAGES = 5;
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
+  const MAX_PRICE_INPUT_DEBOUNCE_MS = 1000;
 
   function maskToken(token) {
     if (!token || token.length <= 4) {
@@ -86,6 +87,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentMaxPriceBehavior = DEFAULT_MAX_PRICE_BEHAVIOR;
   let currentSummaryKbLimit = "";
   let debounceTimeoutId = null;
+  let maxPriceDebounceTimeoutId = null;
   let modelPricingCache = {}; // Cache for model pricing data { "model/id": { pricePerToken: number, timestamp: number } }
   let knownModelsAndPrices = {}; // Combined structure for models supporting structured_outputs and their pricing
 
@@ -110,6 +112,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (trimmed === "") return "";
     const colonIndex = trimmed.indexOf(":");
     return colonIndex === -1 ? trimmed : trimmed.substring(0, colonIndex);
+  }
+
+  function normalizeUserFormattingContent(content) {
+    if (typeof content !== "string") return "";
+    const normalized = content.replace(/\r\n/g, "\n");
+
+    // Remove leading/trailing blank lines without stripping indentation
+    // from the first/last non-blank line.
+    return normalized
+      .replace(/^(?:[ \t]*\n)+/, "")
+      .replace(/(?:\n[ \t]*)+$/, "");
   }
 
   let activeAutocompleteInput = null;
@@ -1369,10 +1382,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const prefix = currentPromptTemplate.substring(0, startIndex + startTag.length);
         const editableContent = currentPromptTemplate.substring(startIndex + startTag.length, endIndex);
         const suffix = currentPromptTemplate.substring(endIndex);
+        const normalizedEditableContent = normalizeUserFormattingContent(editableContent);
 
         // Populate the UI elements
         if (promptPrefixReadonly) promptPrefixReadonly.textContent = prefix;
-        if (promptUserFormattingEditable) promptUserFormattingEditable.value = editableContent;
+        if (promptUserFormattingEditable) promptUserFormattingEditable.value = normalizedEditableContent;
         if (promptSuffixReadonly) promptSuffixReadonly.textContent = suffix;
       }
 
@@ -1440,9 +1454,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const prefix = currentPromptTemplate.substring(0, startIndex + startTag.length);
         const editableContent = currentPromptTemplate.substring(startIndex + startTag.length, endIndex);
         const suffix = currentPromptTemplate.substring(endIndex);
+        const normalizedEditableContent = normalizeUserFormattingContent(editableContent);
 
         if (promptPrefixReadonly) promptPrefixReadonly.textContent = prefix;
-        if (promptUserFormattingEditable) promptUserFormattingEditable.value = editableContent;
+        if (promptUserFormattingEditable) promptUserFormattingEditable.value = normalizedEditableContent;
         if (promptSuffixReadonly) promptSuffixReadonly.textContent = suffix;
       }
       currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
@@ -1471,9 +1486,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (radio.checked) bulletCount = radio.value;
     });
     // Reassemble the XML prompt template with user's editable content
-    const userEditableContent = promptUserFormattingEditable
+    const userEditableContentRaw = promptUserFormattingEditable
       ? promptUserFormattingEditable.value
       : "";
+    const userEditableContent = normalizeUserFormattingContent(userEditableContentRaw);
 
     // Get the original template to ensure we have clean structure
     const originalTemplate = currentPromptTemplate || DEFAULT_XML_PROMPT_TEMPLATE;
@@ -1689,9 +1705,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const prefix = currentPromptTemplate.substring(0, startIndex + startTag.length);
         const editableContent = currentPromptTemplate.substring(startIndex + startTag.length, endIndex);
         const suffix = currentPromptTemplate.substring(endIndex);
+        const normalizedEditableContent = normalizeUserFormattingContent(editableContent);
 
         if (promptPrefixReadonly) promptPrefixReadonly.textContent = prefix;
-        if (promptUserFormattingEditable) promptUserFormattingEditable.value = editableContent;
+        if (promptUserFormattingEditable) promptUserFormattingEditable.value = normalizedEditableContent;
         if (promptSuffixReadonly) promptSuffixReadonly.textContent = suffix;
       }
 
@@ -1737,20 +1754,20 @@ document.addEventListener("DOMContentLoaded", async () => {
    * Handles input changes for the max price field in the table.
    */
   function handleMaxPriceInput(event) {
-    if (debounceTimeoutId) {
-      clearTimeout(debounceTimeoutId);
+    if (maxPriceDebounceTimeoutId) {
+      clearTimeout(maxPriceDebounceTimeoutId);
     }
-    debounceTimeoutId = setTimeout(() => {
+    maxPriceDebounceTimeoutId = setTimeout(() => {
       const priceValue = parseFloat(event.target.value);
-      if (!isNaN(priceValue) && priceValue >= 0.001) {
+
+      // Avoid clamping mid-entry; enforce minimum on blur.
+      if (Number.isFinite(priceValue) && priceValue >= 0.001) {
         currentMaxRequestPrice = priceValue;
-      } else if (!isNaN(priceValue) && priceValue < 0.001) {
-        currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-        event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(3);
+        calculateKbLimitForSummary();
       }
-      calculateKbLimitForSummary();
-      debounceTimeoutId = null;
-    }, DEBOUNCE_DELAY);
+
+      maxPriceDebounceTimeoutId = null;
+    }, MAX_PRICE_INPUT_DEBOUNCE_MS);
   }
 
   /**
@@ -1758,14 +1775,21 @@ document.addEventListener("DOMContentLoaded", async () => {
    */
   function handleMaxPriceBlur(event) {
     const priceValue = parseFloat(event.target.value);
-    if (isNaN(priceValue) || priceValue < 0.001) {
-      event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(3);
-      currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-      if (debounceTimeoutId) {
-        clearTimeout(debounceTimeoutId);
-      }
-      calculateKbLimitForSummary();
+
+    if (maxPriceDebounceTimeoutId) {
+      clearTimeout(maxPriceDebounceTimeoutId);
+      maxPriceDebounceTimeoutId = null;
     }
+
+    if (!Number.isFinite(priceValue) || priceValue < 0.001) {
+      currentMaxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
+      event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(3);
+    } else {
+      currentMaxRequestPrice = priceValue;
+      event.target.value = priceValue.toFixed(3);
+    }
+
+    calculateKbLimitForSummary();
   }
 
   /**
