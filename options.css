@@ -735,19 +735,20 @@ img.language-flag {
 #modelSelectionArea {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
 
 #modelSelectionArea .option-group.model-option {
   display: flex;
   align-items: center;
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-lg);
+  margin: 0;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
   background: linear-gradient(135deg, #ffffff 0%, var(--surface-50) 100%);
-  border: 2px solid var(--surface-200);
-  box-shadow: var(--shadow-2);
-  gap: var(--spacing-lg);
+  border: 1px solid var(--surface-200);
+  box-shadow: var(--shadow-1);
+  gap: var(--spacing-md);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -770,7 +771,7 @@ img.language-flag {
 }
 
 #modelSelectionArea .option-group.model-option:hover {
-  box-shadow: var(--shadow-3);
+  box-shadow: var(--shadow-2);
   border-color: var(--primary-300);
   transform: translateY(-1px);
 }
@@ -789,18 +790,18 @@ img.language-flag {
 #modelSelectionArea input[id^="modelText_"] {
   font-family: "JetBrains Mono", "Fira Code", monospace;
   color: var(--text-primary);
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
   background: linear-gradient(
     135deg,
     var(--surface-50) 0%,
     var(--surface-100) 100%
   );
-  border: 2px solid var(--surface-300);
+  border: 1px solid var(--surface-300);
   border-radius: var(--radius-md);
   font-size: 13px;
   width: 100%;
   box-sizing: border-box;
-  min-width: 250px;
+  min-width: 220px;
   transition: all 0.3s ease;
   font-weight: 500;
 }
@@ -813,18 +814,19 @@ img.language-flag {
 
 .model-radios {
   display: flex;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-md);
   align-items: center;
   flex-shrink: 0;
   background: var(--surface-50);
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-200);
 }
 
 .model-radios .radio-group {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   background: none;
   padding: 0;
 }
@@ -836,7 +838,7 @@ img.language-flag {
 }
 
 .radio-label {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
   user-select: none;
@@ -847,9 +849,9 @@ img.language-flag {
   background: linear-gradient(135deg, var(--error-main) 0%, #ef4444 100%);
   color: white;
   border: none;
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -859,7 +861,7 @@ img.language-flag {
   flex-shrink: 0;
   line-height: 1;
   border-radius: 50%;
-  box-shadow: var(--shadow-2);
+  box-shadow: var(--shadow-1);
 }
 
 #addModelBtn {
@@ -874,7 +876,7 @@ img.language-flag {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
   box-shadow: var(--shadow-2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
