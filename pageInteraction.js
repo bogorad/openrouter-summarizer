@@ -544,9 +544,16 @@ function handleElementSelected(element, clickX, clickY) {
 }
 
 function handleElementDeselected() {
-  if (!SummaryPopup || !SummaryPopup.hidePopup) return;
   if (DEBUG) console.log("[LLM Content] handleElementDeselected called.");
-  SummaryPopup.hidePopup();
+
+  // Clicking outside the selected element should fully dismiss extension UI.
+  if (SummaryPopup?.hidePopup) {
+    SummaryPopup.hidePopup();
+  }
+  if (FloatingIcon?.removeFloatingIcon) {
+    FloatingIcon.removeFloatingIcon();
+  }
+
   lastSummary = "";
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
