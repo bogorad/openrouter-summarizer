@@ -1,3 +1,5 @@
+- **Version 3.9.35:** Fixed Chrome console noise by replacing the content-script `unload` cleanup handler (blocked by Permissions Policy on some documents) with `pagehide` + bfcache-safe `pageshow` re-init.
+
 - **Version 3.9.34:** Options: increased max price input debounce so values don't snap/reset mid-entry, and normalized the editable `<user_formatting>` section to trim leading/trailing blank lines on load/save.
 
 - **Version 3.9.33:** Updated default model list. Increased Options model limit to 10 and auto-refreshes model/pricing cache when you finish editing a model ID so autocomplete/validation and Max KiB stay current.

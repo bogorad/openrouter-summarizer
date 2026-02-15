@@ -1332,16 +1332,29 @@ async function initialize() {
 // --- Start Initialization ---
 initialize();
 
-// Add cleanup on window unload to prevent memory leaks
-window.addEventListener('unload', () => {
-  if (typeof Highlighter !== 'undefined' && Highlighter.cleanupHighlighter) {
+const cleanupInjectedUiAndListeners = () => {
+  if (Highlighter?.cleanupHighlighter) {
     Highlighter.cleanupHighlighter();
   }
-  if (typeof FloatingIcon !== 'undefined' && FloatingIcon.cleanup) {
+  if (FloatingIcon?.cleanup) {
     FloatingIcon.cleanup();
   }
-  if (typeof SummaryPopup !== 'undefined' && SummaryPopup.cleanup) {
+  if (SummaryPopup?.cleanup) {
     SummaryPopup.cleanup();
   }
+  modulesInitialized = false;
+};
+
+// Some documents disable `unload` via Permissions Policy, which triggers a console violation
+// when attempting to register an unload handler. Use `pagehide` instead.
+window.addEventListener("pagehide", () => {
+  cleanupInjectedUiAndListeners();
 });
 
+// If the page is restored from the back/forward cache, re-initialize so the extension
+// remains usable after we removed listeners on pagehide.
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) return;
+  cleanupInjectedUiAndListeners();
+  initialize();
+});
