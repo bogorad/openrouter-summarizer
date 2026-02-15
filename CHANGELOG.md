@@ -1,3 +1,5 @@
+- **Version 3.9.31:** Fixed Alt+Click scroll-to-top regression by preventing scroll jumps on floating icon auto-focus. Loaded DOMPurify in content scripts and improved HTML list detection so the summary popup renders HTML (e.g., <ul>/<ol>) instead of showing raw tags.
+
 - **Version 3.9.30:** Improved Joplin notebook selection popup accessibility: added dialog ARIA semantics, focus trapping/restoration, Escape-to-close, and listbox/option semantics for autocomplete.
 
 - **Version 3.9.29:** Fixed Webpack warnings by adding missing `cleanup()` exports to FloatingIcon and SummaryPopup modules.

@@ -411,16 +411,18 @@ export function showPopup(
 
     if (contentDiv) {
       if (typeof content === "string") {
-        if (content.startsWith("<ul>")) {
+        const trimmed = content.trimStart();
+        const isHtmlList = /^<(ul|ol)\b/i.test(trimmed);
+        if (isHtmlList) {
           // Sanitize HTML content to prevent XSS attacks from malicious LLM responses
           if (typeof DOMPurify !== "undefined") {
-            contentDiv.innerHTML = DOMPurify.sanitize(content, {
-              ALLOWED_TAGS: ['ul', 'li', 'b', 'strong', 'i', 'em', 'br', 'p'],
+            contentDiv.innerHTML = DOMPurify.sanitize(trimmed, {
+              ALLOWED_TAGS: ['ul', 'ol', 'li', 'b', 'strong', 'i', 'em', 'br', 'p'],
               ALLOWED_ATTR: []
             });
           } else {
             // Fallback: use textContent if DOMPurify not available (safer but loses formatting)
-            contentDiv.textContent = content;
+            contentDiv.textContent = trimmed;
           }
         } else {
           contentDiv.textContent = content;
@@ -591,16 +593,18 @@ export function updatePopupContent(
 
   if (contentDiv) {
     if (typeof newContent === "string") {
-      if (newContent.startsWith("<ul>")) {
+      const trimmed = newContent.trimStart();
+      const isHtmlList = /^<(ul|ol)\b/i.test(trimmed);
+      if (isHtmlList) {
         // Sanitize HTML content to prevent XSS attacks from malicious LLM responses
         if (typeof DOMPurify !== "undefined") {
-          contentDiv.innerHTML = DOMPurify.sanitize(newContent, {
-            ALLOWED_TAGS: ['ul', 'li', 'b', 'strong', 'i', 'em', 'br', 'p'],
+          contentDiv.innerHTML = DOMPurify.sanitize(trimmed, {
+            ALLOWED_TAGS: ['ul', 'ol', 'li', 'b', 'strong', 'i', 'em', 'br', 'p'],
             ALLOWED_ATTR: []
           });
         } else {
           // Fallback: use textContent if DOMPurify not available (safer but loses formatting)
-          contentDiv.textContent = newContent;
+          contentDiv.textContent = trimmed;
         }
       } else {
         contentDiv.textContent = newContent;

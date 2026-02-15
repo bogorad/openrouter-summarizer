@@ -290,7 +290,17 @@ export function createFloatingIcon(clickX, clickY, onIconClick, onIconDismiss, o
 
   if (DEBUG) console.log("[LLM FloatingIcon] Icon created at", iconX, iconY);
 
-  floatingIcon.focus();
+  // Auto-focus enables Enter/Space activation after Alt+Click selection.
+  // Use preventScroll to avoid scroll-jumps on some pages.
+  const iconEl = floatingIcon;
+  requestAnimationFrame(() => {
+    if (!iconEl || !iconEl.isConnected) return;
+    try {
+      iconEl.focus({ preventScroll: true });
+    } catch (e) {
+      // If preventScroll is unsupported, skip auto-focus rather than risking a scroll jump.
+    }
+  });
 }
 
 export function removeFloatingIcon() {
