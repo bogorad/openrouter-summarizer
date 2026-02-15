@@ -73,6 +73,7 @@ The `CONVENTIONS.md` file outlines the development guidelines for this project. 
    ```bash
    git pull --rebase
    bd sync
+   # NOTE: `bd sync` exports Beads JSONL; it does NOT stage/commit.
    git push
    git status  # MUST show "up to date with origin"
    ```
@@ -108,8 +109,14 @@ bd create --title="..." --type=task --priority=2
 bd update <id> --status=in_progress
 bd close <id> --reason="Completed"
 bd close <id1> <id2>  # Close multiple issues at once
-bd sync               # Commit and push changes
+bd sync               # Export Beads DB to JSONL (no git commit)
 ```
+
+### Decisions (2026-02-15)
+
+- `.beads/export-state/` is local-only; keep it gitignored and untracked. It stores absolute paths/timestamps and changes frequently.
+- `bd sync` exports `.beads/issues.jsonl`. It does not stage, commit, or push.
+- When the user says "land the plane" (or explicitly requests push), run: `git pull --rebase` -> `bd sync` -> stage/commit -> `git push` -> `git status`.
 
 ### Workflow Pattern
 
@@ -133,9 +140,9 @@ bd sync               # Commit and push changes
 ```bash
 git status              # Check what changed
 git add <files>         # Stage code changes
-bd sync                 # Commit beads changes
+bd sync                 # Export Beads JSONL (no git commit)
 git commit -m "..."     # Commit code
-bd sync                 # Commit any new beads changes
+bd sync                 # Export again if needed
 git push                # Push to remote
 ```
 
