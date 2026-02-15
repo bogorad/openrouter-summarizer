@@ -1,3 +1,4 @@
+- **Version 3.9.41:** Restored Joplin icon visibility on pages where content scripts run without Web Crypto subtle by moving encrypted Joplin token loading to the background for content scripts.
 - **Version 3.9.40:** Added stricter Web Crypto capability checks in token encryption/decryption to avoid undefined-subtle crashes and return clear errors on malformed payloads.
 - **Version 3.9.39:** Hardened AES-GCM helpers by adding Web Crypto compatibility handling and invalid payload checks for safer token encryption/decryption.
 - **Version 3.9.38:** Fixed Joplin token handling by trimming and normalizing tokens before validation to avoid false "Invalid Joplin API token format" errors.

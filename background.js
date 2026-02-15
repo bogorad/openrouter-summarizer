@@ -349,6 +349,35 @@ async function handleAsyncMessage(request, sender, sendResponse) {
           });
         }
       },
+      getJoplinToken: async () => {
+        try {
+          const syncResult = await chrome.storage.sync.get(STORAGE_KEY_JOPLIN_TOKEN);
+          if (syncResult[STORAGE_KEY_JOPLIN_TOKEN]) {
+            sendResponse({ status: "success", token: syncResult[STORAGE_KEY_JOPLIN_TOKEN] });
+            return;
+          }
+
+          const tokenResult = await chrome.storage.local.get(
+            constants.STORAGE_KEY_JOPLIN_TOKEN_LOCAL,
+          );
+          const encryptedToken = tokenResult[constants.STORAGE_KEY_JOPLIN_TOKEN_LOCAL];
+          const decryptResult = await decryptSensitiveData(encryptedToken);
+          if (!decryptResult.success) {
+            Logger.error(
+              "[LLM Background]",
+              "Failed to decrypt Joplin token:",
+              decryptResult.error,
+            );
+          }
+          sendResponse({ status: "success", token: decryptResult.data || "" });
+        } catch (e) {
+          Logger.error("[LLM Background]", "getJoplinToken handler caught an error:", e);
+          sendResponse({
+            status: "error",
+            message: `Failed to load Joplin token: ${e.message}`,
+          });
+        }
+      },
       shareToNewsblur: async () => {
         if (DEBUG)
           Logger.info("[LLM Background]", "Received shareToNewsblur request:", request.options);

@@ -21,7 +21,6 @@ import {
 } from "./constants.js";
 import { sanitizeHtml, sanitizeForSharing, quickCleanHtml } from "./js/htmlSanitizer.js";
 import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
-import { decryptSensitiveData } from "./js/encryption.js";
 
 // --- Module-level variables (assignments will happen in initialize) ---
 // These are assigned from the static imports for convenience if you prefer this pattern,
@@ -39,6 +38,33 @@ let joplinToken = null; // Store the actual Joplin token, not just its boolean p
 
 let messageQueue = [];
 let modulesInitialized = false; // This flag is still useful to queue messages if initialization is async (e.g., fetching settings)
+
+async function getJoplinTokenFromBackground() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { action: "getJoplinToken" },
+      (response) => {
+        if (handleLastError("getJoplinToken", DEBUG)) {
+          resolve(null);
+          return;
+        }
+
+        if (!response || response.status !== "success") {
+          if (DEBUG) {
+            console.warn(
+              "[LLM Content] Failed to load Joplin token from background:",
+              response?.message || "No response",
+            );
+          }
+          resolve(response?.token || null);
+          return;
+        }
+
+        resolve(response.token || null);
+      },
+    );
+  });
+}
 
 // Input validation limits to prevent DoS attacks
 const MAX_CONTENT_SIZE = 1024 * 1024; // 1MB limit
@@ -1195,26 +1221,13 @@ function handlePopupNewsblur(hasNewsblurToken) {
 // --- Initialization Function ---
 async function initialize() {
   try {
-    const [syncResult, localResult] = await Promise.all([
-      chrome.storage.sync.get(["debug", "joplinToken"]),
-      chrome.storage.local.get([constants.STORAGE_KEY_JOPLIN_TOKEN_LOCAL]),
-    ]);
+    const syncResult = await chrome.storage.sync.get(["debug", "joplinToken"]);
 
     DEBUG = !!syncResult.debug;
 
     let resolvedJoplinToken = syncResult.joplinToken || null;
-    if (!resolvedJoplinToken && localResult[constants.STORAGE_KEY_JOPLIN_TOKEN_LOCAL]) {
-      const decryptedJoplinToken = await decryptSensitiveData(
-        localResult[constants.STORAGE_KEY_JOPLIN_TOKEN_LOCAL],
-      );
-      if (decryptedJoplinToken.success) {
-        resolvedJoplinToken = decryptedJoplinToken.data;
-      } else if (DEBUG) {
-        console.warn(
-          "[LLM Content] Failed to load encrypted Joplin token from local storage:",
-          decryptedJoplinToken.error,
-        );
-      }
+    if (!resolvedJoplinToken) {
+      resolvedJoplinToken = await getJoplinTokenFromBackground();
     }
 
     joplinToken = resolvedJoplinToken || null;
