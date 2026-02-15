@@ -19,6 +19,11 @@ const JOPLIN_BTN_CLASS = "joplin-btn";
 const JOPLIN_SAVE_BTN_CLASS = "joplin-save-btn";
 const JOPLIN_CANCEL_BTN_CLASS = "joplin-cancel-btn";
 
+// Accessibility IDs
+const JOPLIN_POPUP_TITLE_ID = "llm-joplin-popup-title";
+const JOPLIN_AUTOCOMPLETE_LISTBOX_ID = "llm-joplin-notebook-listbox";
+const JOPLIN_AUTOCOMPLETE_OPTION_ID_PREFIX = "llm-joplin-notebook-option-";
+
 // --- Module State ---
 let joplinPopupElement = null; // Refers to the created popup DOM element
 let DEBUG = false;
@@ -26,6 +31,8 @@ let currentJoplinContent = null; // Stored content to be sent to Joplin
 let currentJoplinSourceUrl = null; // Stored source URL to be sent to Joplin
 let lastUsedNotebookId = null; // To store the ID of the last used notebook
 let lastUsedNotebookName = null; // To store the name of the last used notebook
+
+let popupGeneration = 0;
 
 // Storage keys for last used notebook
 const STORAGE_KEY_LAST_NOTEBOOK_ID = "lastUsedJoplinNotebookId";
@@ -36,6 +43,137 @@ let autocompleteDropdownElement = null;
 let highlightedAutocompleteIndex = -1;
 let activeAutocompleteInput = null;
 let selectedNotebookId = null; // To store the ID of the selected notebook from autocomplete (global to the module)
+
+// Focus management for modal popup
+let lastFocusedElementBeforePopup = null;
+let handleJoplinPopupKeydown = null;
+let handleJoplinPopupFocusIn = null;
+
+function normalizeDomIdPart(value) {
+    return String(value || "").replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+function getAutocompleteOptionId(notebookId) {
+    return `${JOPLIN_AUTOCOMPLETE_OPTION_ID_PREFIX}${normalizeDomIdPart(notebookId)}`;
+}
+
+function getFocusableElements(container) {
+    if (!container) return [];
+    const selector = [
+        'a[href]',
+        'button:not([disabled])',
+        'textarea:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+        '[contenteditable="true"]',
+    ].join(',');
+    return Array.from(container.querySelectorAll(selector)).filter((el) => {
+        if (!(el instanceof HTMLElement)) return false;
+        const style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+}
+
+function enableJoplinPopupFocusTrap() {
+    if (!joplinPopupElement) return;
+
+    if (!lastFocusedElementBeforePopup) {
+        lastFocusedElementBeforePopup = document.activeElement;
+    }
+
+    if (!handleJoplinPopupKeydown) {
+        handleJoplinPopupKeydown = (event) => {
+            if (!joplinPopupElement) return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                hideJoplinPopup();
+                return;
+            }
+
+            if (event.key !== 'Tab') return;
+
+            const focusables = getFocusableElements(joplinPopupElement);
+            if (focusables.length === 0) {
+                event.preventDefault();
+                joplinPopupElement.focus();
+                return;
+            }
+
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            const active = document.activeElement;
+            const activeIsInsidePopup = active instanceof Node && joplinPopupElement.contains(active);
+
+            if (!activeIsInsidePopup) {
+                event.preventDefault();
+                (event.shiftKey ? last : first).focus();
+                return;
+            }
+
+            if (event.shiftKey) {
+                if (active === first) {
+                    event.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (active === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+        };
+        document.addEventListener('keydown', handleJoplinPopupKeydown, true);
+    }
+
+    if (!handleJoplinPopupFocusIn) {
+        handleJoplinPopupFocusIn = (event) => {
+            if (!joplinPopupElement) return;
+            const target = event.target;
+            const insidePopup = target instanceof Node && joplinPopupElement.contains(target);
+            if (insidePopup) return;
+
+            // Allow focus to remain inside the autocomplete listbox if it ever becomes focusable.
+            const insideAutocomplete =
+                autocompleteDropdownElement &&
+                target instanceof Node &&
+                autocompleteDropdownElement.contains(target);
+            if (insideAutocomplete) return;
+
+            const focusables = getFocusableElements(joplinPopupElement);
+            if (focusables.length > 0) {
+                focusables[0].focus();
+            } else {
+                joplinPopupElement.focus();
+            }
+        };
+        document.addEventListener('focusin', handleJoplinPopupFocusIn, true);
+    }
+}
+
+function disableJoplinPopupFocusTrap() {
+    if (handleJoplinPopupKeydown) {
+        document.removeEventListener('keydown', handleJoplinPopupKeydown, true);
+        handleJoplinPopupKeydown = null;
+    }
+    if (handleJoplinPopupFocusIn) {
+        document.removeEventListener('focusin', handleJoplinPopupFocusIn, true);
+        handleJoplinPopupFocusIn = null;
+    }
+}
+
+function restoreFocusAfterJoplinPopup() {
+    const el = lastFocusedElementBeforePopup;
+    lastFocusedElementBeforePopup = null;
+    if (el instanceof HTMLElement && el.isConnected && typeof el.focus === 'function') {
+        try {
+            el.focus();
+        } catch (e) {
+            // Ignore focus restore errors
+        }
+    }
+}
 
 // --- HTML Template for the Joplin Notebook Selection Popup ---
 const JOPLIN_POPUP_TEMPLATE_HTML = `
@@ -63,9 +201,19 @@ function createJoplinPopupBase() {
     if (joplinPopupElement) {
         hideJoplinPopup(); // Ensure only one popup exists
     }
+    popupGeneration += 1;
     const template = document.createElement("template");
     template.innerHTML = JOPLIN_POPUP_TEMPLATE_HTML.trim();
     joplinPopupElement = template.content.firstChild.cloneNode(true);
+
+    // Add dialog semantics for accessibility
+    joplinPopupElement.setAttribute('role', 'dialog');
+    joplinPopupElement.setAttribute('aria-modal', 'true');
+    joplinPopupElement.setAttribute('aria-labelledby', JOPLIN_POPUP_TITLE_ID);
+    joplinPopupElement.setAttribute('tabindex', '-1');
+    const headerEl = joplinPopupElement.querySelector(`.${JOPLIN_POPUP_HEADER_CLASS}`);
+    if (headerEl) headerEl.id = JOPLIN_POPUP_TITLE_ID;
+
     document.body.appendChild(joplinPopupElement);
     if (DEBUG) console.log("[LLM JoplinManager] Joplin popup base created and added to DOM.");
     return joplinPopupElement;
@@ -127,6 +275,9 @@ function showAutocompleteSuggestions(inputElement, suggestions) {
         // Ensure autocomplete dropdown is always on top (higher z-index than Joplin popup if needed,
         // but typically document.body append handles this well for modals)
         autocompleteDropdownElement.className = "joplin-autocomplete-dropdown";
+        autocompleteDropdownElement.setAttribute('role', 'listbox');
+        autocompleteDropdownElement.setAttribute('id', JOPLIN_AUTOCOMPLETE_LISTBOX_ID);
+        autocompleteDropdownElement.setAttribute('aria-label', 'Notebook suggestions');
         document.body.appendChild(autocompleteDropdownElement); // Append to body to float above everything else
         document.addEventListener("click", handleGlobalClick);
     }
@@ -137,7 +288,15 @@ function showAutocompleteSuggestions(inputElement, suggestions) {
 
     if (suggestions.length === 0) {
         autocompleteDropdownElement.style.display = "none";
+        if (inputElement) {
+            inputElement.setAttribute('aria-expanded', 'false');
+            inputElement.removeAttribute('aria-activedescendant');
+        }
         return;
+    }
+
+    if (inputElement) {
+        inputElement.setAttribute('aria-expanded', 'true');
     }
 
     suggestions.forEach((item, index) => {
@@ -145,6 +304,9 @@ function showAutocompleteSuggestions(inputElement, suggestions) {
         div.className = "joplin-autocomplete-item";
         div.dataset.index = index;
         div.dataset.notebookId = item.id;
+        div.setAttribute('role', 'option');
+        div.setAttribute('aria-selected', 'false');
+        div.id = getAutocompleteOptionId(item.id);
         div.textContent = item.title;
         div.addEventListener("click", () => selectAutocompleteSuggestion(div, inputElement));
         autocompleteDropdownElement.appendChild(div);
@@ -167,6 +329,10 @@ function hideAutocompleteSuggestions() {
     if (autocompleteDropdownElement) {
         autocompleteDropdownElement.style.display = "none";
         highlightedAutocompleteIndex = -1;
+    }
+    if (activeAutocompleteInput) {
+        activeAutocompleteInput.setAttribute('aria-expanded', 'false');
+        activeAutocompleteInput.removeAttribute('aria-activedescendant');
     }
     activeAutocompleteInput = null;
 }
@@ -230,13 +396,13 @@ function handleAutocompleteKeydown(event, inputElement, folders, joplinToken) {
     if (event.key === "ArrowDown") {
         event.preventDefault();
         highlightedAutocompleteIndex = (highlightedAutocompleteIndex + 1) % items.length;
-        updateAutocompleteHighlight(items);
+        updateAutocompleteHighlight(items, inputElement);
         inputElement.value = items[highlightedAutocompleteIndex].textContent; // Live update input with highlighted text
 
     } else if (event.key === "ArrowUp") {
         event.preventDefault();
         highlightedAutocompleteIndex = (highlightedAutocompleteIndex - 1 + items.length) % items.length;
-        updateAutocompleteHighlight(items);
+        updateAutocompleteHighlight(items, inputElement);
         inputElement.value = items[highlightedAutocompleteIndex].textContent; // Live update input with highlighted text
 
     } else if (event.key === "Enter") {
@@ -275,13 +441,26 @@ function handleAutocompleteKeydown(event, inputElement, folders, joplinToken) {
  * Updates the visual highlight on autocomplete items.
  * @param {NodeList} items - The list of autocomplete item elements.
  */
-function updateAutocompleteHighlight(items) {
+function updateAutocompleteHighlight(items, inputElement = null) {
+    let activeDescendantId = "";
     items.forEach((item, index) => {
-        item.classList.toggle("selected", index === highlightedAutocompleteIndex);
-        if (index === highlightedAutocompleteIndex) {
+        const isSelected = index === highlightedAutocompleteIndex;
+        item.classList.toggle("selected", isSelected);
+        item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        if (isSelected) {
+            activeDescendantId = item.id || "";
             item.scrollIntoView({ block: "nearest" }); // Scroll to highlighted item
         }
     });
+
+    const targetInput = inputElement || activeAutocompleteInput;
+    if (targetInput) {
+        if (activeDescendantId) {
+            targetInput.setAttribute('aria-activedescendant', activeDescendantId);
+        } else {
+            targetInput.removeAttribute('aria-activedescendant');
+        }
+    }
 }
 
 /**
@@ -335,20 +514,30 @@ export function hideJoplinPopup() {
     }
 
     if (joplinPopupElement && joplinPopupElement.parentNode) {
-        joplinPopupElement.classList.remove("visible"); // Start fade out effect
-        const computedStyle = window.getComputedStyle(joplinPopupElement);
+        const popupToRemove = joplinPopupElement;
+        const generationAtHide = popupGeneration;
+
+        disableJoplinPopupFocusTrap();
+
+        popupToRemove.classList.remove("visible"); // Start fade out effect
+        const computedStyle = window.getComputedStyle(popupToRemove);
         const transitionDuration = parseFloat(computedStyle.transitionDuration) * 1000;
 
         setTimeout(() => {
-            if (joplinPopupElement && joplinPopupElement.parentNode) { // Check again in case it was already removed
-                joplinPopupElement.parentNode.removeChild(joplinPopupElement);
+            if (popupToRemove && popupToRemove.parentNode) {
+                popupToRemove.parentNode.removeChild(popupToRemove);
             }
-            joplinPopupElement = null; // Clear module-level reference
-            currentJoplinContent = null;
-            currentJoplinSourceUrl = null;
-            selectedNotebookId = null; // Reset selected ID
-            hideAutocompleteSuggestions(); // Ensure dropdown is also removed
-            if (DEBUG) console.log("[LLM JoplinManager] Joplin popup hidden and removed.");
+
+            // Only reset shared state if no newer popup has been created.
+            if (generationAtHide === popupGeneration) {
+                joplinPopupElement = null; // Clear module-level reference
+                currentJoplinContent = null;
+                currentJoplinSourceUrl = null;
+                selectedNotebookId = null; // Reset selected ID
+                hideAutocompleteSuggestions(); // Ensure dropdown is also removed
+                restoreFocusAfterJoplinPopup();
+                if (DEBUG) console.log("[LLM JoplinManager] Joplin popup hidden and removed.");
+            }
         }, transitionDuration > 0 ? transitionDuration + 50 : 10); // Add a small buffer for transition
     }
 }
@@ -370,6 +559,8 @@ export async function fetchAndShowNotebookSelection(joplinToken, content, source
     currentJoplinSourceUrl = sourceUrl; // Store source URL for later
     selectedNotebookId = null; // Ensure no previous selection is carried over
 
+    lastFocusedElementBeforePopup = document.activeElement;
+
     const popup = createJoplinPopupBase();
     popup.style.display = "flex"; // Show the loading popup
     popup.classList.add("visible");
@@ -377,10 +568,13 @@ export async function fetchAndShowNotebookSelection(joplinToken, content, source
     updateJoplinPopupBodyContent("<p>Fetching notebooks from Joplin...</p>", true);
     enableJoplinButtons(false); // Disable save button initially
 
+    enableJoplinPopupFocusTrap();
+
     // Setup cancel button listener
     const cancelBtn = popup.querySelector(`.${JOPLIN_CANCEL_BTN_CLASS}`);
     if (cancelBtn) {
         cancelBtn.onclick = () => hideJoplinPopup();
+        cancelBtn.focus();
     }
 
     try {
@@ -439,6 +633,16 @@ function renderNotebookSelectionPopup(joplinToken, folders) {
     const notebookSearchInput = joplinPopupElement.querySelector('.joplin-notebook-search-input');
     const saveBtn = joplinPopupElement.querySelector(`.${JOPLIN_SAVE_BTN_CLASS}`);
     const cancelBtn = joplinPopupElement.querySelector(`.${JOPLIN_CANCEL_BTN_CLASS}`);
+
+    if (notebookSearchInput) {
+        notebookSearchInput.setAttribute('role', 'combobox');
+        notebookSearchInput.setAttribute('aria-autocomplete', 'list');
+        notebookSearchInput.setAttribute('aria-expanded', 'false');
+        notebookSearchInput.setAttribute('aria-controls', JOPLIN_AUTOCOMPLETE_LISTBOX_ID);
+        notebookSearchInput.setAttribute('aria-haspopup', 'listbox');
+        notebookSearchInput.setAttribute('aria-label', 'Search notebooks');
+        notebookSearchInput.setAttribute('autocomplete', 'off');
+    }
 
     // Set up initial selection if folders exist
     if (folders.length > 0) {

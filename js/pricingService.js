@@ -10,6 +10,14 @@ import { Logger } from "./logger.js";
 const MAX_PRICING_RETRIES = 2; // Max number of retries for fetching pricing
 const PRICING_RETRY_DELAY_MS = 3000; // Delay between retries in milliseconds
 
+function getBaseModelId(modelId) {
+  if (typeof modelId !== "string") return "";
+  const trimmed = modelId.trim();
+  if (trimmed === "") return "";
+  const colonIndex = trimmed.indexOf(":");
+  return colonIndex === -1 ? trimmed : trimmed.substring(0, colonIndex);
+}
+
 async function _fetchAndCacheModelsPricing(apiKey, DEBUG = false, attempt = 0) {
   Logger.debug("[LLM Pricing Service]", `Attempt ${attempt + 1} to fetch model and pricing data.`);
   const apiUrl = `https://openrouter.ai/api/v1/models`;
@@ -79,12 +87,14 @@ export async function handleGetModelPricing(
   sendResponse,
   DEBUG = false,
 ) {
-  Logger.debug("[LLM Pricing Service]", "Handling getModelPricing request for model:", request.modelId);
-  if (
-    !request.modelId ||
-    typeof request.modelId !== "string" ||
-    request.modelId.trim() === ""
-  ) {
+  const baseModelId = getBaseModelId(request?.modelId);
+  Logger.debug(
+    "[LLM Pricing Service]",
+    "Handling getModelPricing request for model:",
+    request?.modelId,
+    baseModelId !== request?.modelId ? `(base: ${baseModelId})` : "",
+  );
+  if (!baseModelId) {
     Logger.debug("[LLM Pricing Service]", "Invalid model ID provided for pricing request.");
     sendResponse({ status: "error", message: "Invalid model ID provided." });
     return;
@@ -100,84 +110,101 @@ export async function handleGetModelPricing(
   const apiKey = decryptResult.data;
 
   const attemptGetPrice = async () => {
-      const localCacheData = await new Promise((resolve) =>
-        chrome.storage.local.get(
-          [STORAGE_KEY_KNOWN_MODELS_AND_PRICES],
-          resolve,
-        ),
-      );
-      const knownModelsAndPrices =
-        localCacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
-      const cachedEntry = knownModelsAndPrices[request.modelId];
-      const currentTime = Date.now();
-      const cacheExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days expiry
-
-      if (cachedEntry && currentTime - cachedEntry.timestamp < cacheExpiry) {
-        Logger.debug("[LLM Pricing Service]", "Using cached pricing data for model:",
-          request.modelId,
-          { pricePerToken: cachedEntry.pricePerToken },
-        );
-        return { status: "success", pricePerToken: cachedEntry.pricePerToken };
-      }
-      return null; // Indicates cache miss or stale
-    };
-
-    let priceInfo = await attemptGetPrice();
-
-    if (priceInfo) {
-      sendResponse(priceInfo);
-      return;
-    }
-
-    // Cache miss or stale, try to refresh
-    Logger.debug("[LLM Pricing Service]", "Pricing cache miss for model:",
-      request.modelId,
-      "- Attempting refresh.",
+    const localCacheData = await new Promise((resolve) =>
+      chrome.storage.local.get(
+        [STORAGE_KEY_KNOWN_MODELS_AND_PRICES],
+        resolve,
+      ),
     );
-    if (!apiKey) {
-      Logger.debug("[LLM Pricing Service]", "API key missing, cannot refresh pricing for getModelPricing.");
-      sendResponse({
-        status: "error",
-        message: "API key missing. Cannot fetch pricing data.",
-      });
-      return;
-    }
+    const knownModelsAndPrices =
+      localCacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
+    const cachedEntry = knownModelsAndPrices[baseModelId];
+    const currentTime = Date.now();
+    const cacheExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days expiry
 
-    try {
-      const refreshResult = await _fetchAndCacheModelsPricing(apiKey, DEBUG);
-      if (refreshResult.status === "success") {
-        Logger.debug("[LLM Pricing Service]", "Pricing cache refreshed successfully during getModelPricing. Re-checking for model:",
-          request.modelId,
-        );
-        priceInfo = await attemptGetPrice(); // Try getting from cache again
-        if (priceInfo) {
-          sendResponse(priceInfo);
-        } else {
-          Logger.debug("[LLM Pricing Service]", "Model",
-            request.modelId,
-            "not found even after refresh.",
-          );
-          sendResponse({
-            status: "error",
-            message: `Pricing data for model ${request.modelId} not found after refresh.`,
-          });
-        }
+    if (cachedEntry && currentTime - cachedEntry.timestamp < cacheExpiry) {
+      Logger.debug(
+        "[LLM Pricing Service]",
+        "Using cached pricing data for model:",
+        baseModelId,
+        { pricePerToken: cachedEntry.pricePerToken },
+      );
+      return { status: "success", pricePerToken: cachedEntry.pricePerToken };
+    }
+    return null; // Indicates cache miss or stale
+  };
+
+  let priceInfo = await attemptGetPrice();
+
+  if (priceInfo) {
+    sendResponse(priceInfo);
+    return;
+  }
+
+  // Cache miss or stale, try to refresh
+  Logger.debug(
+    "[LLM Pricing Service]",
+    "Pricing cache miss for model:",
+    baseModelId,
+    "- Attempting refresh.",
+  );
+  if (!apiKey) {
+    Logger.debug(
+      "[LLM Pricing Service]",
+      "API key missing, cannot refresh pricing for getModelPricing.",
+    );
+    sendResponse({
+      status: "error",
+      message: "API key missing. Cannot fetch pricing data.",
+    });
+    return;
+  }
+
+  try {
+    const refreshResult = await _fetchAndCacheModelsPricing(apiKey, DEBUG);
+    if (refreshResult.status === "success") {
+      Logger.debug(
+        "[LLM Pricing Service]",
+        "Pricing cache refreshed successfully during getModelPricing. Re-checking for model:",
+        baseModelId,
+      );
+      priceInfo = await attemptGetPrice(); // Try getting from cache again
+      if (priceInfo) {
+        sendResponse(priceInfo);
       } else {
-        Logger.error("[LLM Pricing Service]", "Failed to refresh pricing cache during getModelPricing:",
-          refreshResult.message,
+        Logger.debug(
+          "[LLM Pricing Service]",
+          "Model",
+          baseModelId,
+          "not found even after refresh.",
         );
         sendResponse({
           status: "error",
-          message: `Failed to update pricing data: ${refreshResult.message}`,
+          message: `Pricing data for model ${baseModelId} not found after refresh.`,
         });
       }
-    } catch (error) {
-      Logger.error("[LLM Pricing Service]", "Error during pricing refresh for getModelPricing:", error);
+    } else {
+      Logger.error(
+        "[LLM Pricing Service]",
+        "Failed to refresh pricing cache during getModelPricing:",
+        refreshResult.message,
+      );
       sendResponse({
         status: "error",
-        message: `Error updating pricing data: ${error.message}`,
+        message: `Failed to update pricing data: ${refreshResult.message}`,
       });
     }
+  } catch (error) {
+    Logger.error(
+      "[LLM Pricing Service]",
+      "Error during pricing refresh for getModelPricing:",
+      error,
+    );
+    sendResponse({
+      status: "error",
+      message: `Error updating pricing data: ${error.message}`,
+    });
+  }
 }
 
 export async function handleUpdateKnownModelsAndPricing(

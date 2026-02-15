@@ -23,6 +23,7 @@
   "devDependencies": {
     "@babel/preset-env": "^7.27.2",
     "babel-loader": "^10.0.0",
+    "baseline-browser-mapping": "^2.9.19",
     "webpack": "^5.99.8",
     "webpack-cli": "^6.0.1"
   },

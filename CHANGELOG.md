@@ -1,3 +1,9 @@
+- **Version 3.9.30:** Improved Joplin notebook selection popup accessibility: added dialog ARIA semantics, focus trapping/restoration, Escape-to-close, and listbox/option semantics for autocomplete.
+
+- **Version 3.9.29:** Fixed Webpack warnings by adding missing `cleanup()` exports to FloatingIcon and SummaryPopup modules.
+
+- **Version 3.9.28:** Fixed OpenRouter model variant suffix handling (`:online`, `:nitro`, `:free`) in Options validation and pricing lookups so chat/summary model selections persist.
+
 - **Version 3.9.27:** Implemented centralized Logger utility in js/logger.js with debug, info, warn, and error methods for consistent log levels and prefixes across the codebase. Updated background.js, settingsManager.js, chatHandler.js, summaryHandler.js, chatContextManager.js, uiActions.js, pricingService.js, errorHandler.js, htmlSanitizer.js, encryption.js, and utils.js to use Logger. Fixed duplicate handleUpdateKnownModelsAndPricing function in pricingService.js.
 
 - **Version 3.9.26:** Fixed error tracking to check chrome.runtime.lastError in storage callbacks: added checks after get() and set() operations, using console.warn to log failures without recursion

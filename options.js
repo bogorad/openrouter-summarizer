@@ -95,6 +95,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let currentPromptTemplate = DEFAULT_XML_PROMPT_TEMPLATE;
 
+  /**
+   * Removes OpenRouter model variant suffixes from a model ID.
+   *
+   * OpenRouter variants are appended as `:suffix` (e.g. `:online`, `:nitro`, `:free`).
+   * For validation/pricing lookups, we must compare against the base model ID.
+   *
+   * @param {string} modelId
+   * @returns {string} Base model ID (trimmed) or "".
+   */
+  function getBaseModelId(modelId) {
+    if (typeof modelId !== "string") return "";
+    const trimmed = modelId.trim();
+    if (trimmed === "") return "";
+    const colonIndex = trimmed.indexOf(":");
+    return colonIndex === -1 ? trimmed : trimmed.substring(0, colonIndex);
+  }
+
   let activeAutocompleteInput = null;
   let autocompleteDropdown = null;
   let highlightedAutocompleteIndex = -1;
@@ -164,7 +181,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const modelData = knownModelsAndPrices[currentSummaryModelId];
+    const baseSummaryModelId = getBaseModelId(currentSummaryModelId);
+    const modelData = knownModelsAndPrices[baseSummaryModelId];
     const currentTime = Date.now();
     const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
@@ -216,7 +234,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     chrome.runtime.sendMessage(
       {
         action: "getModelPricing",
-        modelId: currentSummaryModelId,
+        modelId: baseSummaryModelId,
       },
       (response) => {
         if (
@@ -1091,7 +1109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Check summary model
     if (
       currentSummaryModelId &&
-      !validModelIds.includes(currentSummaryModelId)
+      !validModelIds.includes(getBaseModelId(currentSummaryModelId))
     ) {
       const newSummaryModel = validModelIds.length > 0 ? validModelIds[0] : "";
       if (DEBUG)
@@ -1103,7 +1121,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // Check chat model (optional flexibility)
-    if (currentChatModelId && !validModelIds.includes(currentChatModelId)) {
+    if (
+      currentChatModelId &&
+      !validModelIds.includes(getBaseModelId(currentChatModelId))
+    ) {
       const newChatModel = validModelIds.length > 0 ? validModelIds[0] : "";
       if (DEBUG)
         console.log(
@@ -1114,9 +1135,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // Check all configured models and warn if some are not in the known list
-    const unknownModels = currentModels.filter(
-      (model) => model.id && !validModelIds.includes(model.id),
-    );
+    const unknownModels = currentModels.filter((model) => {
+      const baseModelId = getBaseModelId(model.id);
+      return baseModelId && !validModelIds.includes(baseModelId);
+    });
     if (unknownModels.length > 0) {
       if (DEBUG)
         console.log(`[LLM Options] Unknown models detected:`, unknownModels);

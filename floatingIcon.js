@@ -316,3 +316,7 @@ export function initializeFloatingIcon(options) {
   DEBUG = !!options?.initialDebugState;
   if (DEBUG) console.log("[LLM FloatingIcon] Initialized.");
 }
+
+export function cleanup() {
+  removeFloatingIcon();
+}

@@ -649,3 +649,7 @@ export function enableButtons(enable) {
 export function initializePopupManager(options) {
   // DEBUG is handled via options if needed in future
 }
+
+export function cleanup() {
+  hidePopup();
+}
