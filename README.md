@@ -1,15 +1,16 @@
-# OpenRouter Summarizer v3.9.2
+# OpenRouter Summarizer v3.9.42
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, native HTML summaries, flexible options, and robust CSS isolation!_
 
 ---
 
-## What's New in v3.9.2
+## What's New in v3.9.42
 
-- **Model Name in Summary Popup:**
-    - The summary popup header now displays the model used (e.g., "Summary (google/gemini-2.0-flash-001)").
-    - Provides visibility into which LLM generated each summary.
+- **Customizable Chat Quick Buttons:**
+    - Added a quick-button row in chat between model selection and the message input.
+    - Buttons are configurable in Options with per-button title and prompt.
+    - Clicking a quick button sends its mapped prompt immediately.
 
 ---
 
@@ -20,6 +21,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and robust
 - **Native HTML Summaries:** LLM returns properly formatted HTML bullet lists with preserved formatting (bold text, etc.).
 - **Copy:** Use Copy HTML icon (📄) in the floating menu to copy complete element HTML to clipboard.
 - **Interactive Chat:** Engage in follow-up conversations with the LLM based on the summarized content or the original HTML snippet.
+- **Configurable Chat Quick Buttons:** Add/edit/remove quick buttons in Options; each button has a title and a prompt and can send immediately from chat.
 - **Flexible Model Selection:** Choose from a default list or add/edit any OpenRouter-compatible model ID in the Options. Your selection syncs across sessions. Supports model variants:
   - `:nitro` - Fastest inference speed
   - `:floor` - Lowest cost provider
@@ -224,6 +226,7 @@ graph TB
     - A new browser tab opens. This page has access to both the original HTML snippet and the summary.
     - The original HTML snippet and the raw/processed JSON string are stored. For _every_ message you send, the original HTML snippet is automatically prepended to the recent chat history before sending to the LLM for context.
     - **Language flags are available in the chat interface.** Click a flag to request a translation of the _latest assistant message_ into that language. **While the LLM is processing a request, these flags will be visually dimmed and show a "busy" tooltip.**
+    - **Quick buttons are available in the chat interface.** Configure button titles and prompts in Options; clicking a quick button sends its prompt immediately.
     - Type follow-up questions. Use `Ctrl+Enter` / `Cmd+Enter` to send using any of the configured models.
     - **Tip:** Use an `:online` model variant (e.g., `x-ai/grok-4.1-fast:online` or `openai/gpt-5.1-codex-mini:online`) for questions requiring current web information beyond the page content. See [Web-Enabled Chat](#web-enabled-chat) below.
     - LLM responses are rendered with via basic HTML (`<b>`/`<i>`) but full markdown is recognized via the `marked` library.
