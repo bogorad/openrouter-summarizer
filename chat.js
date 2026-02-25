@@ -30,6 +30,7 @@ let DEBUG = false; // Updated by getSettings response
 let chatMessagesInnerDiv = null;
 let modelUsedForSummary = ""; // Stores the model ID used for the *initial* summary
 let language_info = []; // Store configured languages {language_name: string, svg_path: string}
+let chatQuickPrompts = []; // Store quick prompt buttons {title: string, prompt: string}
 
 // ==== DOM Element References ====
 let downloadMdBtn,
@@ -42,7 +43,8 @@ let downloadMdBtn,
   errorDisplay,
   sendButton,
   stopButton,
-  languageFlagsContainer;
+  languageFlagsContainer,
+  quickPromptsContainer;
 
 // ==== INITIALIZATION ====
 
@@ -62,11 +64,12 @@ document.addEventListener("DOMContentLoaded", () => {
   sendButton = chatForm ? chatForm.querySelector("#sendButton") : null;
   stopButton = chatForm ? chatForm.querySelector("#stopButton") : null;
   languageFlagsContainer = document.getElementById("languageFlagsContainer");
+  quickPromptsContainer = document.getElementById("quickPromptsContainer");
 
   // Check if all essential elements are present
   if (!chatMessagesInnerDiv || !downloadMdBtn || !copyMdBtn || !downloadJsonBtn ||
       !chatInput || !modelSelect || !chatForm || !chatMessages || !sendButton ||
-      !stopButton || !languageFlagsContainer) {
+      !stopButton || !languageFlagsContainer || !quickPromptsContainer) {
     console.error("CRITICAL: Could not find essential UI elements! Aborting initialization.");
     document.body.innerHTML = '<div style="color: red; padding: 20px; font-family: sans-serif;">Error: Chat UI structure is missing essential elements. Cannot load chat.</div>';
     return;
@@ -107,14 +110,13 @@ document.addEventListener("DOMContentLoaded", () => {
 const handleFormSubmit = (event) => {
   event.preventDefault();
   const userText = chatInput.value.trim();
-  if (userText && !streaming) { // Prevent sending while streaming
-    messages.push({ role: "user", content: userText });
-    renderMessages();
-    sendChatRequestToBackground(userText);
+  if (userText) {
+    const didSend = queueAndSendUserMessage(userText);
+    if (!didSend) {
+      return;
+    }
     chatInput.value = "";
     chatInput.style.height = "auto";
-  } else if (streaming) {
-      showError("Please wait for the current response to finish.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
   }
 };
 
@@ -152,6 +154,12 @@ function initializeChat() {
 
     // Store language info
     language_info = Array.isArray(settingsResponse.language_info) ? settingsResponse.language_info : [];
+    chatQuickPrompts = Array.isArray(settingsResponse.chatQuickPrompts)
+      ? settingsResponse.chatQuickPrompts
+        .filter((item) => item && typeof item.title === "string" && typeof item.prompt === "string")
+        .map((item) => ({ title: item.title.trim(), prompt: item.prompt.trim() }))
+        .filter((item) => item.title && item.prompt)
+      : [];
 
     // Populate dropdown using the CHAT model ID as preferred
     const defaultChatModelId = settingsResponse.chatModelId || "";
@@ -159,6 +167,7 @@ function initializeChat() {
 
     // Render flags
     renderLanguageFlags();
+    renderQuickPromptButtons();
 
     // --- Step 2: Fetch Session Context for Initial Message ---
     // This runs *after* settings are processed
@@ -252,6 +261,34 @@ function renderLanguageFlags() {
 }
 
 /**
+ * Renders quick prompt buttons in the chat interface.
+ */
+function renderQuickPromptButtons() {
+  if (!quickPromptsContainer) {
+    console.error("[LLM Chat] Quick prompts container not found.");
+    return;
+  }
+
+  quickPromptsContainer.innerHTML = "";
+
+  if (!Array.isArray(chatQuickPrompts) || chatQuickPrompts.length === 0) {
+    return;
+  }
+
+  chatQuickPrompts.forEach((quickPrompt) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "quick-prompt-button";
+    button.textContent = quickPrompt.title;
+    button.title = quickPrompt.prompt;
+    button.dataset.quickPrompt = quickPrompt.prompt;
+    button.disabled = streaming;
+    button.addEventListener("click", handleQuickPromptButtonClick);
+    quickPromptsContainer.appendChild(button);
+  });
+}
+
+/**
  * Handles click events on language flag buttons.
  * @param {Event} event - The click event.
  */
@@ -294,9 +331,62 @@ function handleFlagButtonClick(event) {
     .replace("${targetLanguage}", targetLanguage)
     .replace("${textToTranslate}", textToTranslate);
 
-  messages.push({ role: "user", content: userMessage });
+  queueAndSendUserMessage(userMessage);
+}
+
+/**
+ * Handles click events on quick prompt buttons.
+ * @param {Event} event - The click event.
+ */
+function handleQuickPromptButtonClick(event) {
+  const quickPromptText = event.currentTarget?.dataset.quickPrompt;
+
+  if (!quickPromptText) {
+    console.error("[LLM Chat] Quick prompt button missing prompt text.");
+    showError("Error: Could not load this quick prompt.");
+    return;
+  }
+
+  queueAndSendUserMessage(quickPromptText);
+}
+
+/**
+ * Adds a user message to chat and sends it through the request pipeline.
+ * @param {string} userText - The text input by the user.
+ * @returns {boolean} True when message was sent.
+ */
+function queueAndSendUserMessage(userText) {
+  if (streaming) {
+    showError("Please wait for the current response to finish.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
+    return false;
+  }
+
+  if (!selectedModelId) {
+    showError("Cannot send message: No model selected or configured.", false);
+    console.log("[LLM Chat] No model selected, request aborted before queue.");
+    return false;
+  }
+
+  messages.push({ role: "user", content: userText });
   renderMessages();
-  sendChatRequestToBackground(userMessage);
+  sendChatRequestToBackground(userText);
+  return true;
+}
+
+/**
+ * Updates busy state for quick prompt buttons.
+ * @param {boolean} isBusy - Whether chat is currently streaming.
+ */
+function setQuickPromptButtonsBusy(isBusy) {
+  if (!quickPromptsContainer) {
+    return;
+  }
+
+  const quickPromptButtons = quickPromptsContainer.querySelectorAll(".quick-prompt-button");
+  quickPromptButtons.forEach((button) => {
+    button.disabled = isBusy;
+    button.classList.toggle("quick-prompt-button-busy", isBusy);
+  });
 }
 
 /**
@@ -319,6 +409,7 @@ function sendChatRequestToBackground(userText) {
   console.log("[LLM Chat] Streaming started with model:", currentStreamModel);
   if (sendButton) sendButton.style.display = "none";
   if (stopButton) stopButton.style.display = "block";
+  setQuickPromptButtonsBusy(true);
 
   const flagButtons = languageFlagsContainer.querySelectorAll(".language-flag-button");
   flagButtons.forEach(button => {
@@ -330,6 +421,13 @@ function sendChatRequestToBackground(userText) {
   if (!wrap) {
     console.error("[LLM Chat] messagesWrap (chatMessagesInnerDiv) not found.");
     streaming = false;
+    if (sendButton) sendButton.style.display = "block";
+    if (stopButton) stopButton.style.display = "none";
+    setQuickPromptButtonsBusy(false);
+    flagButtons.forEach(button => {
+      button.classList.remove("language-flag-button-busy");
+      button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+    });
     return;
   }
   const modelLabelDiv = document.createElement("div");
@@ -351,6 +449,7 @@ function sendChatRequestToBackground(userText) {
       streaming = false;
       if (sendButton) sendButton.style.display = "block";
       if (stopButton) stopButton.style.display = "none";
+      setQuickPromptButtonsBusy(false);
       flagButtons.forEach(button => {
         button.classList.remove("language-flag-button-busy");
         button.title = `Translate last assistant message to ${button.dataset.languageName}`;
@@ -642,6 +741,7 @@ function handleStopRequest() {
     streaming = false;
     if (sendButton) sendButton.style.display = "block";
     if (stopButton) stopButton.style.display = "none";
+    setQuickPromptButtonsBusy(false);
     showError("Chat request stopped by user.", false);
     console.log("[LLM Chat] Chat request stopped.");
 

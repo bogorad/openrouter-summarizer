@@ -5,9 +5,6 @@
 *.db-wal
 *.db-shm
 
-# TUI lock file (local-only)
-.bv.lock
-
 # Daemon runtime files
 daemon.lock
 daemon.log
@@ -15,9 +12,6 @@ daemon.pid
 bd.sock
 sync-state.json
 last-touched
-
-# Export state (local-only; contains absolute paths/timestamps)
-export-state/
 
 # Local version tracking (prevents upgrade notification spam after git ops)
 .local_version

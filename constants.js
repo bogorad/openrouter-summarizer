@@ -27,6 +27,8 @@ export const STORAGE_KEY_ALSO_SEND_TO_JOPLIN =
   "alsoSendToJoplin";
 export const STORAGE_KEY_ALWAYS_USE_US_ENGLISH =
   "alwaysUseUsEnglish";
+export const STORAGE_KEY_CHAT_QUICK_PROMPTS =
+  "chatQuickPrompts";
 
 // Valid ISO 639-2 language codes for validation
 export const VALID_LANGUAGE_CODES = new Set([
@@ -189,6 +191,24 @@ export const CHAT_USER_CONTEXT_TEMPLATE = `Context - Original HTML Snippet:\n\`\
 // Template for the user message when requesting translation via a flag click
 // Now includes a placeholder for the text to be translated
 export const CHAT_TRANSLATION_REQUEST_TEMPLATE = `Translate the following text to \${targetLanguage} and let's continue our conversation in that language: \n\n\${textToTranslate}`;
+
+export const DEFAULT_CHAT_QUICK_PROMPTS = [
+  {
+    title: "Explain like I'm a 12-year old",
+    prompt:
+      "Explain this in very simple terms that a 12-year-old can understand. Use short sentences and relatable examples.",
+  },
+  {
+    title: "Verify online",
+    prompt:
+      "Check reliable online sources and verify the key claims. Note what is confirmed, unclear, or contradicted.",
+  },
+  {
+    title: "Historical refrenence",
+    prompt:
+      "Give brief historical context and mention similar past events, ideas, or turning points that help explain this topic.",
+  },
+];
 
 // --- Default Models (Labels Removed) ---
 export const DEFAULT_MODEL_OPTIONS = [

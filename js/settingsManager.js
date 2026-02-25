@@ -10,10 +10,27 @@ import {
   STORAGE_KEY_BULLET_COUNT,
   STORAGE_KEY_LANGUAGE_INFO,
   STORAGE_KEY_MAX_REQUEST_PRICE,
+  STORAGE_KEY_CHAT_QUICK_PROMPTS,
 } from "../constants.js";
 import * as constants from "../constants.js"; // Import all constants as an object
 import { decryptSensitiveData } from "./encryption.js";
 import { Logger } from "./logger.js";
+
+const isValidChatQuickPrompts = (quickPrompts) => {
+  return (
+    Array.isArray(quickPrompts) &&
+    quickPrompts.every((item) => {
+      return (
+        typeof item === "object" &&
+        item !== null &&
+        typeof item.title === "string" &&
+        item.title.trim().length > 0 &&
+        typeof item.prompt === "string" &&
+        item.prompt.trim().length > 0
+      );
+    })
+  );
+};
 
 // These were originally in background.js, if they are truly global defaults,
 // they might better reside in constants.js or be passed as parameters.
@@ -36,6 +53,7 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
     STORAGE_KEY_BULLET_COUNT,
     STORAGE_KEY_LANGUAGE_INFO,
     STORAGE_KEY_MAX_REQUEST_PRICE,
+    STORAGE_KEY_CHAT_QUICK_PROMPTS,
   ];
 
   chrome.storage.sync.get(keysToFetch, async (data) => {
@@ -156,6 +174,12 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
         maxRequestPrice:
           data[STORAGE_KEY_MAX_REQUEST_PRICE] || currentGlobalDefaults.DEFAULT_MAX_REQUEST_PRICE,
         newsblurToken: newsblurToken,
+        chatQuickPrompts: isValidChatQuickPrompts(data[STORAGE_KEY_CHAT_QUICK_PROMPTS])
+          ? data[STORAGE_KEY_CHAT_QUICK_PROMPTS].map((item) => ({
+            title: item.title.trim(),
+            prompt: item.prompt.trim(),
+          }))
+          : constants.DEFAULT_CHAT_QUICK_PROMPTS,
       };
       if (DEBUG) {
         Logger.info("[LLM Settings Manager]", "handleGetSettings: Sending settings response - OK.", {

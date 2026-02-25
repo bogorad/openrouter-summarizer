@@ -17,6 +17,7 @@ import {
   TOKENS_PER_KB,
   NOTIFICATION_TIMEOUT_MINOR_MS,
 } from "./constants.js";
+import * as constants from "./constants.js";
 import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
 import { showError, redactSensitiveData } from "./utils.js";
 
@@ -33,6 +34,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     "languageSelectionArea",
   );
   const addLangBtn = document.getElementById("addLangBtn");
+  const chatQuickPromptSelectionArea = document.getElementById(
+    "chatQuickPromptSelectionArea",
+  );
+  const addChatQuickPromptBtn = document.getElementById(
+    "addChatQuickPromptBtn",
+  );
   const debugCheckbox = document.getElementById("debug");
   const bulletCountRadios = document.querySelectorAll(
     'input[name="bulletCount"]',
@@ -65,9 +72,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const MAX_MODELS = 10;
   const MAX_LANGUAGES = 5;
+  const MAX_CHAT_QUICK_PROMPTS = 10;
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
   const MAX_PRICE_INPUT_DEBOUNCE_MS = 1000;
+  const STORAGE_KEY_CHAT_QUICK_PROMPTS =
+    typeof constants.STORAGE_KEY_CHAT_QUICK_PROMPTS === "string"
+      ? constants.STORAGE_KEY_CHAT_QUICK_PROMPTS
+      : "chatQuickPrompts";
+  const DEFAULT_CHAT_QUICK_PROMPTS = Array.isArray(
+    constants.DEFAULT_CHAT_QUICK_PROMPTS,
+  )
+    ? constants.DEFAULT_CHAT_QUICK_PROMPTS
+    : [];
 
   function maskToken(token) {
     if (!token || token.length <= 4) {
@@ -94,6 +111,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let language_info = [];
   let allLanguages = []; // For autocomplete suggestions for languages
   let allModels = []; // For autocomplete suggestions for models
+  let chatQuickPrompts = [];
 
   let currentPromptTemplate = DEFAULT_XML_PROMPT_TEMPLATE;
 
@@ -123,6 +141,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     return normalized
       .replace(/^(?:[ \t]*\n)+/, "")
       .replace(/(?:\n[ \t]*)+$/, "");
+  }
+
+  function sanitizeChatQuickPrompts(items) {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const title =
+          typeof item.title === "string" ? item.title.trim() : "";
+        const prompt =
+          typeof item.prompt === "string" ? item.prompt.trim() : "";
+        if (title === "" || prompt === "") return null;
+        return { title, prompt };
+      })
+      .filter((item) => item !== null)
+      .slice(0, MAX_CHAT_QUICK_PROMPTS);
+  }
+
+  function getDefaultChatQuickPrompts() {
+    return sanitizeChatQuickPrompts(DEFAULT_CHAT_QUICK_PROMPTS);
   }
 
   let activeAutocompleteInput = null;
@@ -909,6 +947,96 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.warn(`[LLM Options] Max languages (${MAX_LANGUAGES}) reached.`);
     }
   }
+
+  function renderChatQuickPromptOptions() {
+    if (!chatQuickPromptSelectionArea) return;
+
+    chatQuickPromptSelectionArea.innerHTML = "";
+    chatQuickPrompts.forEach((item, index) => {
+      const row = document.createElement("div");
+      row.className = "option-group chat-quick-prompt-option";
+      row.dataset.index = index;
+
+      const fields = document.createElement("div");
+      fields.className = "chat-quick-prompt-fields";
+
+      const titleInput = document.createElement("input");
+      titleInput.type = "text";
+      titleInput.id = `chatQuickPromptTitle_${index}`;
+      titleInput.className = "chat-quick-prompt-title";
+      titleInput.placeholder = "Button title";
+      titleInput.value = item.title;
+      titleInput.dataset.index = index;
+      titleInput.addEventListener("input", handleChatQuickPromptTitleInput);
+
+      const promptInput = document.createElement("textarea");
+      promptInput.id = `chatQuickPromptText_${index}`;
+      promptInput.className = "chat-quick-prompt-text";
+      promptInput.placeholder = "Prompt text sent when this button is clicked";
+      promptInput.rows = 3;
+      promptInput.value = item.prompt;
+      promptInput.dataset.index = index;
+      promptInput.addEventListener("input", handleChatQuickPromptTextInput);
+
+      fields.appendChild(titleInput);
+      fields.appendChild(promptInput);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.textContent = "✕";
+      removeBtn.className = "button remove-button";
+      removeBtn.title = "Remove this quick prompt";
+      removeBtn.dataset.index = index;
+      removeBtn.addEventListener("click", handleChatQuickPromptRemoveClick);
+
+      row.appendChild(fields);
+      row.appendChild(removeBtn);
+      chatQuickPromptSelectionArea.appendChild(row);
+    });
+
+    if (addChatQuickPromptBtn) {
+      const atCap = chatQuickPrompts.length >= MAX_CHAT_QUICK_PROMPTS;
+      addChatQuickPromptBtn.disabled = atCap;
+      addChatQuickPromptBtn.title = atCap
+        ? `Maximum limit of ${MAX_CHAT_QUICK_PROMPTS} quick prompts reached.`
+        : `Add another quick prompt (max ${MAX_CHAT_QUICK_PROMPTS}).`;
+    }
+  }
+
+  function handleChatQuickPromptTitleInput(event) {
+    const index = parseInt(event.target.dataset.index, 10);
+    if (index < 0 || index >= chatQuickPrompts.length) return;
+    chatQuickPrompts[index].title = event.target.value;
+  }
+
+  function handleChatQuickPromptTextInput(event) {
+    const index = parseInt(event.target.dataset.index, 10);
+    if (index < 0 || index >= chatQuickPrompts.length) return;
+    chatQuickPrompts[index].prompt = event.target.value;
+  }
+
+  function handleChatQuickPromptRemoveClick(event) {
+    const index = parseInt(event.target.dataset.index, 10);
+    if (index < 0 || index >= chatQuickPrompts.length) return;
+    chatQuickPrompts.splice(index, 1);
+    renderChatQuickPromptOptions();
+    saveSettings();
+  }
+
+  function addChatQuickPrompt() {
+    if (chatQuickPrompts.length >= MAX_CHAT_QUICK_PROMPTS) {
+      alert(`Maximum limit of ${MAX_CHAT_QUICK_PROMPTS} quick prompts reached.`);
+      return;
+    }
+    chatQuickPrompts.push({ title: "", prompt: "" });
+    renderChatQuickPromptOptions();
+
+    const newIndex = chatQuickPrompts.length - 1;
+    const titleInput = document.getElementById(
+      `chatQuickPromptTitle_${newIndex}`,
+    );
+    if (titleInput) titleInput.focus();
+  }
   // --- Drag and Drop Handlers (Unchanged) ---
   function handleDragStart(event) {
     event.dataTransfer.effectAllowed = "move";
@@ -1241,6 +1369,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         STORAGE_KEY_MAX_REQUEST_PRICE,
         STORAGE_KEY_MAX_PRICE_BEHAVIOR,
         STORAGE_KEY_ALSO_SEND_TO_JOPLIN,
+        STORAGE_KEY_CHAT_QUICK_PROMPTS,
       ];
       const data = await chrome.storage.sync.get(keysToGet);
 
@@ -1369,6 +1498,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.log("[LLM Options] No languages loaded, applying defaults.");
       }
 
+      chatQuickPrompts = sanitizeChatQuickPrompts(
+        data[STORAGE_KEY_CHAT_QUICK_PROMPTS],
+      );
+      if (chatQuickPrompts.length === 0) {
+        chatQuickPrompts = getDefaultChatQuickPrompts();
+      }
+
       // Load and parse XML prompt template
       currentPromptTemplate = data[STORAGE_KEY_PROMPT_TEMPLATE] || DEFAULT_XML_PROMPT_TEMPLATE;
 
@@ -1442,6 +1578,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentSummaryModelId = firstDefaultId;
       currentChatModelId = firstDefaultId;
       language_info = [];
+      chatQuickPrompts = getDefaultChatQuickPrompts();
 
       // Reset to default XML prompt template
       currentPromptTemplate = DEFAULT_XML_PROMPT_TEMPLATE;
@@ -1472,6 +1609,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     renderModelOptions();
     renderLanguageOptions();
+    renderChatQuickPromptOptions();
     calculateKbLimitForSummary();
     checkModelAndPricingData(); // Check pricing data on load
   }
@@ -1552,6 +1690,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       .filter((item) => item !== null)
       .slice(0, MAX_LANGUAGES);
 
+    const chatQuickPromptsToSave = chatQuickPrompts
+      .map((item) => {
+        const title = typeof item?.title === "string" ? item.title.trim() : "";
+        const prompt =
+          typeof item?.prompt === "string" ? item.prompt.trim() : "";
+        if (title === "" || prompt === "") return null;
+        return { title, prompt };
+      })
+      .filter((item) => item !== null)
+      .slice(0, MAX_CHAT_QUICK_PROMPTS);
+
+    if (chatQuickPromptsToSave.length !== chatQuickPrompts.length) {
+      chatQuickPrompts = chatQuickPromptsToSave.map((item) => ({ ...item }));
+      renderChatQuickPromptOptions();
+    }
+
     // Encrypt sensitive tokens
     const encryptedApiKey = apiKey ? await encryptSensitiveData(apiKey) : "";
     const encryptedNewsblurToken = newsblurTokenInput?.value.trim()
@@ -1573,6 +1727,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       [STORAGE_KEY_ALWAYS_USE_US_ENGLISH]: alwaysUseUsEnglish,
       [STORAGE_KEY_MAX_REQUEST_PRICE]: currentMaxRequestPrice,
       [STORAGE_KEY_MAX_PRICE_BEHAVIOR]: currentMaxPriceBehavior,
+      [STORAGE_KEY_CHAT_QUICK_PROMPTS]: chatQuickPromptsToSave,
       [STORAGE_KEY_ALSO_SEND_TO_JOPLIN]: alsoSendToJoplinCheckbox
         ? alsoSendToJoplinCheckbox.checked
         : false,
@@ -1689,6 +1844,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             : chrome.runtime.getURL("country-flags/svg/un.svg"),
         };
       });
+      chatQuickPrompts = getDefaultChatQuickPrompts();
 
       if (debugCheckbox) debugCheckbox.checked = DEFAULT_DEBUG_MODE;
       bulletCountRadios.forEach((radio) => {
@@ -1726,6 +1882,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       renderModelOptions();
       renderLanguageOptions();
+      renderChatQuickPromptOptions();
       calculateKbLimitForSummary();
       // Reset the radio button for max price behavior
       document.querySelector(
@@ -2112,6 +2269,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         addLangBtn.addEventListener("click", addLanguage);
       } else {
         console.error("[LLM Options] Add Language button not found.");
+      }
+      if (addChatQuickPromptBtn) {
+        addChatQuickPromptBtn.addEventListener("click", addChatQuickPrompt);
+      } else {
+        console.error("[LLM Options] Add Chat Quick Prompt button not found.");
       }
       if (resetButton) {
         resetButton.addEventListener("click", resetToDefaults);

@@ -959,4 +959,54 @@ textarea#promptUserFormattingEditable {
   box-shadow: var(--shadow-1);
 }
 
-textarea#promptFormatInstructions: focus, textarea#promptUserForm;
+textarea#promptFormatInstructions:focus,
+textarea#promptUserFormattingEditable:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(243, 115, 22, 0.1);
+}
+
+/* --- Chat Quick Prompt Buttons --- */
+#chatQuickPromptSelectionArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+#chatQuickPromptSelectionArea .chat-quick-prompt-option {
+  margin: 0;
+  align-items: flex-start;
+}
+
+.chat-quick-prompt-fields {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  gap: var(--spacing-md);
+}
+
+.chat-quick-prompt-title,
+.chat-quick-prompt-text {
+  width: 100%;
+  margin: 0;
+}
+
+.chat-quick-prompt-title {
+  min-height: 44px;
+}
+
+.chat-quick-prompt-text {
+  resize: vertical;
+  min-height: 80px;
+}
+
+@media (max-width: 820px) {
+  .chat-quick-prompt-fields {
+    grid-template-columns: 1fr;
+  }
+
+  #chatQuickPromptSelectionArea .chat-quick-prompt-option {
+    flex-wrap: wrap;
+  }
+}
