@@ -1,0 +1,90 @@
+time=2026-02-25T22:37:15.228+01:00 level=INFO msg="Daemon started (interval: %v, auto-commit: %v, auto-push: %v)" !BADKEY=5s !BADKEY=false !BADKEY=false
+time=2026-02-25T22:37:15.229+01:00 level=INFO msg="using database" path=/home/chuck/git/openrouter-summarizer/.beads/beads.db
+time=2026-02-25T22:37:15.325+01:00 level=INFO msg="database opened" path=/home/chuck/git/openrouter-summarizer/.beads/beads.db backend=sqlite freshness_checking=true
+time=2026-02-25T22:37:15.326+01:00 level=INFO msg="upgrading .beads/.gitignore"
+time=2026-02-25T22:37:15.326+01:00 level=WARN msg="failed to upgrade .gitignore" error="open .beads/.gitignore: no such file or directory"
+time=2026-02-25T22:37:15.330+01:00 level=INFO msg="Repository fingerprint validated: %s" !BADKEY=39c1bd7e
+time=2026-02-25T22:37:15.330+01:00 level=INFO msg="starting RPC server" socket=/home/chuck/git/openrouter-summarizer/.beads/bd.sock
+time=2026-02-25T22:37:15.336+01:00 level=INFO msg="RPC server ready (socket listening)"
+time=2026-02-25T22:37:15.351+01:00 level=INFO msg="registered in global registry"
+time=2026-02-25T22:37:15.352+01:00 level=INFO msg="Starting %s..." !BADKEY="sync cycle"
+time=2026-02-25T22:37:15.355+01:00 level=INFO msg="Pre-export validation failed: %v" !BADKEY="refusing to export: JSONL content has changed since last import (import first to avoid data loss)"
+time=2026-02-25T22:37:15.355+01:00 level=INFO msg="monitoring parent process" pid=0
+time=2026-02-25T22:37:15.355+01:00 level=INFO msg="using event-driven mode"
+time=2026-02-25T22:37:15.356+01:00 level=INFO msg="Auto-pull disabled: use 'git pull' manually to sync remote changes"
+time=2026-02-25T22:37:15.414+01:00 level=INFO msg="Mutation detected: %s %s" create=ORS-yel
+time=2026-02-25T22:37:15.597+01:00 level=INFO msg="Mutation detected: %s %s" create=ORS-en8
+time=2026-02-25T22:37:15.764+01:00 level=INFO msg="Mutation detected: %s %s" create=ORS-iqy
+time=2026-02-25T22:37:15.934+01:00 level=INFO msg="Mutation detected: %s %s" create=ORS-azh
+time=2026-02-25T22:37:16.097+01:00 level=INFO msg="Mutation detected: %s %s" create=ORS-jp0
+time=2026-02-25T22:37:16.311+01:00 level=INFO msg="Mutation detected: %s %s" update=ORS-en8
+time=2026-02-25T22:37:16.574+01:00 level=INFO msg="Mutation detected: %s %s" update=ORS-iqy
+time=2026-02-25T22:37:16.723+01:00 level=INFO msg="Mutation detected: %s %s" update=ORS-azh
+time=2026-02-25T22:37:16.843+01:00 level=INFO msg="Mutation detected: %s %s" update=ORS-jp0
+time=2026-02-25T22:37:16.971+01:00 level=INFO msg="Mutation detected: %s %s" update=ORS-jp0
+time=2026-02-25T22:37:17.117+01:00 level=INFO msg="Mutation detected: %s %s" update=ORS-jp0
+time=2026-02-25T22:37:17.234+01:00 level=INFO msg="Mutation detected: %s %s" update=ORS-jp0
+time=2026-02-25T22:37:17.369+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-yel
+time=2026-02-25T22:37:17.511+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-en8
+time=2026-02-25T22:37:17.650+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-iqy
+time=2026-02-25T22:37:17.791+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-azh
+time=2026-02-25T22:37:18.013+01:00 level=INFO msg="JSONL file created: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:37:18.013+01:00 level=INFO msg="File change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:37:18.292+01:00 level=INFO msg="Export triggered by mutation events"
+time=2026-02-25T22:37:18.292+01:00 level=INFO msg="Starting %s..." !BADKEY=export
+time=2026-02-25T22:37:18.293+01:00 level=INFO msg="Pre-export validation failed: %v" !BADKEY="refusing to export: JSONL content has changed since last import (import first to avoid data loss)"
+time=2026-02-25T22:37:19.015+01:00 level=INFO msg="Import triggered by file change"
+time=2026-02-25T22:37:19.015+01:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-25T22:37:19.016+01:00 level=INFO msg="JSONL content changed, proceeding with %s..." !BADKEY=auto-import
+time=2026-02-25T22:37:19.021+01:00 level=INFO msg="⚠️  WARNING: Uncommitted local changes detected in %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:37:19.022+01:00 level=INFO msg="   Pulling from remote may overwrite local unpushed changes."
+time=2026-02-25T22:37:19.022+01:00 level=INFO msg="   Consider running 'bd sync' to commit and push your changes first."
+time=2026-02-25T22:37:20.839+01:00 level=INFO msg="Pull failed: %v (backoff: %v)" !BADKEY="git pull failed: exit status 1\nfatal: couldn't find remote ref buttons\n" !BADKEY=30s
+time=2026-02-25T22:37:26.201+01:00 level=INFO msg="JSONL file created: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:37:26.201+01:00 level=INFO msg="File change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:37:27.203+01:00 level=INFO msg="Import triggered by file change"
+time=2026-02-25T22:37:27.204+01:00 level=INFO msg="Skipping %s: in backoff period" !BADKEY=auto-import
+time=2026-02-25T22:42:17.119+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-en8
+time=2026-02-25T22:42:17.418+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-iqy
+time=2026-02-25T22:42:17.720+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-azh
+time=2026-02-25T22:42:17.987+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-jp0
+time=2026-02-25T22:42:18.212+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-jp0
+time=2026-02-25T22:42:18.403+01:00 level=INFO msg="Mutation detected: %s %s" status=ORS-yel
+time=2026-02-25T22:42:18.661+01:00 level=INFO msg="JSONL file created: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:42:18.661+01:00 level=INFO msg="File change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:42:18.904+01:00 level=INFO msg="Export triggered by mutation events"
+time=2026-02-25T22:42:18.905+01:00 level=INFO msg="Starting %s..." !BADKEY=export
+time=2026-02-25T22:42:18.906+01:00 level=INFO msg="Pre-export validation failed: %v" !BADKEY="refusing to export: JSONL content has changed since last import (import first to avoid data loss)"
+time=2026-02-25T22:42:19.662+01:00 level=INFO msg="Import triggered by file change"
+time=2026-02-25T22:42:19.662+01:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-25T22:42:19.663+01:00 level=INFO msg="JSONL content changed, proceeding with %s..." !BADKEY=auto-import
+time=2026-02-25T22:42:19.668+01:00 level=INFO msg="⚠️  WARNING: Uncommitted local changes detected in %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:42:19.668+01:00 level=INFO msg="   Pulling from remote may overwrite local unpushed changes."
+time=2026-02-25T22:42:19.668+01:00 level=INFO msg="   Consider running 'bd sync' to commit and push your changes first."
+time=2026-02-25T22:42:21.409+01:00 level=INFO msg="Pull failed: %v (backoff: %v)" !BADKEY="git pull failed: exit status 1\nfatal: couldn't find remote ref buttons\n" !BADKEY=1m0s
+time=2026-02-25T22:43:15.523+01:00 level=INFO msg="JSONL file created: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:43:15.523+01:00 level=INFO msg="File change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:43:15.567+01:00 level=INFO msg="Git ref change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.git/refs/heads/buttons.lock
+time=2026-02-25T22:43:16.568+01:00 level=INFO msg="Import triggered by file change"
+time=2026-02-25T22:43:16.570+01:00 level=INFO msg="Skipping %s: in backoff period" !BADKEY=auto-import
+time=2026-02-25T22:50:04.361+01:00 level=INFO msg="Git ref change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.git/refs/heads/main.lock
+time=2026-02-25T22:50:05.362+01:00 level=INFO msg="Import triggered by file change"
+time=2026-02-25T22:50:05.364+01:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-25T22:50:05.364+01:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-25T22:55:01.395+01:00 level=INFO msg="JSONL file created: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:55:01.395+01:00 level=INFO msg="File change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:55:01.436+01:00 level=INFO msg="Git ref change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.git/refs/heads/main.lock
+time=2026-02-25T22:55:02.437+01:00 level=INFO msg="Import triggered by file change"
+time=2026-02-25T22:55:02.438+01:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-25T22:55:02.439+01:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-25T22:55:08.616+01:00 level=INFO msg="JSONL file created: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:55:08.616+01:00 level=INFO msg="File change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:55:09.616+01:00 level=INFO msg="Import triggered by file change"
+time=2026-02-25T22:55:09.617+01:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-25T22:55:09.617+01:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
+time=2026-02-25T22:56:22.830+01:00 level=INFO msg="JSONL file created: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:56:22.830+01:00 level=INFO msg="File change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.beads/issues.jsonl
+time=2026-02-25T22:56:22.866+01:00 level=INFO msg="Git ref change detected: %s" !BADKEY=/home/chuck/git/openrouter-summarizer/.git/refs/heads/main.lock
+time=2026-02-25T22:56:23.868+01:00 level=INFO msg="Import triggered by file change"
+time=2026-02-25T22:56:23.869+01:00 level=INFO msg="Starting %s..." !BADKEY=auto-import
+time=2026-02-25T22:56:23.869+01:00 level=INFO msg="Skipping %s: JSONL content unchanged" !BADKEY=auto-import
