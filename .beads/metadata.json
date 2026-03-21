@@ -2,6 +2,6 @@
   "database": "dolt",
   "backend": "dolt",
   "dolt_mode": "server",
-  "dolt_database": "ORS",
-  "project_id": "3662f1b7-7d1e-48ce-aef3-fe7a0954ade1"
+  "dolt_database": "openrouter_summarizer",
+  "project_id": "f674184a-6192-48db-9c68-4462ba635d3b"
 }
