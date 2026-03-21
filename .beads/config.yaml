@@ -52,3 +52,9 @@
 # - linear.api-key
 # - github.org
 # - github.repo
+
+federation.remote: "http://doltsrv.lan:50051/chuck/openrouter-summarizer"
+
+sync.branch: "main"
+
+sync.git-remote: false
