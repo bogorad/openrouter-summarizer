@@ -65,7 +65,9 @@ _Featuring interactive chat, native HTML summaries, flexible options, and robust
 
 The OpenRouter Summarizer follows a modular architecture with clear separation of concerns between content scripts, background services, and user interfaces. The full architecture schematic is available as a PDF:
 
-📄 **[docs/schematic.pdf](docs/schematic.pdf)** — generated from [`docs/schematic.typ`](docs/schematic.typ)
+![Architecture Schematic](docs/schematic.png)
+
+_Source: [`docs/schematic.typ`](docs/schematic.typ)_
 
 ### Key Components
 
