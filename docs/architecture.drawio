@@ -1,0 +1,250 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" version="29.6.6">
+  <diagram id="openrouter-summarizer" name="OpenRouter Summarizer — Architecture v3.9.42">
+    <mxGraphModel dx="1678" dy="1055" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="user" parent="1" style="rounded=1;arcSize=20;fillColor=#e1f5fe;strokeColor=#01579b;fontStyle=0;fontSize=8;" value="User" vertex="1">
+          <mxGeometry height="26" width="110" x="460" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="webpage" parent="1" style="rounded=1;arcSize=20;fillColor=#e1f5fe;strokeColor=#01579b;fontStyle=0;fontSize=8;" value="Web Page" vertex="1">
+          <mxGeometry height="26" width="110" x="140" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="optpage" parent="1" style="rounded=1;arcSize=20;fillColor=#e1f5fe;strokeColor=#01579b;fontStyle=0;fontSize=8;" value="Options Page" vertex="1">
+          <mxGeometry height="26" width="110" x="810" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="chatpage" parent="1" style="rounded=1;arcSize=20;fillColor=#e1f5fe;strokeColor=#01579b;fontStyle=0;fontSize=8;" value="Chat Page" vertex="1">
+          <mxGeometry height="26" width="110" x="460" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="cslayer" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="Content Script Layer" vertex="1">
+          <mxGeometry height="26" width="110" x="140" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="optjs" parent="1" style="rounded=1;arcSize=20;fillColor=#e1f5fe;strokeColor=#01579b;fontStyle=0;fontSize=8;" value="options.js" vertex="1">
+          <mxGeometry height="26" width="110" x="810" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="chatjs" parent="1" style="rounded=1;arcSize=20;fillColor=#e1f5fe;strokeColor=#01579b;fontStyle=0;fontSize=8;" value="chat.js" vertex="1">
+          <mxGeometry height="26" width="110" x="460" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="pi" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="pageInteraction.js" vertex="1">
+          <mxGeometry height="26" width="110" x="140" y="275" as="geometry" />
+        </mxCell>
+        <mxCell id="hl" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="highlighter.js" vertex="1">
+          <mxGeometry height="26" width="110" x="20" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="fi" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="floatingIcon.js" vertex="1">
+          <mxGeometry height="26" width="110" x="140" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="sp" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="summaryPopup.js" vertex="1">
+          <mxGeometry height="26" width="110" x="410" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="hs" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="htmlSanitizer.js" vertex="1">
+          <mxGeometry height="26" width="110" x="20" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="ut" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="utils.js" vertex="1">
+          <mxGeometry height="26" width="110" x="140" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="co" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="constants.js" vertex="1">
+          <mxGeometry height="26" width="110" x="260" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="td" parent="1" style="rounded=1;arcSize=20;fillColor=#fff3e0;strokeColor=#e65100;fontStyle=0;fontSize=8;" value="TurndownService" vertex="1">
+          <mxGeometry height="26" width="110" x="300" y="216" as="geometry" />
+        </mxCell>
+        <mxCell id="md" parent="1" style="rounded=1;arcSize=20;fillColor=#fff3e0;strokeColor=#e65100;fontStyle=0;fontSize=8;" value="marked.js" vertex="1">
+          <mxGeometry height="26" width="110" x="300" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="bgsw" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=1;fontSize=8;" value="Background SW" vertex="1">
+          <mxGeometry height="26" width="110" x="810" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="bgjs" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=0;fontSize=8;" value="background.js" vertex="1">
+          <mxGeometry height="26" width="110" x="810" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="sh" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=0;fontSize=8;" value="summaryHandler.js" vertex="1">
+          <mxGeometry height="26" width="110" x="570" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="ch" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=0;fontSize=8;" value="chatHandler.js" vertex="1">
+          <mxGeometry height="26" width="110" x="690" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="sm" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=0;fontSize=8;" value="settingsManager.js" vertex="1">
+          <mxGeometry height="26" width="110" x="810" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="ccm" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=0;fontSize=8;" value="chatContextManager.js" vertex="1">
+          <mxGeometry height="26" width="120" x="930" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="ps" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=0;fontSize=8;" value="pricingService.js" vertex="1">
+          <mxGeometry height="26" width="110" x="570" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="ua" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=0;fontSize=8;" value="uiActions.js" vertex="1">
+          <mxGeometry height="26" width="110" x="690" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="bu" parent="1" style="rounded=1;arcSize=20;fillColor=#e8f5e8;strokeColor=#1b5e20;fontStyle=0;fontSize=8;" value="backgroundUtils.js" vertex="1">
+          <mxGeometry height="26" width="110" x="810" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="cstore" parent="1" style="rounded=1;arcSize=20;fillColor=#fce4ec;strokeColor=#880e4f;fontStyle=1;fontSize=8;" value="Chrome Storage" vertex="1">
+          <mxGeometry height="26" width="110" x="960" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="ssync" parent="1" style="rounded=1;arcSize=20;fillColor=#fce4ec;strokeColor=#880e4f;fontStyle=0;fontSize=8;" value="storage.sync" vertex="1">
+          <mxGeometry height="26" width="110" x="1040" y="296" as="geometry" />
+        </mxCell>
+        <mxCell id="ssess" parent="1" style="rounded=1;arcSize=20;fillColor=#fce4ec;strokeColor=#880e4f;fontStyle=0;fontSize=8;" value="storage.session" vertex="1">
+          <mxGeometry height="26" width="110" x="1040" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="or" parent="1" style="rounded=1;arcSize=20;fillColor=#fff3e0;strokeColor=#e65100;fontStyle=1;fontSize=8;" value="OpenRouter API" vertex="1">
+          <mxGeometry height="26" width="110" x="410" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="japi" parent="1" style="rounded=1;arcSize=20;fillColor=#fff3e0;strokeColor=#e65100;fontStyle=1;fontSize=8;" value="Joplin API" vertex="1">
+          <mxGeometry height="26" width="110" x="410" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="nb" parent="1" style="rounded=1;arcSize=20;fillColor=#fff3e0;strokeColor=#e65100;fontStyle=1;fontSize=8;" value="NewsBlur API" vertex="1">
+          <mxGeometry height="26" width="110" x="40" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="e-user-webpage" edge="1" parent="1" source="user" style="endArrow=block;endFill=1;strokeWidth=0.7;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="webpage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-user-optpage" edge="1" parent="1" source="user" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="optpage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-user-chatpage" edge="1" parent="1" source="user" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="chatpage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-webpage-cslayer" edge="1" parent="1" source="webpage" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="cslayer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-cslayer-pi" edge="1" parent="1" source="cslayer" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="pi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-hl" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="hl">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-fi" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="fi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-sp" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="sp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-jm" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="jm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-hs" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="hs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-ut" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="ut">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-co" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="co">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-td" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="td">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-md" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="md">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-bgsw" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="bgsw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pi-nb" edge="1" parent="1" source="pi" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="nb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgsw-bgjs" edge="1" parent="1" source="bgsw" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="bgjs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgjs-sh" edge="1" parent="1" source="bgjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="sh">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgjs-ch" edge="1" parent="1" source="bgjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="ch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgjs-sm" edge="1" parent="1" source="bgjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="sm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgjs-ccm" edge="1" parent="1" source="bgjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="ccm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgjs-ps" edge="1" parent="1" source="bgjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="ps">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgjs-ua" edge="1" parent="1" source="bgjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="ua">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgjs-bu" edge="1" parent="1" source="bgjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="bu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgjs-cstore" edge="1" parent="1" source="bgjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="cstore">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-cstore-ssync" edge="1" parent="1" source="cstore" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="ssync">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-cstore-ssess" edge="1" parent="1" source="cstore" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="ssess">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-sh-or" edge="1" parent="1" source="sh" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="or">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ch-or" edge="1" parent="1" source="ch" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="or">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ps-or" edge="1" parent="1" source="ps" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="or">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-jm-japi" edge="1" parent="1" source="jm" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="japi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-optpage-optjs" edge="1" parent="1" source="optpage" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="optjs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-optjs-bgsw" edge="1" parent="1" source="optjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="bgsw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-optjs-cstore" edge="1" parent="1" source="optjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="cstore">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-chatpage-chatjs" edge="1" parent="1" source="chatpage" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="chatjs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-chatjs-bgsw" edge="1" parent="1" source="chatjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="bgsw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-chatjs-ut" edge="1" parent="1" source="chatjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="ut">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-chatjs-co" edge="1" parent="1" source="chatjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="co">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-chatjs-md" edge="1" parent="1" source="chatjs" style="endArrow=block;endFill=1;strokeWidth=0.7;" target="md">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-hl-fi" edge="1" parent="1" source="hl" style="dashed=1;endArrow=open;endFill=0;strokeWidth=0.7;fontSize=7;fontColor=#555555;" target="fi" value="DOM sel.">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-fi-sp" edge="1" parent="1" source="jm" style="dashed=1;endArrow=open;endFill=0;strokeWidth=0.7;fontSize=7;fontColor=#555555;" target="sp" value="user action">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-sp-bgsw" edge="1" parent="1" source="sp" style="dashed=1;endArrow=open;endFill=0;strokeWidth=0.7;fontSize=7;fontColor=#555555;" target="bgsw" value="req.">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bgsw-sp" edge="1" parent="1" source="bgsw" style="dashed=1;endArrow=open;endFill=0;strokeWidth=0.7;fontSize=7;fontColor=#555555;" target="sp" value="resp.">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-sp-chatpage" edge="1" parent="1" source="sp" style="dashed=1;endArrow=open;endFill=0;strokeWidth=0.7;fontSize=7;fontColor=#555555;" target="chatpage" value="chat req.">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zwAOIw94XV1EEKd-6x_u-1" edge="1" parent="1" source="fi" style="dashed=1;endArrow=open;endFill=0;strokeWidth=0.7;fontSize=7;fontColor=#555555;" target="jm" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+            <mxPoint x="250" y="373" as="sourcePoint" />
+            <mxPoint x="540" y="373" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="jm" parent="1" style="rounded=1;arcSize=20;fillColor=#f3e5f5;strokeColor=#4a148c;fontStyle=0;fontSize=8;" value="joplinManager.js" vertex="1">
+          <mxGeometry height="26" width="110" x="270" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="zwAOIw94XV1EEKd-6x_u-2" edge="1" parent="1" source="japi" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.398;entryY=0.106;entryDx=0;entryDy=0;entryPerimeter=0;" target="japi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
