@@ -22,6 +22,19 @@ The extension follows a modular architecture:
 - **UI Pages (`options.html`, `chat.html`):** Provide interfaces for configuring the extension and interacting with the chat functionality.
 - **Modules:** The codebase is well-organized into modules for specific functionalities like highlighting, popups, API interactions, and settings management.
 
+## Architecture Schematic
+
+The architecture diagram lives in `docs/schematic.typ` (Typst source).
+After editing it, regenerate the outputs:
+
+```bash
+typst compile docs/schematic.typ docs/schematic.pdf
+typst compile docs/schematic.typ docs/schematic.png --format png --ppi 150 --pages 1
+magick docs/schematic.png -trim +repage docs/schematic.png
+```
+
+Commit all three files (`schematic.typ`, `schematic.pdf`, `schematic.png`) together.
+
 ## Building and Running
 
 **Building the Extension:**
