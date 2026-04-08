@@ -52,3 +52,14 @@
 # - linear.api-key
 # - github.org
 # - github.repo
+
+dolt.host: "doltsrv.lan"
+
+dolt.port: 3307
+
+dolt.database: "openrouter_summarizer"
+
+dolt.user: "root"
+
+
+backup.enabled: false
