@@ -20,7 +20,7 @@
 # output:
 #   title-length: 255
 
-# Default actor for audit trails (overridden by BD_ACTOR or --actor)
+# Default actor for audit trails (overridden by BEADS_ACTOR or --actor)
 # actor: ""
 
 # Export events (audit trail) to .beads/events.jsonl on each flush/sync
@@ -52,9 +52,3 @@
 # - linear.api-key
 # - github.org
 # - github.repo
-
-federation.remote: "http://doltsrv.lan:50051/chuck/openrouter-summarizer"
-
-sync.branch: "main"
-
-sync.git-remote: false
