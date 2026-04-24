@@ -47,7 +47,7 @@ import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
 import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
 import { Logger, setDebugMode } from "./js/logger.js";
 
-Logger.info("[LLM Background]", "Service Worker Start (v3.8.0 - HTML Summary Format)");
+Logger.info("[LLM Background]", "Service Worker Start (v3.9.43)");
 
 let DEBUG = false;
 const DEFAULT_BULLET_COUNT = "5";

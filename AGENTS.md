@@ -85,8 +85,8 @@ The `CONVENTIONS.md` file outlines the development guidelines for this project. 
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
-   # NOTE: `bd sync` exports Beads JSONL; it does NOT stage/commit.
+   bd export --no-memories -o .beads/issues.jsonl
+   git add .beads/issues.jsonl
    git push
    git status  # MUST show "up to date with origin"
    ```
@@ -123,22 +123,23 @@ bd create --title="..." --type=task --priority=2
 bd update <id> --status=in_progress
 bd close <id> --reason="Completed"
 bd close <id1> <id2>  # Close multiple issues at once
-bd sync               # Export Beads DB to JSONL (no git commit)
+bd export --no-memories -o .beads/issues.jsonl  # Export Beads DB to JSONL
 ```
 
 ### Decisions (2026-02-15)
 
 - `.beads/export-state/` is local-only; keep it gitignored and untracked. It stores absolute paths/timestamps and changes frequently.
-- `bd sync` exports `.beads/issues.jsonl`. It does not stage, commit, or push.
-- When the user says "land the plane" (or explicitly requests push), run: `git pull --rebase` -> `bd sync` -> stage/commit -> `git push` -> `git status`.
+- `bd export --no-memories -o .beads/issues.jsonl` exports the Dolt-backed issues to `.beads/issues.jsonl`.
+- `.beads/hooks/pre-commit` runs that export and stages `.beads/issues.jsonl` before each commit.
+- When the user says "land the plane" (or explicitly requests push), run: `git pull --rebase` -> `bd export --no-memories -o .beads/issues.jsonl` -> stage/commit -> `git push` -> `git status`.
 
 ### Workflow Pattern
 
 1. **Start**: Run `bd ready` to find actionable work
-2. **Claim**: Use `bd update <id> --status=in_progress` and immediately `bd sync --flush-only`
+2. **Claim**: Use `bd update <id> --status=in_progress --json`
 3. **Work**: Implement the task
-4. **Complete**: Use `bd close <id>` and immediately `bd sync --flush-only`
-5. **Sync**: Always run `bd sync` at session end
+4. **Complete**: Use `bd close <id> --reason="Completed" --json`
+5. **Export**: Run `bd export --no-memories -o .beads/issues.jsonl` before ending the session
 
 ### Key Concepts
 
@@ -154,9 +155,9 @@ bd sync               # Export Beads DB to JSONL (no git commit)
 ```bash
 git status              # Check what changed
 git add <files>         # Stage code changes
-bd sync                 # Export Beads JSONL (no git commit)
+bd export --no-memories -o .beads/issues.jsonl
+git add .beads/issues.jsonl
 git commit -m "..."     # Commit code
-bd sync                 # Export again if needed
 git push                # Push to remote
 ```
 
@@ -166,7 +167,7 @@ git push                # Push to remote
 - Update status as you work (in_progress → closed)
 - Create new issues with `bd create` when you discover tasks
 - Use descriptive titles and set appropriate priority/type
-- Always `bd sync` before ending session
+- Always export Beads state with `bd export --no-memories -o .beads/issues.jsonl` before ending session
 
 <!-- end-bv-agent-instructions -->
 

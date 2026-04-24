@@ -220,15 +220,53 @@ function createJoplinPopupBase() {
 }
 
 /**
+ * Creates a paragraph for popup status and error text.
+ * @param {string} text - Text to show in the paragraph.
+ * @returns {HTMLParagraphElement} Paragraph element.
+ */
+function createJoplinPopupParagraph(text) {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = text;
+    return paragraph;
+}
+
+/**
+ * Creates the notebook selection controls.
+ * @returns {DocumentFragment} Notebook selection UI.
+ */
+function createNotebookSelectionContent() {
+    const fragment = document.createDocumentFragment();
+    const label = createJoplinPopupParagraph("Type to search or select a notebook:");
+    const inputWrapper = document.createElement("div");
+    const input = document.createElement("input");
+
+    inputWrapper.style.position = "relative";
+    inputWrapper.style.width = "100%";
+    input.type = "text";
+    input.placeholder = "Search notebooks...";
+    input.className = "joplin-notebook-search-input";
+
+    inputWrapper.appendChild(input);
+    fragment.appendChild(label);
+    fragment.appendChild(inputWrapper);
+    return fragment;
+}
+
+/**
  * Updates the content of the Joplin popup body.
- * @param {string} htmlContent - The HTML content to set for the body.
+ * @param {Node|string} content - DOM content or text to set for the body.
  * @param {boolean} [isPlaceholder=false] - True if the content is a placeholder (e.g., loading message).
  */
-function updateJoplinPopupBodyContent(htmlContent, isPlaceholder = false) {
+function updateJoplinPopupBodyContent(content, isPlaceholder = false) {
     if (!joplinPopupElement) return;
     const bodyDiv = joplinPopupElement.querySelector(`.${JOPLIN_POPUP_BODY_CLASS}`);
     if (bodyDiv) {
-        bodyDiv.innerHTML = htmlContent;
+        bodyDiv.replaceChildren();
+        if (content instanceof Node) {
+            bodyDiv.appendChild(content);
+        } else {
+            bodyDiv.appendChild(createJoplinPopupParagraph(String(content || "")));
+        }
         bodyDiv.classList.toggle('placeholder-content', isPlaceholder); // Add/remove class for placeholder styling
         if (DEBUG) console.log("[LLM JoplinManager] Joplin popup body content updated.");
     }
@@ -565,7 +603,7 @@ export async function fetchAndShowNotebookSelection(joplinToken, content, source
     popup.style.display = "flex"; // Show the loading popup
     popup.classList.add("visible");
     // Use isPlaceholder = true for loading message
-    updateJoplinPopupBodyContent("<p>Fetching notebooks from Joplin...</p>", true);
+    updateJoplinPopupBodyContent("Fetching notebooks from Joplin...", true);
     enableJoplinButtons(false); // Disable save button initially
 
     enableJoplinPopupFocusTrap();
@@ -592,7 +630,7 @@ export async function fetchAndShowNotebookSelection(joplinToken, content, source
             const sortedFolders = response.folders.sort((a, b) => a.title.localeCompare(b.title));
             renderNotebookSelectionPopup(joplinToken, sortedFolders);
         } else if (response.status === "success" && response.folders.length === 0) {
-            updateJoplinPopupBodyContent("<p>No Joplin notebooks found. Please create one in Joplin.</p>", true);
+            updateJoplinPopupBodyContent("No Joplin notebooks found. Please create one in Joplin.", true);
             // Even if no notebooks, allow user to cancel. Keep save disabled.
             enableJoplinButtons(false);
             if (DEBUG) console.log("[LLM JoplinManager] No Joplin notebooks returned.");
@@ -602,7 +640,7 @@ export async function fetchAndShowNotebookSelection(joplinToken, content, source
     } catch (error) {
         console.error("[LLM JoplinManager] Error fetching Joplin notebooks:", error);
         showError(`Error fetching Joplin notebooks: ${error.message}`, true, NOTIFICATION_TIMEOUT_CRITICAL_MS);
-        updateJoplinPopupBodyContent(`<p>Error: ${error.message}</p>`, true); // Pass true for placeholder flag
+        updateJoplinPopupBodyContent(`Error: ${error.message}`, true); // Pass true for placeholder flag
         enableJoplinButtons(false);
          // Keep popup visible for error message unless it's a transient error
          // For critical errors (like token missing, network issues), keep it visible
@@ -621,13 +659,7 @@ function renderNotebookSelectionPopup(joplinToken, folders) {
         return;
     }
 
-    const selectHtml = `
-        <p>Type to search or select a notebook:</p>
-        <div style="position: relative; width: 100%;">
-            <input type="text" placeholder="Search notebooks..." class="joplin-notebook-search-input">
-        </div>
-    `;
-    updateJoplinPopupBodyContent(selectHtml);
+    updateJoplinPopupBodyContent(createNotebookSelectionContent());
     enableJoplinButtons(false); // Disable save button initially, it will be enabled on selection
 
     const notebookSearchInput = joplinPopupElement.querySelector('.joplin-notebook-search-input');
@@ -668,7 +700,7 @@ function renderNotebookSelectionPopup(joplinToken, folders) {
         notebookSearchInput.value = initialNotebook.title;
         enableJoplinButtons(true);
     } else {
-        updateJoplinPopupBodyContent("<p>No Joplin notebooks found. Please create one in Joplin, or click 'Cancel'.</p>", true);
+        updateJoplinPopupBodyContent("No Joplin notebooks found. Please create one in Joplin, or click 'Cancel'.", true);
         notebookSearchInput.disabled = true; // Disable input if no notebooks
         saveBtn.disabled = true;
     }

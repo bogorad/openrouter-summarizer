@@ -5,10 +5,16 @@
 import { MAX_ERROR_LOG_ENTRIES } from "../constants.js";
 import { Logger } from "./logger.js";
 
+let userErrorNotifier = null;
+
 export const ErrorSeverity = {
   FATAL: 'fatal',
   WARNING: 'warning',
   INFO: 'info'
+};
+
+export const setErrorNotifier = (notifier) => {
+  userErrorNotifier = typeof notifier === "function" ? notifier : null;
 };
 
 /**
@@ -42,9 +48,13 @@ export class ErrorHandler {
     this.trackError(errorInfo);
     
     // Show user-friendly message if requested
-    if (showToUser && typeof showError !== 'undefined') {
+    if (showToUser && userErrorNotifier) {
       const userMessage = this.getUserFriendlyMessage(error, context);
-      showError(userMessage, severity === ErrorSeverity.FATAL);
+      try {
+        userErrorNotifier(userMessage, severity === ErrorSeverity.FATAL);
+      } catch (notifyError) {
+        Logger.warn("[ErrorHandler] Failed to notify user:", notifyError);
+      }
     }
     
     return errorId;

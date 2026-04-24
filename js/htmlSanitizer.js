@@ -87,13 +87,72 @@ export const SANITIZATION_CONFIG = {
   }
 };
 
+const SAFE_HREF_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+const SAFE_SRC_PROTOCOLS = new Set(['http:', 'https:']);
+
 /**
- * HTML sanitization function - removes unwanted classes and elements
- * @param {string} htmlString - Raw HTML string to sanitize
- * @param {Object} options - Sanitization options
- * @param {boolean} options.debug - Enable debug logging
- * @returns {string} - Sanitized HTML string
+ * Escapes HTML so sanitizer failures return inert text instead of unsafe markup.
+ * @param {string} value - Raw fallback text.
+ * @returns {string} HTML-escaped fallback text.
  */
+const escapeHtmlFallback = (value) => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+/**
+ * Gets a stable base URL for validating relative URL attribute values.
+ * @returns {string} Base URL for URL parsing.
+ */
+const getSanitizerBaseUrl = () => {
+  if (typeof document !== 'undefined' && document.baseURI) {
+    return document.baseURI;
+  }
+
+  if (typeof window !== 'undefined' && window.location?.href) {
+    return window.location.href;
+  }
+
+  return 'https://example.invalid/';
+};
+
+/**
+ * Checks whether an href/src value is safe to keep on sanitized HTML.
+ * @param {string} attrName - Attribute name being checked.
+ * @param {string} attrValue - Attribute value being checked.
+ * @returns {boolean} True when the URL uses an allowed protocol.
+ */
+const isSafeUrlAttributeValue = (attrName, attrValue) => {
+  const value = String(attrValue || '').trim();
+  if (!value) return false;
+
+  const normalizedValue = value.replace(/[\u0000-\u001F\u007F\s]+/g, '');
+  if (!normalizedValue) return false;
+
+  try {
+    const url = new URL(normalizedValue, getSanitizerBaseUrl());
+    if (attrName === 'href') return SAFE_HREF_PROTOCOLS.has(url.protocol);
+    if (attrName === 'src') return SAFE_SRC_PROTOCOLS.has(url.protocol);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+/**
+ * Removes unsafe URL-valued attributes from a sanitized element.
+ * @param {Element} el - Element whose URL attributes should be checked.
+ */
+const removeUnsafeUrlAttributes = (el) => {
+  ['href', 'src'].forEach(attrName => {
+    if (!el.hasAttribute(attrName)) return;
+    if (isSafeUrlAttributeValue(attrName, el.getAttribute(attrName))) return;
+    el.removeAttribute(attrName);
+  });
+};
+
 /**
  * Removes elements by class name using word-boundary matching
  * @param {Element} container - The container element
@@ -119,6 +178,13 @@ const removeElementsByClassNames = (container, classNames, debug = false) => {
   });
 };
 
+/**
+ * HTML sanitization function - removes unwanted classes and elements
+ * @param {string} htmlString - Raw HTML string to sanitize
+ * @param {Object} options - Sanitization options
+ * @param {boolean} options.debug - Enable debug logging
+ * @returns {string} - Sanitized HTML string
+ */
 export function sanitizeHtml(htmlString, options = {}) {
   const {
     debug = false
@@ -196,6 +262,7 @@ export function sanitizeHtml(htmlString, options = {}) {
         }
       });
 
+      removeUnsafeUrlAttributes(el);
 
     });
 
@@ -239,23 +306,21 @@ export function sanitizeHtml(htmlString, options = {}) {
 
   } catch (error) {
     Logger.error("[HTML Sanitizer]", "Error during HTML sanitization:", error);
-    // Return original HTML as fallback
-    return htmlString;
+    return escapeHtmlFallback(htmlString);
   }
 }
 
 /**
- * Quick clean - removes NOTHING (fallback mode)
+ * Quick clean fallback that still returns sanitized HTML.
  * @param {string} htmlString - HTML string
- * @returns {string} - Original HTML with no changes
+ * @returns {string} - Sanitized HTML
  */
 export function quickCleanHtml(htmlString) {
   if (!htmlString || typeof htmlString !== 'string') {
     return '';
   }
 
-  // DO NOTHING - return original HTML
-  return htmlString;
+  return sanitizeHtml(htmlString);
 }
 
 /**

@@ -16,6 +16,9 @@ import * as constants from "../constants.js"; // Import all constants as an obje
 import { decryptSensitiveData } from "./encryption.js";
 import { Logger } from "./logger.js";
 
+const STORAGE_KEY_MAX_PRICE_BEHAVIOR = "maxPriceBehavior";
+const DEFAULT_MAX_PRICE_BEHAVIOR = "truncate";
+
 const isValidChatQuickPrompts = (quickPrompts) => {
   return (
     Array.isArray(quickPrompts) &&
@@ -53,6 +56,7 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
     STORAGE_KEY_BULLET_COUNT,
     STORAGE_KEY_LANGUAGE_INFO,
     STORAGE_KEY_MAX_REQUEST_PRICE,
+    STORAGE_KEY_MAX_PRICE_BEHAVIOR,
     STORAGE_KEY_CHAT_QUICK_PROMPTS,
   ];
 
@@ -80,12 +84,14 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
         Logger.error("[LLM Settings Manager]", "Failed to decrypt NewsBlur token:", newsblurResult.error);
       }
       const newsblurToken = newsblurResult.data;
+      const hasApiKey = typeof apiKey === "string" && apiKey.trim() !== "";
+      const hasNewsblurToken = typeof newsblurToken === "string" && newsblurToken.trim() !== "";
 
       if (DEBUG) {
         Logger.info("[LLM Settings Manager]", "handleGetSettings: Storage data retrieved.", {
           ...data,
-          apiKey: apiKey ? "[API Key Hidden]" : undefined,
-          newsblurToken: newsblurToken ? "[NewsBlur Token Hidden]" : undefined,
+          hasApiKey,
+          hasNewsblurToken,
           // Explicitly log raw storage data for exhaustive debugging
           rawAllData: { ...data, apiKey: '[REDACTED]', newsblurToken: '[REDACTED]' }
         });
@@ -162,7 +168,7 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
       }
 
       const settings = {
-        apiKey: apiKey,
+        hasApiKey,
         models: loadedModels,
         summaryModelId: finalSummaryModelId,
         chatModelId: finalChatModelId,
@@ -173,7 +179,10 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
           : [],
         maxRequestPrice:
           data[STORAGE_KEY_MAX_REQUEST_PRICE] || currentGlobalDefaults.DEFAULT_MAX_REQUEST_PRICE,
-        newsblurToken: newsblurToken,
+        maxPriceBehavior: data[STORAGE_KEY_MAX_PRICE_BEHAVIOR] === "fail"
+          ? "fail"
+          : DEFAULT_MAX_PRICE_BEHAVIOR,
+        hasNewsblurToken,
         chatQuickPrompts: isValidChatQuickPrompts(data[STORAGE_KEY_CHAT_QUICK_PROMPTS])
           ? data[STORAGE_KEY_CHAT_QUICK_PROMPTS].map((item) => ({
             title: item.title.trim(),
@@ -184,12 +193,10 @@ export async function handleGetSettings(sendResponse, DEBUG, currentGlobalDefaul
       if (DEBUG) {
         Logger.info("[LLM Settings Manager]", "handleGetSettings: Sending settings response - OK.", {
           ...settings,
-          apiKey: settings.apiKey ? "[Hidden]" : "",
-          newsblurToken: settings.newsblurToken ? "[Hidden]" : "", // Ensure sensitive tokens are hidden
           // Dump all final settings variables for debugging
           summaryModelId: settings.summaryModelId, // Explicitly list for clarity
           chatModelId: settings.chatModelId,     // Explicitly list for clarity
-          allOtherSettings: (function(s) { const {apiKey, newsblurToken, summaryModelId, chatModelId, ...rest} = s; return rest; })(settings), // Dump remaining settings
+          allOtherSettings: (function(s) { const {summaryModelId, chatModelId, ...rest} = s; return rest; })(settings), // Dump remaining settings
         });
       }
       sendResponse(settings);

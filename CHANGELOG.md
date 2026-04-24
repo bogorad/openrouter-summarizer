@@ -1,3 +1,5 @@
+- **Version 3.9.43:** Fixed Beads-tracked runtime and security bugs from the v3-10 cleanup pass; aligned package/manifest version metadata and replaced the failing placeholder test script with the Webpack build gate.
+
 - **Version 3.9.42:** Added configurable chat quick-prompt buttons between model selection and message input; buttons are managed in Options (title + prompt) and send immediately when clicked.
 
 - **Version 3.9.41:** Restored Joplin icon visibility on pages where content scripts run without Web Crypto subtle by moving encrypted Joplin token loading to the background for content scripts.

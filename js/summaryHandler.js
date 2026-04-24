@@ -237,6 +237,7 @@ export async function handleRequestSummary(
           hasNewsblurToken: hasNewsblurTokenStatus,
         });
       }
+      sendResponse({ status: "error", message: errorMsg });
       return;
     }
 

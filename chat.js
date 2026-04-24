@@ -8,7 +8,7 @@
  * Dependencies: utils.js for tryParseJson and showError.
  */
 
-console.log(`[LLM Chat] Script Start (v3.2.2 - Direct Markdown)`); // Updated version
+console.log("[LLM Chat] Script Start (v3.9.43)");
 
 // ==== GLOBAL STATE ====
 import { tryParseJson, showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml
@@ -31,6 +31,9 @@ let chatMessagesInnerDiv = null;
 let modelUsedForSummary = ""; // Stores the model ID used for the *initial* summary
 let language_info = []; // Store configured languages {language_name: string, svg_path: string}
 let chatQuickPrompts = []; // Store quick prompt buttons {title: string, prompt: string}
+let activeStreamWrap = null;
+let activeStreamContainer = null;
+let activeStreamModelLabel = null;
 
 // ==== DOM Element References ====
 let downloadMdBtn,
@@ -438,6 +441,9 @@ function sendChatRequestToBackground(userText) {
   streamContainer.className = "msg assistant";
   streamContainer.innerHTML = `<span class="assistant-inner" id="activeStreamSpan">(...)</span>`;
   wrap.appendChild(streamContainer);
+  activeStreamWrap = wrap;
+  activeStreamContainer = streamContainer;
+  activeStreamModelLabel = modelLabelDiv;
   scrollToBottom();
 
   const apiMessages = buildApiMessages(userText, messages, chatContext);
@@ -454,11 +460,7 @@ function sendChatRequestToBackground(userText) {
         button.classList.remove("language-flag-button-busy");
         button.title = `Translate last assistant message to ${button.dataset.languageName}`;
       });
-      // Remove the placeholder message container
-      if (streamContainer && streamContainer.parentNode === wrap) {
-          wrap.removeChild(streamContainer);
-          wrap.removeChild(modelLabelDiv);
-      }
+      clearStreamPlaceholder(wrap, streamContainer, modelLabelDiv);
 
       if (chrome.runtime.lastError) {
         console.error("[LLM Chat] Error receiving response from background:", chrome.runtime.lastError);
@@ -636,7 +638,7 @@ function renderMessages() {
         } else if (typeof msg.content === 'string') {
           // Subsequent chat responses (string) or fallback raw summary
           // --- MODIFIED: No JSON parsing needed here ---
-          contentToRender = renderTextAsHtml(stripCodeFences(msg.content));
+          contentToRender = renderTextAsHtml(msg.content);
           // --- END MODIFICATION ---
         }
 
@@ -733,7 +735,7 @@ function handleDownloadJson() {
 }
 
 /**
- * Handles stopping the current chat request. (Unchanged)
+ * Handles stopping the current chat request.
  */
 function handleStopRequest() {
   console.log("[LLM Chat] Stop request initiated.");
@@ -742,6 +744,7 @@ function handleStopRequest() {
     if (sendButton) sendButton.style.display = "block";
     if (stopButton) stopButton.style.display = "none";
     setQuickPromptButtonsBusy(false);
+    clearActiveStreamPlaceholder();
     showError("Chat request stopped by user.", false);
     console.log("[LLM Chat] Chat request stopped.");
 
@@ -761,6 +764,39 @@ function handleStopRequest() {
       }
     });
   }
+}
+
+/**
+ * Removes the visible assistant placeholder for a pending chat response.
+ * @param {HTMLElement} wrap - The chat messages wrapper.
+ * @param {HTMLElement} streamContainer - The active placeholder message.
+ * @param {HTMLElement} modelLabelDiv - The active placeholder model label.
+ */
+function clearStreamPlaceholder(wrap, streamContainer, modelLabelDiv) {
+  if (!wrap) {
+    return;
+  }
+
+  if (streamContainer && streamContainer.parentNode === wrap) {
+    wrap.removeChild(streamContainer);
+  }
+
+  if (modelLabelDiv && modelLabelDiv.parentNode === wrap) {
+    wrap.removeChild(modelLabelDiv);
+  }
+
+  if (activeStreamContainer === streamContainer && activeStreamModelLabel === modelLabelDiv) {
+    activeStreamWrap = null;
+    activeStreamContainer = null;
+    activeStreamModelLabel = null;
+  }
+}
+
+/**
+ * Removes the currently tracked assistant placeholder after a user stop.
+ */
+function clearActiveStreamPlaceholder() {
+  clearStreamPlaceholder(activeStreamWrap, activeStreamContainer, activeStreamModelLabel);
 }
 
 /**
@@ -784,18 +820,6 @@ function setupCtrlEnterListener() {
   }
 }
 
-/**
- * Strips code fences from text content. (Unchanged)
- */
-function stripCodeFences(text) {
-  if (typeof text !== 'string') {
-    console.warn("[LLM Chat] stripCodeFences received non-string input:", text);
-    return "";
-  }
-  return text.replace(/```(?:\w*\n)?([\s\S]*?)```/g, '$1').trim();
-}
-
-/**
  * Formats the chat messages as Markdown content. (Unchanged)
  */
 function formatChatAsMarkdown() {

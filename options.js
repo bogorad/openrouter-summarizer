@@ -13,6 +13,7 @@ import {
   STORAGE_KEY_API_KEY_LOCAL,
   STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
   STORAGE_KEY_JOPLIN_TOKEN_LOCAL,
+  DEFAULT_PREPOPULATE_LANGUAGES,
   DEBOUNCE_DELAY,
   TOKENS_PER_KB,
   NOTIFICATION_TIMEOUT_MINOR_MS,
@@ -21,7 +22,7 @@ import * as constants from "./constants.js";
 import { encryptSensitiveData, decryptSensitiveData } from "./js/encryption.js";
 import { showError, redactSensitiveData } from "./utils.js";
 
-console.log(`[LLM Options] Script Start v3.4.5`);
+console.log("[LLM Options] Script Start v3.9.43");
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -161,6 +162,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function getDefaultChatQuickPrompts() {
     return sanitizeChatQuickPrompts(DEFAULT_CHAT_QUICK_PROMPTS);
+  }
+
+  function getDefaultLanguageInfo() {
+    return DEFAULT_PREPOPULATE_LANGUAGES.map((langName) => {
+      const lang = allLanguages.find((l) => l.name === langName);
+      return {
+        language_name: langName,
+        svg_path: lang
+          ? chrome.runtime.getURL(
+              `country-flags/svg/${lang.code.toLowerCase()}.svg`,
+            )
+          : chrome.runtime.getURL("country-flags/svg/un.svg"),
+      };
+    });
   }
 
   let activeAutocompleteInput = null;
@@ -516,11 +531,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
   function handleGlobalClick(event) {
+    if (!activeAutocompleteInput) {
+      hideAutocompleteSuggestions();
+      return;
+    }
+    const autocompleteWrapper =
+      activeAutocompleteInput.closest(".language-input-wrapper") ||
+      activeAutocompleteInput;
     const clickedInside =
-      activeAutocompleteInput &&
-      activeAutocompleteInput
-        .closest(".language-input-wrapper")
-        .contains(event.target);
+      autocompleteWrapper.contains(event.target) ||
+      autocompleteDropdown.contains(event.target);
     if (!clickedInside) {
       hideAutocompleteSuggestions();
     }
@@ -909,23 +929,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       language_info.splice(index, 1);
       if (language_info.length === 0) {
         // Repopulate with defaults if list becomes empty
-        const defaultLanguages = [
-          "English",
-          "Spanish",
-          "Hebrew",
-          "Mandarin Chinese",
-        ];
-        language_info = defaultLanguages.map((langName) => {
-          const lang = allLanguages.find((l) => l.name === langName);
-          return {
-            language_name: langName,
-            svg_path: lang
-              ? chrome.runtime.getURL(
-                  `country-flags/svg/${lang.code.toLowerCase()}.svg`,
-                )
-              : chrome.runtime.getURL("country-flags/svg/un.svg"),
-          };
-        });
+        language_info = getDefaultLanguageInfo();
       }
       renderLanguageOptions();
     }
@@ -1477,23 +1481,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       language_info = data.language_info || [];
       if (language_info.length === 0) {
-        const defaultLanguages = [
-          "English",
-          "Spanish",
-          "Hebrew",
-          "Mandarin Chinese",
-        ];
-        language_info = defaultLanguages.map((langName) => {
-          const lang = allLanguages.find((l) => l.name === langName);
-          return {
-            language_name: langName,
-            svg_path: lang
-              ? chrome.runtime.getURL(
-                  `country-flags/svg/${lang.code.toLowerCase()}.svg`,
-                )
-              : chrome.runtime.getURL("country-flags/svg/un.svg"),
-          };
-        });
+        language_info = getDefaultLanguageInfo();
         if (DEBUG)
           console.log("[LLM Options] No languages loaded, applying defaults.");
       }
@@ -1827,23 +1815,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentSummaryModelId = firstDefaultId;
       currentChatModelId = firstDefaultId;
 
-      const defaultLanguages = [
-        "English",
-        "Spanish",
-        "Hebrew",
-        "Mandarin Chinese",
-      ];
-      language_info = defaultLanguages.map((langName) => {
-        const lang = allLanguages.find((l) => l.name === langName);
-        return {
-          language_name: langName,
-          svg_path: lang
-            ? chrome.runtime.getURL(
-                `country-flags/svg/${lang.code.toLowerCase()}.svg`,
-              )
-            : chrome.runtime.getURL("country-flags/svg/un.svg"),
-        };
-      });
+      language_info = getDefaultLanguageInfo();
       chatQuickPrompts = getDefaultChatQuickPrompts();
 
       if (debugCheckbox) debugCheckbox.checked = DEFAULT_DEBUG_MODE;

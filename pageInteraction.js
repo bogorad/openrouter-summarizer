@@ -1,6 +1,6 @@
 // pageInteraction.js
 
-console.log(`[LLM Content] Script Start (v3.0.25 - Enhanced DOM Cleanup)`);
+console.log("[LLM Content] Script Start (v3.9.43)");
 
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.
@@ -20,13 +20,14 @@ import {
   NOTIFICATION_TIMEOUT_CRITICAL_MS,
 } from "./constants.js";
 import { sanitizeHtml, sanitizeForSharing, quickCleanHtml } from "./js/htmlSanitizer.js";
-import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
+import { ErrorHandler, ErrorSeverity, handleLastError, setErrorNotifier } from "./js/errorHandler.js";
 
 // --- Module-level variables (assignments will happen in initialize) ---
 // These are assigned from the static imports for convenience if you prefer this pattern,
 // or you can use utils.showError, constants.DEFAULT_MAX_REQUEST_PRICE directly.
 let showError = importedShowError; // Directly use the imported function
 let renderTextAsHtml = importedRenderTextAsHtml; // Directly use the imported function
+setErrorNotifier(showError);
 
 // --- Global State ---
 let DEBUG = false;
@@ -366,23 +367,17 @@ async function validateAndSendToLLM(content) {
       return;
     }
 
-    if (DEBUG) {
-      const logResponse = { ...response };
-      if (logResponse.apiKey) {
-        logResponse.apiKey = "[Hidden]";
-      }
-      if (logResponse.newsblurToken) {
-        logResponse.newsblurToken = "[Hidden]";
-      }
-      console.log("[LLM Content] getSettings response received:", logResponse);
-    }
+    if (DEBUG) console.log("[LLM Content] getSettings response received:", response);
     //   console.log("[LLM Content] getSettings response received:", response);
     // }
     const maxRequestPrice =
       response.maxRequestPrice || constants.DEFAULT_MAX_REQUEST_PRICE || 0.01;
+    const maxPriceBehavior = response.maxPriceBehavior === "fail"
+      ? "fail"
+      : "truncate";
     const summaryModelId = response.summaryModelId || "";
     // Retrieve NewsBlur token status from settings to pass to updatePopupContent
-    const hasNewsblurToken = !!response.newsblurToken;
+    const hasNewsblurToken = !!response.hasNewsblurToken || !!response.newsblurToken;
 
     if (!summaryModelId) {
       const errorMsg = "Error: No summary model selected.";
@@ -457,6 +452,20 @@ async function validateAndSendToLLM(content) {
           );
 
         if (estimatedCost > maxRequestPrice) {
+          if (maxPriceBehavior === "truncate") {
+            const maxAllowedTokens = Math.floor(maxRequestPrice / pricePerToken);
+            const maxAllowedChars = Math.floor(maxAllowedTokens / tokensPerChar);
+            if (maxAllowedChars > 0) {
+              const truncatedContent = content.substring(0, maxAllowedChars);
+              showError(
+                `Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Truncating selection to fit the limit.`,
+                false,
+                NOTIFICATION_TIMEOUT_SUCCESS_MS,
+              );
+              sendRequestToBackground(truncatedContent, requestId, hasNewsblurToken);
+              return;
+            }
+          }
           const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}.`;
           showError(errorMsg);
           SummaryPopup.updatePopupContent(
@@ -484,6 +493,8 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
   // Added hasNewsblurTokenStatus parameter
   if (DEBUG)
     console.log("[LLM Request] Sending summarization request to background.");
+  const pageURL = window.location.href;
+  const pageTitle = document.title;
   chrome.runtime.sendMessage(
     {
       action: "requestSummary",
@@ -499,7 +510,8 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
           SummaryPopup.updatePopupContent(
             errorMsg,
             null,
-            null,
+            pageURL,
+            pageTitle,
             true,
             hasNewsblurTokenStatus,
           ); // Pass token status
@@ -516,7 +528,8 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
           SummaryPopup.updatePopupContent(
             errorMsg,
             null,
-            null,
+            pageURL,
+            pageTitle,
             true,
             hasNewsblurTokenStatus,
           ); // Pass token status
@@ -536,7 +549,8 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
           SummaryPopup.updatePopupContent(
             errorMsg,
             null,
-            null,
+            pageURL,
+            pageTitle,
             true,
             hasNewsblurTokenStatus,
           ); // Pass token status
@@ -693,6 +707,7 @@ async function handleJoplinIconClick() {
   const contentToSend = sanitizeHtml(rawContent, {
     debug: DEBUG
   });
+  const pageURL = window.location.href; // Get current page URL
 
   // Check if sanitization left any content
   if (!contentToSend || contentToSend.trim() === "" || contentToSend.trim() === "<div></div>") {
@@ -721,7 +736,6 @@ async function handleJoplinIconClick() {
   // Unconditionally set isHtmlContent to true for Joplin.
   const isHtmlContent = true;
 
-  const pageURL = window.location.href; // Get current page URL
   if (DEBUG)
     console.log(
       "[LLM Content] Initiating Joplin note creation with cleaned HTML content and URL:",
@@ -888,6 +902,7 @@ const handleProcessSelection = async (sendResponse) => {
           onCopy: () => {},
           onChat: () => {},
           onClose: SummaryPopup.hidePopup,
+          onOptions: handlePopupOptions,
           onNewsblur: handlePopupNewsblur,
         },
         null,
