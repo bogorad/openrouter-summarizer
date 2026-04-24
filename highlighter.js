@@ -1,6 +1,6 @@
 // highlighter.js
 
-console.log("[LLM Highlighter] Script Loaded (v3.9.43)");
+console.log("[LLM Highlighter] Script Loaded (v3.9.44)");
 
 const HIGHLIGHT_PREVIEW_CLASS = "llm-highlight-preview";
 const HIGHLIGHT_SELECTED_CLASS = "llm-highlight";

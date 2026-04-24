@@ -45,6 +45,9 @@ export const SANITIZATION_CONFIG = {
     'onclick', 'onload', 'onerror', 'onmouseover', 'onmouseout',
     'onfocus', 'onblur', 'onchange', 'onsubmit', 'onreset',
     'onkeydown', 'onkeyup', 'onkeypress',
+
+    // Inline execution/style surfaces
+    'style', 'srcdoc',
     
     // Tracking and analytics
     'data-track', 'data-analytics', 'data-gtm', 'data-ga',
@@ -87,8 +90,29 @@ export const SANITIZATION_CONFIG = {
   }
 };
 
+export const SANITIZER_VARIANTS = Object.freeze({
+  DISPLAY_HTML: 'displayHtml',
+  SHARING_HTML: 'sharingHtml',
+  INERT_TEXT: 'inertText'
+});
+
 const SAFE_HREF_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 const SAFE_SRC_PROTOCOLS = new Set(['http:', 'https:']);
+const URL_ATTRIBUTES = new Set(['href', 'src', 'xlink:href', 'action', 'formaction', 'poster', 'background']);
+const GLOBAL_ALLOWED_ATTRIBUTES = new Set(['title', 'alt', 'width', 'height', 'border', 'cellpadding', 'cellspacing', 'colspan', 'rowspan']);
+
+const SANITIZER_POLICIES = Object.freeze({
+  [SANITIZER_VARIANTS.DISPLAY_HTML]: Object.freeze({
+    variant: SANITIZER_VARIANTS.DISPLAY_HTML,
+    unwrapUnknownTags: true,
+    removeEmptyTextContainers: true
+  }),
+  [SANITIZER_VARIANTS.SHARING_HTML]: Object.freeze({
+    variant: SANITIZER_VARIANTS.SHARING_HTML,
+    unwrapUnknownTags: true,
+    removeEmptyTextContainers: true
+  })
+});
 
 /**
  * Escapes HTML so sanitizer failures return inert text instead of unsafe markup.
@@ -101,6 +125,23 @@ const escapeHtmlFallback = (value) => String(value)
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
+
+/**
+ * Converts unknown or unsafe content into inert text.
+ * @param {string} value - Raw fallback text.
+ * @returns {string} Escaped inert HTML text.
+ */
+export const sanitizeInertText = (value) => {
+  if (value === null || value === undefined) return '';
+  return escapeHtmlFallback(value);
+};
+
+/**
+ * Compatibility name for sanitizer failure fallbacks.
+ * @param {string} value - Raw fallback text.
+ * @returns {string} Escaped inert HTML text.
+ */
+export const sanitizeFallbackText = (value) => sanitizeInertText(value);
 
 /**
  * Gets a stable base URL for validating relative URL attribute values.
@@ -133,8 +174,8 @@ const isSafeUrlAttributeValue = (attrName, attrValue) => {
 
   try {
     const url = new URL(normalizedValue, getSanitizerBaseUrl());
-    if (attrName === 'href') return SAFE_HREF_PROTOCOLS.has(url.protocol);
-    if (attrName === 'src') return SAFE_SRC_PROTOCOLS.has(url.protocol);
+    if (attrName === 'href' || attrName === 'xlink:href') return SAFE_HREF_PROTOCOLS.has(url.protocol);
+    if (URL_ATTRIBUTES.has(attrName)) return SAFE_SRC_PROTOCOLS.has(url.protocol);
     return true;
   } catch (e) {
     return false;
@@ -142,14 +183,49 @@ const isSafeUrlAttributeValue = (attrName, attrValue) => {
 };
 
 /**
- * Removes unsafe URL-valued attributes from a sanitized element.
- * @param {Element} el - Element whose URL attributes should be checked.
+ * Checks whether an attribute is safe for the configured output policy.
+ * @param {string} tagName - Lowercase element tag name.
+ * @param {Attr} attr - Attribute to validate.
+ * @returns {boolean} True when the attribute can remain.
  */
-const removeUnsafeUrlAttributes = (el) => {
-  ['href', 'src'].forEach(attrName => {
-    if (!el.hasAttribute(attrName)) return;
-    if (isSafeUrlAttributeValue(attrName, el.getAttribute(attrName))) return;
-    el.removeAttribute(attrName);
+const isAllowedAttribute = (tagName, attr) => {
+  const attrName = attr.name.toLowerCase();
+  if (SANITIZATION_CONFIG.UNWANTED_ATTRIBUTES.includes(attrName)) return false;
+  if (attrName.startsWith('on')) return false;
+  if (attrName === 'style' || attrName === 'srcdoc') return false;
+  if (URL_ATTRIBUTES.has(attrName)) return isSafeUrlAttributeValue(attrName, attr.value);
+  if (attrName.startsWith('data-')) return false;
+
+  const allowedForTag = SANITIZATION_CONFIG.ALLOWED_ATTRIBUTES[tagName] || [];
+  return allowedForTag.includes(attrName) || GLOBAL_ALLOWED_ATTRIBUTES.has(attrName);
+};
+
+/**
+ * Removes unsafe attributes according to the central sanitizer policy.
+ * @param {Element} el - Element whose attributes should be checked.
+ */
+const removeUnsafeAttributes = (el) => {
+  const tagName = el.tagName.toLowerCase();
+
+  Array.from(el.attributes).forEach(attr => {
+    if (!isAllowedAttribute(tagName, attr)) {
+      el.removeAttribute(attr.name);
+    }
+  });
+};
+
+/**
+ * Removes elements not present in the allow-list while keeping their text/children.
+ * @param {Element} container - Container to clean.
+ */
+const unwrapUnsupportedTags = (container) => {
+  const allowedTags = new Set(SANITIZATION_CONFIG.ALLOWED_TAGS);
+  const elements = Array.from(container.querySelectorAll('*')).reverse();
+
+  elements.forEach(el => {
+    const tagName = el.tagName.toLowerCase();
+    if (allowedTags.has(tagName) || !el.parentNode) return;
+    el.replaceWith(...Array.from(el.childNodes));
   });
 };
 
@@ -185,7 +261,7 @@ const removeElementsByClassNames = (container, classNames, debug = false) => {
  * @param {boolean} options.debug - Enable debug logging
  * @returns {string} - Sanitized HTML string
  */
-export function sanitizeHtml(htmlString, options = {}) {
+const sanitizeHtmlWithPolicy = (htmlString, policy, options = {}) => {
   const {
     debug = false
   } = options;
@@ -196,6 +272,11 @@ export function sanitizeHtml(htmlString, options = {}) {
   }
 
   try {
+    if (typeof document === 'undefined') {
+      if (debug) Logger.warn("[HTML Sanitizer]", "Document unavailable; returning inert fallback");
+      return sanitizeInertText(htmlString);
+    }
+
     // Create a temporary DOM container
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = htmlString;
@@ -239,40 +320,25 @@ export function sanitizeHtml(htmlString, options = {}) {
       }
     });
 
-
+    if (policy.unwrapUnknownTags) {
+      unwrapUnsupportedTags(tempDiv);
+    }
 
     // Clean up attributes
     const allElements = tempDiv.querySelectorAll('*');
     allElements.forEach(el => {
-      // Remove unwanted attributes
-      SANITIZATION_CONFIG.UNWANTED_ATTRIBUTES.forEach(attr => {
-        if (el.hasAttribute(attr)) {
-          el.removeAttribute(attr);
-        }
-      });
-      
-      // Remove tracking data attributes
-      Array.from(el.attributes).forEach(attr => {
-        if (attr.name.startsWith('data-') && 
-            (attr.name.includes('track') || 
-             attr.name.includes('analytics') || 
-             attr.name.includes('gtm') ||
-             attr.name.includes('ga-'))) {
-          el.removeAttribute(attr.name);
-        }
-      });
-
-      removeUnsafeUrlAttributes(el);
-
+      removeUnsafeAttributes(el);
     });
 
     // Remove empty elements that might be left behind
-    const emptyElements = tempDiv.querySelectorAll('div:empty, span:empty, p:empty');
-    emptyElements.forEach(el => {
-      if (el.parentNode && !el.hasChildNodes()) {
-        el.parentNode.removeChild(el);
-      }
-    });
+    if (policy.removeEmptyTextContainers) {
+      const emptyElements = tempDiv.querySelectorAll('div:empty, span:empty, p:empty');
+      emptyElements.forEach(el => {
+        if (el.parentNode && !el.hasChildNodes()) {
+          el.parentNode.removeChild(el);
+        }
+      });
+    }
 
     const cleanedHtml = tempDiv.innerHTML;
 
@@ -306,8 +372,41 @@ export function sanitizeHtml(htmlString, options = {}) {
 
   } catch (error) {
     Logger.error("[HTML Sanitizer]", "Error during HTML sanitization:", error);
-    return escapeHtmlFallback(htmlString);
+    return sanitizeFallbackText(htmlString);
   }
+};
+
+/**
+ * Sanitizes HTML for extension display surfaces.
+ * @param {string} htmlString - Raw HTML string to sanitize.
+ * @param {Object} options - Sanitization options.
+ * @param {boolean} options.debug - Enable debug logging.
+ * @returns {string} Sanitized display HTML.
+ */
+export function sanitizeDisplayHtml(htmlString, options = {}) {
+  return sanitizeHtmlWithPolicy(htmlString, SANITIZER_POLICIES[SANITIZER_VARIANTS.DISPLAY_HTML], options);
+}
+
+/**
+ * Sanitizes HTML for external sharing surfaces.
+ * @param {string} htmlString - Raw HTML string to sanitize.
+ * @param {Object} options - Sanitization options.
+ * @param {boolean} options.debug - Enable debug logging.
+ * @returns {string} Sanitized sharing HTML.
+ */
+export function sanitizeSharingHtml(htmlString, options = {}) {
+  return sanitizeHtmlWithPolicy(htmlString, SANITIZER_POLICIES[SANITIZER_VARIANTS.SHARING_HTML], options);
+}
+
+/**
+ * HTML sanitization function - removes unsafe and unwanted content for display.
+ * @param {string} htmlString - Raw HTML string to sanitize
+ * @param {Object} options - Sanitization options
+ * @param {boolean} options.debug - Enable debug logging
+ * @returns {string} - Sanitized HTML string
+ */
+export function sanitizeHtml(htmlString, options = {}) {
+  return sanitizeDisplayHtml(htmlString, options);
 }
 
 /**
@@ -320,7 +419,7 @@ export function quickCleanHtml(htmlString) {
     return '';
   }
 
-  return sanitizeHtml(htmlString);
+  return sanitizeDisplayHtml(htmlString);
 }
 
 /**
@@ -330,7 +429,7 @@ export function quickCleanHtml(htmlString) {
  * @returns {string} - Sanitized HTML suitable for sharing
  */
 export function sanitizeForSharing(htmlString, debug = false) {
-  return sanitizeHtml(htmlString, {
-    debug: debug
+  return sanitizeSharingHtml(htmlString, {
+    debug
   });
 }

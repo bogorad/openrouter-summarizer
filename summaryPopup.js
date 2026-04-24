@@ -6,6 +6,11 @@
  * Dependencies: marked (optional for inline parsing).
  */
 
+import { createButton, setButtonDisabled } from "./js/ui/buttons.js";
+import { createElement } from "./js/ui/dom.js";
+import { createPopup } from "./js/ui/popup.js";
+import { renderTarget, RENDER_TARGET_MODES } from "./js/ui/renderTarget.js";
+
 // --- CSS STYLES ---
 // Extracted from pageInteraction.css and isolated within this module.
 const POPUP_STYLES = `
@@ -186,22 +191,6 @@ const POPUP_STYLES = `
   }
 `;
 
-// --- HTML Template String ---
-const POPUP_TEMPLATE_HTML = `
-<div class="summarizer-popup" style="display: none;">
-    <div class="summarizer-header-container">
-        <div class="summarizer-header">Summary</div>
-    </div>
-    <div class="summarizer-body"></div>
-    <div class="summarizer-actions">
-        <button class="summarizer-btn copy-btn">Cop[y]</button>
-        <button class="summarizer-btn chat-btn">Cha[t]</button>
-        <button class="summarizer-btn newsblur-btn">Newsblu[r]</button>
-        <button class="summarizer-btn close-btn">Clos[e]</button>
-    </div>
-</div>
-`;
-
 // --- Constants ---
 const POPUP_CLASS = "summarizer-popup";
 const POPUP_HEADER_CONTAINER_CLASS = "summarizer-header-container";
@@ -217,11 +206,13 @@ const POPUP_CLOSE_BTN_CLASS = "close-btn";
 // --- Module State ---
 let host = null; // The host element (fixed position)
 let shadow = null; // The ShadowRoot
+let popupController = null;
 let currentContent = "";
 let currentOriginalMarkdownArray = null;
 let currentPageURL = null;
 let currentPageTitle = null;
 let isErrorState = false;
+let currentHasNewsblurToken = false;
 let currentModelName = null;
 let popupCallbacks = {
   onCopy: null,
@@ -232,6 +223,7 @@ let popupCallbacks = {
 };
 let copyTimeoutId = null;
 let handlePopupKeydown = null;
+let buttonCleanups = [];
 
 // --- Helper Functions ---
 
@@ -345,6 +337,86 @@ function getShadowElement(selector) {
   return shadow.querySelector(selector);
 }
 
+function createPopupButton({ label, title, className, disabled = false, onClick }) {
+  const button = createButton({
+    label,
+    title,
+    className: POPUP_BTN_CLASS,
+    classes: [className],
+    disabled,
+    onClick,
+  });
+
+  buttonCleanups.push(button.cleanup);
+  return button.element;
+}
+
+function renderSummaryContent(contentDiv, content) {
+  if (!contentDiv) return;
+
+  if (typeof content !== "string") {
+    renderTarget(contentDiv, {
+      mode: RENDER_TARGET_MODES.TEXT,
+      content: "Error: Invalid content type.",
+    });
+    return;
+  }
+
+  const trimmed = content.trimStart();
+  const isHtmlList = /^<(ul|ol)\b/i.test(trimmed);
+  renderTarget(contentDiv, {
+    mode: isHtmlList ? RENDER_TARGET_MODES.HTML : RENDER_TARGET_MODES.TEXT,
+    content: isHtmlList ? trimmed : content,
+  });
+}
+
+function createPopupActions(contentDiv) {
+  const copyBtn = createPopupButton({
+    label: "Cop[y]",
+    title: "Copy summary",
+    className: POPUP_COPY_BTN_CLASS,
+    disabled: true,
+    onClick: () => handleRichTextCopyClick(contentDiv, copyBtn),
+  });
+
+  const chatBtn = createPopupButton({
+    label: isErrorState ? "Options" : "Cha[t]",
+    title: isErrorState ? "Open options to adjust settings" : "Open chat with summary context",
+    className: POPUP_CHAT_BTN_CLASS,
+    disabled: !isErrorState,
+    onClick: () => {
+      if (isErrorState) {
+        popupCallbacks.onOptions();
+        return;
+      }
+
+      popupCallbacks.onChat(null);
+    },
+  });
+
+  const newsblurBtn = createPopupButton({
+    label: "Newsblu[r]",
+    title: "Share summary to NewsBlur",
+    className: POPUP_NEWSBLUR_BTN_CLASS,
+    onClick: () => popupCallbacks.onNewsblur(currentHasNewsblurToken),
+  });
+  newsblurBtn.style.display = currentHasNewsblurToken ? "inline-block" : "none";
+
+  const closeBtn = createPopupButton({
+    label: "Clos[e]",
+    title: "Close summary popup",
+    className: POPUP_CLOSE_BTN_CLASS,
+    onClick: () => popupCallbacks.onClose(),
+  });
+
+  return [
+    copyBtn,
+    chatBtn,
+    newsblurBtn,
+    closeBtn,
+  ];
+}
+
 // --- Public Functions ---
 
 export function showPopup(
@@ -372,93 +444,54 @@ export function showPopup(
     currentPageURL = pageURL;
     currentPageTitle = pageTitle;
     isErrorState = errorState;
+    currentHasNewsblurToken = hasNewsblurToken;
 
     try {
-      // Create Host
-      host = document.createElement("div");
-      host.id = "summarizer-popup-host";
-      host.setAttribute("data-extension-ui", "true");
-      host.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 0;
-        height: 0;
-        z-index: 2147483647;
-      `;
+      popupController = createPopup({
+        id: "summarizer-popup-host",
+        useShadowRoot: true,
+        styles: POPUP_STYLES,
+        title: "Summary",
+        includeCloseButton: false,
+        closeOnEscape: false,
+        closeOnOutsideClick: false,
+        trapFocus: false,
+        restoreFocus: false,
+        autoFocus: false,
+        surfaceClassName: POPUP_CLASS,
+        headerClassName: POPUP_HEADER_CONTAINER_CLASS,
+        titleClassName: POPUP_HEADER_CLASS,
+        bodyClassName: POPUP_BODY_CLASS,
+        actionsClassName: POPUP_ACTIONS_CLASS,
+        hostAttrs: {
+          style: `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            z-index: 2147483647;
+          `,
+        },
+        body: () => createElement("span"),
+        actions: ({ body }) => createPopupActions(body),
+      });
 
-      // Attach Shadow DOM
-      shadow = host.attachShadow({ mode: "open" });
-
-      // Inject Styles and Template
-      shadow.innerHTML = `<style>${POPUP_STYLES}</style>${POPUP_TEMPLATE_HTML.trim()}`;
-
-      document.body.appendChild(host);
+      host = popupController.host;
+      shadow = popupController.root;
     } catch (e) {
       console.error("[LLM Popup] Error creating Shadow DOM:", e);
       host = null;
       shadow = null;
+      popupController = null;
       resolve();
       return;
     }
 
     const contentDiv = getShadowElement(`.${POPUP_BODY_CLASS}`);
-    const copyBtn = getShadowElement(`.${POPUP_COPY_BTN_CLASS}`);
-    const chatBtn = getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`);
-    const newsblurBtn = getShadowElement(`.${POPUP_NEWSBLUR_BTN_CLASS}`);
-    const closeBtn = getShadowElement(`.${POPUP_CLOSE_BTN_CLASS}`);
     const popupElement = getShadowElement(`.${POPUP_CLASS}`);
 
-    if (contentDiv) {
-      if (typeof content === "string") {
-        const trimmed = content.trimStart();
-        const isHtmlList = /^<(ul|ol)\b/i.test(trimmed);
-        if (isHtmlList) {
-          // Sanitize HTML content to prevent XSS attacks from malicious LLM responses
-          if (typeof DOMPurify !== "undefined") {
-            contentDiv.innerHTML = DOMPurify.sanitize(trimmed, {
-              ALLOWED_TAGS: ['ul', 'ol', 'li', 'b', 'strong', 'i', 'em', 'br', 'p'],
-              ALLOWED_ATTR: []
-            });
-          } else {
-            // Fallback: use textContent if DOMPurify not available (safer but loses formatting)
-            contentDiv.textContent = trimmed;
-          }
-        } else {
-          contentDiv.textContent = content;
-        }
-      } else {
-        contentDiv.textContent = "Error: Invalid content type.";
-      }
-    }
-
-    if (copyBtn) {
-      copyBtn.onclick = () => handleRichTextCopyClick(contentDiv, copyBtn);
-      copyBtn.disabled = true;
-    }
-
-    if (chatBtn) {
-      if (isErrorState) {
-        chatBtn.textContent = "Options";
-        chatBtn.title = "Open options to adjust settings";
-        chatBtn.onclick = () => popupCallbacks.onOptions();
-        chatBtn.disabled = false;
-      } else {
-        chatBtn.textContent = "Cha[t]";
-        chatBtn.title = "Open chat with summary context";
-        chatBtn.onclick = () => popupCallbacks.onChat(null);
-        chatBtn.disabled = true;
-      }
-    }
-
-    if (newsblurBtn) {
-      newsblurBtn.onclick = () => popupCallbacks.onNewsblur(hasNewsblurToken);
-      newsblurBtn.style.display = hasNewsblurToken ? "inline-block" : "none";
-    }
-
-    if (closeBtn) {
-      closeBtn.onclick = () => popupCallbacks.onClose();
-    }
+    renderSummaryContent(contentDiv, content);
 
     // Define and add the keydown listener for multiple hotkeys
     handlePopupKeydown = (event) => {
@@ -515,6 +548,11 @@ export function showPopup(
 
 export function hidePopup() {
   if (host) {
+    const hostToCleanup = host;
+    const popupControllerToCleanup = popupController;
+    const buttonCleanupsToRun = buttonCleanups;
+    buttonCleanups = [];
+
     if (handlePopupKeydown) {
       document.removeEventListener("keydown", handlePopupKeydown, true);
       handlePopupKeydown = null;
@@ -526,18 +564,22 @@ export function hidePopup() {
       const computedStyle = window.getComputedStyle(popupElement);
       const transitionDuration = parseFloat(computedStyle.transitionDuration) * 1000;
       setTimeout(() => {
-        if (host && host.parentNode) {
-          host.parentNode.removeChild(host);
+        buttonCleanupsToRun.forEach((buttonCleanup) => buttonCleanup());
+        if (popupControllerToCleanup) popupControllerToCleanup.cleanup();
+        if (host === hostToCleanup) {
+          host = null;
+          shadow = null;
+          popupController = null;
         }
-        host = null;
-        shadow = null;
       }, transitionDuration > 0 ? transitionDuration + 50 : 10);
     } else {
-      if (host.parentNode) {
-        host.parentNode.removeChild(host);
+      buttonCleanupsToRun.forEach((buttonCleanup) => buttonCleanup());
+      if (popupControllerToCleanup) popupControllerToCleanup.cleanup();
+      if (host === hostToCleanup) {
+        host = null;
+        shadow = null;
+        popupController = null;
       }
-      host = null;
-      shadow = null;
     }
 
     // Reset callbacks and state
@@ -552,6 +594,7 @@ export function hidePopup() {
     currentOriginalMarkdownArray = null;
     currentPageURL = null;
     currentPageTitle = null;
+    currentHasNewsblurToken = false;
     currentModelName = null;
     if (copyTimeoutId) clearTimeout(copyTimeoutId);
     copyTimeoutId = null;
@@ -575,6 +618,7 @@ export function updatePopupContent(
   currentPageURL = pageURL;
   currentPageTitle = pageTitle;
   isErrorState = errorState;
+  currentHasNewsblurToken = hasNewsblurToken;
   currentModelName = modelName;
 
   const contentDiv = getShadowElement(`.${POPUP_BODY_CLASS}`);
@@ -591,43 +635,21 @@ export function updatePopupContent(
   const chatBtn = getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`);
   const newsblurBtn = getShadowElement(`.${POPUP_NEWSBLUR_BTN_CLASS}`);
 
-  if (contentDiv) {
-    if (typeof newContent === "string") {
-      const trimmed = newContent.trimStart();
-      const isHtmlList = /^<(ul|ol)\b/i.test(trimmed);
-      if (isHtmlList) {
-        // Sanitize HTML content to prevent XSS attacks from malicious LLM responses
-        if (typeof DOMPurify !== "undefined") {
-          contentDiv.innerHTML = DOMPurify.sanitize(trimmed, {
-            ALLOWED_TAGS: ['ul', 'ol', 'li', 'b', 'strong', 'i', 'em', 'br', 'p'],
-            ALLOWED_ATTR: []
-          });
-        } else {
-          // Fallback: use textContent if DOMPurify not available (safer but loses formatting)
-          contentDiv.textContent = trimmed;
-        }
-      } else {
-        contentDiv.textContent = newContent;
-      }
-    }
-  }
+  renderSummaryContent(contentDiv, newContent);
 
   if (chatBtn) {
     if (isErrorState) {
       chatBtn.textContent = "Options";
       chatBtn.title = "Open options to adjust settings";
-      chatBtn.onclick = () => popupCallbacks.onOptions();
-      chatBtn.disabled = false;
+      setButtonDisabled(chatBtn, false);
     } else {
       chatBtn.textContent = "Cha[t]";
       chatBtn.title = "Open chat with summary context";
-      chatBtn.onclick = () => popupCallbacks.onChat(null);
-      chatBtn.disabled = false;
+      setButtonDisabled(chatBtn, false);
     }
   }
 
   if (newsblurBtn) {
-    newsblurBtn.onclick = () => popupCallbacks.onNewsblur(hasNewsblurToken);
     newsblurBtn.style.display = hasNewsblurToken ? "inline-block" : "none";
   }
 }
@@ -641,12 +663,12 @@ export function enableButtons(enable) {
     if (isErrorState && chatBtn.textContent === "Options") {
       // Keep state
     } else {
-      chatBtn.disabled = !enable;
+      setButtonDisabled(chatBtn, !enable);
     }
   }
 
   if (copyBtn) {
-    copyBtn.disabled = !enable;
+    setButtonDisabled(copyBtn, !enable);
   }
 }
 

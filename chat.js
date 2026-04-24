@@ -5,35 +5,37 @@
  * It manages chat messages, user input, model selection, and interactions with the background script.
  * It now also displays language flags for translation requests.
  * Called from: chat.html (DOMContentLoaded event).
- * Dependencies: utils.js for tryParseJson and showError.
+ * Dependencies: utils.js for showError.
  */
 
-console.log("[LLM Chat] Script Start (v3.9.43)");
+console.log("[LLM Chat] Script Start (v3.9.44)");
 
 // ==== GLOBAL STATE ====
-import { tryParseJson, showError, renderTextAsHtml } from "./utils.js"; // Import renderTextAsHtml
+import { showError } from "./utils.js";
 import {
-  CHAT_SYSTEM_PROMPT_TEMPLATE,
-  CHAT_USER_CONTEXT_TEMPLATE,
-  CHAT_TRANSLATION_REQUEST_TEMPLATE,
-  SNIPPET_TRUNCATION_LIMIT,
   NOTIFICATION_TIMEOUT_MINOR_MS,
 } from "./constants.js";
+import {
+  buildApiMessages,
+  buildTranslationRequest,
+} from "./js/chat/chatContextBuilder.js";
+import { createChatStreamController } from "./js/chat/chatStreamController.js";
+import {
+  renderChatMessages,
+  renderStreamingPlaceholder,
+} from "./js/chat/chatRenderer.js";
+import {
+  copyChatMarkdown,
+  downloadChatJson,
+  downloadChatMarkdown,
+} from "./js/chat/chatExport.js";
+import { chatState } from "./js/chat/chatState.js";
+import { RuntimeMessageActions } from "./js/messaging/actions.js";
+import { sendRuntimeAction } from "./js/messaging/runtimeClient.js";
 
-let models = []; // Array of {id: string}
-let selectedModelId = ""; // The ID selected in the dropdown for sending requests
-let chatContext = { domSnippet: null, summary: null }; // Removed chatTargetLanguage here, context is simpler
-let messages = []; // Array of {role: string, content: string | string[], model?: string}
-let streaming = false;
-let currentStreamModel = ""; // Stores the model ID used for the *current* stream
 let DEBUG = false; // Updated by getSettings response
 let chatMessagesInnerDiv = null;
-let modelUsedForSummary = ""; // Stores the model ID used for the *initial* summary
-let language_info = []; // Store configured languages {language_name: string, svg_path: string}
-let chatQuickPrompts = []; // Store quick prompt buttons {title: string, prompt: string}
-let activeStreamWrap = null;
-let activeStreamContainer = null;
-let activeStreamModelLabel = null;
+let chatStreamController = null;
 
 // ==== DOM Element References ====
 let downloadMdBtn,
@@ -85,11 +87,24 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Marked library failed to load! Markdown rendering will use basic newline conversion.");
   }
 
-  // Initialize chat and attach listeners
-  try {
-    console.log("[LLM Chat] Attempting to initialize chat...");
-    initializeChat(); // Start the initialization process
-    chatForm.addEventListener("submit", handleFormSubmit);
+    // Initialize chat and attach listeners
+    try {
+      console.log("[LLM Chat] Attempting to initialize chat...");
+      chatStreamController = createChatStreamController({
+        chatState,
+        buildApiMessages,
+        renderStreamingPlaceholder,
+        sendRuntimeAction,
+        actions: RuntimeMessageActions,
+        getMessagesWrap: () => chatMessagesInnerDiv,
+        setBusy: setChatBusyState,
+        onSuccess: handleStreamSuccess,
+        onError: handleStreamError,
+        onAborted: handleStreamAborted,
+        scrollToBottom,
+      });
+      initializeChat(); // Start the initialization process
+      chatForm.addEventListener("submit", handleFormSubmit);
     setupTextareaResize();
     downloadMdBtn.addEventListener("click", handleDownloadMd);
     copyMdBtn.addEventListener("click", handleCopyMd);
@@ -126,14 +141,18 @@ const handleFormSubmit = (event) => {
 /**
  * Initializes the chat by fetching settings for UI setup, then context for content.
  */
-function initializeChat() {
+async function initializeChat() {
   console.log("[LLM Chat] Entering initializeChat function.");
 
   // --- Step 1: Fetch Settings for UI Setup ---
-  chrome.runtime.sendMessage({ action: "getSettings" }, (settingsResponse) => {
-    if (chrome.runtime.lastError || !settingsResponse) {
-      console.error("[LLM Chat] Error getting settings from background:", chrome.runtime.lastError);
-      showError(`Error loading settings: ${chrome.runtime.lastError?.message || 'No response'}. Please check options and reload.`);
+  try {
+    const { response: settingsResponse } = await sendRuntimeAction(
+      RuntimeMessageActions.getSettings,
+    );
+
+    if (!settingsResponse) {
+      console.error("[LLM Chat] Error getting settings from background: No response");
+      showError("Error loading settings: No response. Please check options and reload.");
       modelSelect.disabled = true;
       chatInput.disabled = true;
       if(sendButton) sendButton.disabled = true;
@@ -147,22 +166,22 @@ function initializeChat() {
     // Validate and store models (expecting {id: string})
     if (Array.isArray(settingsResponse.models) && settingsResponse.models.length > 0 &&
         settingsResponse.models.every(m => typeof m === 'object' && m.id)) {
-      models = settingsResponse.models; // Already {id: string} from background
-      console.log("[LLM Chat] Models array populated from settings:", models);
+      chatState.setModels(settingsResponse.models); // Already {id: string} from background
+      console.log("[LLM Chat] Models array populated from settings:", chatState.getState().models);
     } else {
       console.error("[LLM Chat] Invalid or empty models list received from settings.");
       showError("Error: Could not load valid models list from settings.");
-      models = []; // Ensure models is an empty array
+      chatState.setModels([]); // Ensure models is an empty array
     }
 
     // Store language info
-    language_info = Array.isArray(settingsResponse.language_info) ? settingsResponse.language_info : [];
-    chatQuickPrompts = Array.isArray(settingsResponse.chatQuickPrompts)
+    chatState.setLanguageInfo(settingsResponse.language_info);
+    chatState.setChatQuickPrompts(Array.isArray(settingsResponse.chatQuickPrompts)
       ? settingsResponse.chatQuickPrompts
         .filter((item) => item && typeof item.title === "string" && typeof item.prompt === "string")
         .map((item) => ({ title: item.title.trim(), prompt: item.prompt.trim() }))
         .filter((item) => item.title && item.prompt)
-      : [];
+      : []);
 
     // Populate dropdown using the CHAT model ID as preferred
     const defaultChatModelId = settingsResponse.chatModelId || "";
@@ -174,45 +193,67 @@ function initializeChat() {
 
     // --- Step 2: Fetch Session Context for Initial Message ---
     // This runs *after* settings are processed
-    chrome.runtime.sendMessage({ action: "getChatContext" }, (contextResponse) => {
-      if (chrome.runtime.lastError || !contextResponse) {
-        console.error("[LLM Chat] Error getting context from background:", chrome.runtime.lastError);
-        showError(`Error loading chat context: ${chrome.runtime.lastError?.message || 'No response'}. Displaying empty chat.`);
-        messages = []; // Start with empty messages on context error
-        renderMessages();
-        focusInput();
-        return;
-      }
+    await loadChatContext();
+  } catch (error) {
+    console.error("[LLM Chat] Error getting settings from background:", error);
+    showError(`Error loading settings: ${error.message}. Please check options and reload.`);
+    modelSelect.disabled = true;
+    chatInput.disabled = true;
+    if(sendButton) sendButton.disabled = true;
+  }
+}
 
-      if (DEBUG) console.log("[LLM Chat] Received context response:", contextResponse);
+async function loadChatContext() {
+  try {
+    const { response: contextResponse } = await sendRuntimeAction(
+      RuntimeMessageActions.getChatContext,
+    );
 
-      // Store context needed for display/prompts
-      chatContext.domSnippet = contextResponse.domSnippet;
-      chatContext.summary = contextResponse.summary; // The raw summary string/array
-      modelUsedForSummary = contextResponse.modelUsedForSummary || ""; // Model ID used for the summary
-
-      // Process and display the initial summary message
-      if (typeof contextResponse.summary === 'string' && contextResponse.summary.trim()) {
-        // The summary is now always an HTML string. No parsing is needed.
-        const initialContent = contextResponse.summary;
-
-        messages.push({
-          role: "assistant",
-          content: initialContent, // This will be the raw HTML string
-          model: modelUsedForSummary || "Unknown"
-        });
-      } else {
-        // Handle cases where the summary might be missing
-        console.warn("[LLM Chat] Initial summary content missing or invalid in context.");
-        messages = []; // Start empty if no summary
-      }
-
-      renderMessages(); // Render initial message (or empty state)
+    if (!contextResponse) {
+      console.error("[LLM Chat] Error getting context from background: No response");
+      showError("Error loading chat context: No response. Displaying empty chat.");
+      chatState.setMessages([]); // Start with empty messages on context error
+      renderMessages();
       focusInput();
+      return;
+    }
 
-    }); // End getChatContext callback
+    if (DEBUG) console.log("[LLM Chat] Received context response:", contextResponse);
 
-  }); // End getSettings callback
+    // Store context needed for display/prompts
+    chatState.setChatContext({
+      domSnippet: contextResponse.domSnippet,
+      summary: contextResponse.summary, // The raw summary string/array
+    });
+    const modelUsedForSummary = chatState.setModelUsedForSummary(
+      contextResponse.modelUsedForSummary || "",
+    ); // Model ID used for the summary
+
+    // Process and display the initial summary message
+    if (typeof contextResponse.summary === 'string' && contextResponse.summary.trim()) {
+      // The summary is now always an HTML string. No parsing is needed.
+      const initialContent = contextResponse.summary;
+
+      chatState.addMessage({
+        role: "assistant",
+        content: initialContent, // This will be the raw HTML string
+        model: modelUsedForSummary || "Unknown"
+      });
+    } else {
+      // Handle cases where the summary might be missing
+      console.warn("[LLM Chat] Initial summary content missing or invalid in context.");
+      chatState.setMessages([]); // Start empty if no summary
+    }
+
+    renderMessages(); // Render initial message (or empty state)
+    focusInput();
+  } catch (error) {
+    console.error("[LLM Chat] Error getting context from background:", error);
+    showError(`Error loading chat context: ${error.message}. Displaying empty chat.`);
+    chatState.setMessages([]); // Start with empty messages on context error
+    renderMessages();
+    focusInput();
+  }
 }
 
 
@@ -238,6 +279,7 @@ function renderLanguageFlags() {
   }
   languageFlagsContainer.innerHTML = ""; // Clear existing flags
 
+  const { language_info } = chatState.getState();
   if (!Array.isArray(language_info) || language_info.length === 0) {
     if (DEBUG) console.log("[LLM Chat] No configured languages to render flags.");
     return;
@@ -274,6 +316,7 @@ function renderQuickPromptButtons() {
 
   quickPromptsContainer.innerHTML = "";
 
+  const { chatQuickPrompts, streaming } = chatState.getState();
   if (!Array.isArray(chatQuickPrompts) || chatQuickPrompts.length === 0) {
     return;
   }
@@ -296,6 +339,7 @@ function renderQuickPromptButtons() {
  * @param {Event} event - The click event.
  */
 function handleFlagButtonClick(event) {
+  const { messages, streaming } = chatState.getState();
   if (streaming) {
     if (DEBUG) console.log("[LLM Chat] Flag click ignored: Chat is currently streaming.");
     showError("Chat is busy. Please wait for the current response to finish.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
@@ -330,9 +374,7 @@ function handleFlagButtonClick(event) {
 
   if (DEBUG) console.log(`[LLM Chat] Flag clicked for translation to: ${targetLanguage}. Text to translate:`, textToTranslate.substring(0, 200) + (textToTranslate.length > 200 ? "..." : ""));
 
-  const userMessage = CHAT_TRANSLATION_REQUEST_TEMPLATE
-    .replace("${targetLanguage}", targetLanguage)
-    .replace("${textToTranslate}", textToTranslate);
+  const userMessage = buildTranslationRequest(targetLanguage, textToTranslate);
 
   queueAndSendUserMessage(userMessage);
 }
@@ -359,6 +401,7 @@ function handleQuickPromptButtonClick(event) {
  * @returns {boolean} True when message was sent.
  */
 function queueAndSendUserMessage(userText) {
+  const { selectedModelId, streaming } = chatState.getState();
   if (streaming) {
     showError("Please wait for the current response to finish.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
     return false;
@@ -370,11 +413,11 @@ function queueAndSendUserMessage(userText) {
     return false;
   }
 
-  messages.push({ role: "user", content: userText });
-  renderMessages();
-  sendChatRequestToBackground(userText);
-  return true;
-}
+    chatState.addMessage({ role: "user", content: userText });
+    renderMessages();
+    chatStreamController.start(userText);
+    return true;
+  }
 
 /**
  * Updates busy state for quick prompt buttons.
@@ -393,159 +436,53 @@ function setQuickPromptButtonsBusy(isBusy) {
 }
 
 /**
- * Sends a chat request to the background script with the user's text.
- * @param {string} userText - The text input by the user.
+ * Updates controls that should be disabled while a chat response is pending.
+ * @param {boolean} isBusy - Whether chat is currently streaming.
  */
-function sendChatRequestToBackground(userText) {
-  if (streaming) {
-    console.log("[LLM Chat] Streaming in progress, request ignored.");
-    return;
-  }
-  if (!selectedModelId) {
-    showError("Cannot send message: No model selected or configured.", false);
-    console.log("[LLM Chat] No model selected, request aborted.");
-    return;
-  }
+function setChatBusyState(isBusy) {
+    if (sendButton) sendButton.style.display = isBusy ? "none" : "block";
+    if (stopButton) stopButton.style.display = isBusy ? "block" : "none";
+    setQuickPromptButtonsBusy(isBusy);
 
-  streaming = true;
-  currentStreamModel = selectedModelId;
-  console.log("[LLM Chat] Streaming started with model:", currentStreamModel);
-  if (sendButton) sendButton.style.display = "none";
-  if (stopButton) stopButton.style.display = "block";
-  setQuickPromptButtonsBusy(true);
-
-  const flagButtons = languageFlagsContainer.querySelectorAll(".language-flag-button");
-  flagButtons.forEach(button => {
-    button.classList.add("language-flag-button-busy");
-    button.title = "Chat is busy, cannot translate now";
-  });
-
-  const wrap = chatMessagesInnerDiv;
-  if (!wrap) {
-    console.error("[LLM Chat] messagesWrap (chatMessagesInnerDiv) not found.");
-    streaming = false;
-    if (sendButton) sendButton.style.display = "block";
-    if (stopButton) stopButton.style.display = "none";
-    setQuickPromptButtonsBusy(false);
+    const flagButtons = languageFlagsContainer.querySelectorAll(".language-flag-button");
     flagButtons.forEach(button => {
-      button.classList.remove("language-flag-button-busy");
-      button.title = `Translate last assistant message to ${button.dataset.languageName}`;
+      button.classList.toggle("language-flag-button-busy", isBusy);
+      button.title = isBusy
+        ? "Chat is busy, cannot translate now"
+        : `Translate last assistant message to ${button.dataset.languageName}`;
     });
-    return;
-  }
-  const modelLabelDiv = document.createElement("div");
-  modelLabelDiv.className = "assistant-model-label";
-  modelLabelDiv.textContent = `Model: ${currentStreamModel}`;
-  wrap.appendChild(modelLabelDiv);
-  const streamContainer = document.createElement("div");
-  streamContainer.className = "msg assistant";
-  streamContainer.innerHTML = `<span class="assistant-inner" id="activeStreamSpan">(...)</span>`;
-  wrap.appendChild(streamContainer);
-  activeStreamWrap = wrap;
-  activeStreamContainer = streamContainer;
-  activeStreamModelLabel = modelLabelDiv;
-  scrollToBottom();
-
-  const apiMessages = buildApiMessages(userText, messages, chatContext);
-
-  // --- MODIFIED: Send request to background (no change here, background handles format) ---
-  chrome.runtime.sendMessage(
-    { action: "llmChatStream", messages: apiMessages, model: selectedModelId },
-    (response) => { // --- MODIFIED: Callback handles direct content ---
-      streaming = false;
-      if (sendButton) sendButton.style.display = "block";
-      if (stopButton) stopButton.style.display = "none";
-      setQuickPromptButtonsBusy(false);
-      flagButtons.forEach(button => {
-        button.classList.remove("language-flag-button-busy");
-        button.title = `Translate last assistant message to ${button.dataset.languageName}`;
-      });
-      clearStreamPlaceholder(wrap, streamContainer, modelLabelDiv);
-
-      if (chrome.runtime.lastError) {
-        console.error("[LLM Chat] Error receiving response from background:", chrome.runtime.lastError);
-        showError(`Error: ${chrome.runtime.lastError.message}.`);
-        return;
-      }
-
-      // --- MODIFIED: Process direct 'content' instead of 'data' ---
-      if (response.status === "success" && response.content !== undefined) {
-        if (DEBUG) console.log("[LLM Chat] Received successful direct content:", response.content.substring(0,100)+"...");
-
-        // Content is already the direct Markdown string
-        const contentToStore = response.content;
-
-        const newMessage = {
-          role: "assistant",
-          content: contentToStore, // Store the direct string
-          model: currentStreamModel,
-        };
-        messages.push(newMessage);
-        renderMessages(); // Re-render with the new message
-
-      } else if (response.status === "error") {
-        console.error("[LLM Chat] Background response error:", response.message);
-        showError(`Error: ${response.message || 'Failed to get response from LLM.'}`);
-      } else if (response.status === "aborted") {
-          console.log("[LLM Chat] Chat request was aborted.");
-      } else {
-          // Handle case where status is success but content is missing, or unknown status
-          console.error("[LLM Chat] Unexpected/Error response from background:", response);
-          showError(`Error: ${response.message || 'Unknown response from background script.'}`);
-      }
-      // --- END MODIFICATION ---
-    }
-  );
 }
 
 /**
- * Builds the array of messages to be sent to the API.
- * It includes the page context for the first user message and then the recent chat history for subsequent messages.
- * @param {string} userText - The latest message from the user.
- * @param {Array} messages - The entire history of chat messages.
- * @param {object} chatContext - An object containing the domSnippet and summary.
- * @returns {Array} The array of message objects for the API request.
+ * Stores and renders a completed assistant response.
+ * @param {object} result - Stream success result.
  */
-function buildApiMessages(userText, messages, chatContext) {
-  const apiMessages = [{ role: "system", content: CHAT_SYSTEM_PROMPT_TEMPLATE }];
-  const userMessageCount = messages.filter(m => m.role === 'user').length;
+function handleStreamSuccess(result) {
+    if (DEBUG) console.log("[LLM Chat] Received successful direct content:", result.content.substring(0,100)+"...");
 
-  if (userMessageCount === 1) {
-    // This is the first user message in the chat. Include the full context.
-    if (DEBUG) console.log("[LLM Chat] First user message. Building request with full context.");
-    const summaryString = Array.isArray(chatContext.summary) ? chatContext.summary.join("\n") : String(chatContext.summary);
-    const contextContent = CHAT_USER_CONTEXT_TEMPLATE
-      .replace("${domSnippet}", chatContext.domSnippet)
-      .replace("${summary}", summaryString);
-    apiMessages.push({ role: "user", content: contextContent });
-    apiMessages.push({ role: "user", content: userText });
-  } else {
-    // This is a follow-up message. Include recent chat history.
-    if (DEBUG) console.log("[LLM Chat] Follow-up message. Building request with recent history.");
-    const recentHistory = messages
-      .slice(0, messages.length - 1) // Exclude the latest user message (it's added separately)
-      .slice(1) // Exclude the initial summary message from the assistant
-      .filter(m => m.role === 'user' || m.role === 'assistant') // Only include user and assistant messages
-      .slice(-10) // Get the last 10 messages to keep the context relevant
-      .map(msg => ({
-        role: msg.role,
-        content: Array.isArray(msg.content) ? msg.content.join("\n") : String(msg.content)
-      }));
+    chatState.addMessage({
+      role: "assistant",
+      content: result.content,
+      model: result.model,
+    });
+    renderMessages();
+}
 
-    // Add a condensed context message for follow-up requests
-    let snippetForContext = chatContext.domSnippet || "";
-    if (snippetForContext.length > SNIPPET_TRUNCATION_LIMIT) {
-      snippetForContext = snippetForContext.substring(0, SNIPPET_TRUNCATION_LIMIT) + "[...truncated]";
-    }
-    const followUpContextContent = CHAT_USER_CONTEXT_TEMPLATE
-      .replace("${domSnippet}", snippetForContext)
-      .replace("\n\nInitial Summary:\n${summary}", ""); // Remove summary part for follow-ups
-    apiMessages.push({ role: "user", content: followUpContextContent });
+/**
+ * Shows a stream error.
+ * @param {string} message - Error message.
+ * @param {object} response - Raw error response.
+ */
+function handleStreamError(message, response) {
+    console.error("[LLM Chat] Chat stream error:", response);
+    showError(`Error: ${message}`);
+}
 
-    apiMessages.push(...recentHistory);
-    apiMessages.push({ role: "user", content: userText });
-  }
-  return apiMessages;
+/**
+ * Handles an aborted stream response.
+ */
+function handleStreamAborted() {
+    console.log("[LLM Chat] Chat request was aborted.");
 }
 
 /**
@@ -558,6 +495,7 @@ function populateModelDropdown(preferredModelId) {
     console.error("[LLM Chat] Model select element not found.");
     return;
   }
+  const { models } = chatState.getState();
   modelSelect.innerHTML = "";
   modelSelect.disabled = false;
 
@@ -568,7 +506,7 @@ function populateModelDropdown(preferredModelId) {
     opt.disabled = true;
     modelSelect.appendChild(opt);
     modelSelect.disabled = true;
-    selectedModelId = "";
+    chatState.setSelectedModelId("");
     console.log("[LLM Chat] No models available, dropdown disabled.");
     return;
   }
@@ -583,19 +521,19 @@ function populateModelDropdown(preferredModelId) {
   const availableModelIds = models.map(m => m.id);
   if (preferredModelId && typeof preferredModelId === 'string' && availableModelIds.includes(preferredModelId)) {
     modelSelect.value = preferredModelId;
-    selectedModelId = preferredModelId;
+    chatState.setSelectedModelId(preferredModelId);
     console.log("[LLM Chat] Set selected model to preferred chat default:", preferredModelId);
   } else if (models.length > 0) {
     modelSelect.value = models[0].id;
-    selectedModelId = models[0].id;
+    chatState.setSelectedModelId(models[0].id);
     console.warn("[LLM Chat] Preferred chat default invalid or missing, set selected model to first available:", models[0].id);
   } else {
-    selectedModelId = "";
+    chatState.setSelectedModelId("");
     console.log("[LLM Chat] No models to select.");
   }
 
   modelSelect.onchange = function() {
-    selectedModelId = this.value;
+    const selectedModelId = chatState.setSelectedModelId(this.value);
     console.log("[LLM Chat] Model changed via dropdown to:", selectedModelId);
   };
 }
@@ -610,54 +548,9 @@ function renderMessages() {
     console.error("[LLM Chat] chatMessagesInnerDiv not found for rendering.");
     return;
   }
+  const { messages, streaming } = chatState.getState();
   if (DEBUG) console.log(`[LLM Chat Render] Rendering ${messages.length} messages.`);
-  wrap.innerHTML = ""; // Clear previous messages
-
-  if (messages.length === 0) {
-    wrap.innerHTML = '<div class="msg system-info">Chat started. Ask a follow-up question...</div>';
-  } else {
-    messages.forEach((msg, index) => {
-      const msgDiv = document.createElement("div");
-      msgDiv.classList.add("msg");
-
-      if (msg.role === "assistant") {
-        msgDiv.classList.add("assistant");
-        if (msg.model) {
-          const modelLabelDiv = document.createElement("div");
-          modelLabelDiv.className = "assistant-model-label";
-          modelLabelDiv.textContent = `Model: ${msg.model}`;
-          msgDiv.appendChild(modelLabelDiv);
-        }
-        const contentSpan = document.createElement("span");
-        contentSpan.className = "assistant-inner";
-        let contentToRender = "[Error: Invalid message content]";
-
-        if (Array.isArray(msg.content)) {
-          // Initial summary (array of strings) - render as list
-          contentToRender = "<ul>" + msg.content.map(item => `<li>${renderTextAsHtml(item)}</li>`).join("") + "</ul>";
-        } else if (typeof msg.content === 'string') {
-          // Subsequent chat responses (string) or fallback raw summary
-          // --- MODIFIED: No JSON parsing needed here ---
-          contentToRender = renderTextAsHtml(msg.content);
-          // --- END MODIFICATION ---
-        }
-
-        contentSpan.innerHTML = contentToRender;
-        msgDiv.appendChild(contentSpan);
-        wrap.appendChild(msgDiv);
-
-      } else if (msg.role === "user") {
-        msgDiv.classList.add("user");
-        msgDiv.innerHTML = renderTextAsHtml(msg.content);
-        wrap.appendChild(msgDiv);
-
-      } else if (msg.role === "system") {
-        msgDiv.classList.add("system-info");
-        msgDiv.textContent = msg.content;
-        wrap.appendChild(msgDiv);
-      }
-    });
-  }
+  renderChatMessages(wrap, { messages });
   // Only scroll if not currently streaming
   if (!streaming) {
       scrollToBottom();
@@ -694,14 +587,8 @@ function setupTextareaResize() {
  */
 function handleDownloadMd() {
   console.log("[LLM Chat] Handling download as Markdown.");
-  const mdContent = formatChatAsMarkdown();
-  const blob = new Blob([mdContent], { type: "text/markdown" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "chat.md";
-  a.click();
-  URL.revokeObjectURL(url);
+  const { messages } = chatState.getState();
+  downloadChatMarkdown(messages);
 }
 
 /**
@@ -709,8 +596,8 @@ function handleDownloadMd() {
  */
 function handleCopyMd() {
   console.log("[LLM Chat] Handling copy as Markdown.");
-  const mdContent = formatChatAsMarkdown();
-  navigator.clipboard.writeText(mdContent)
+  const { messages } = chatState.getState();
+  copyChatMarkdown(messages)
     .then(() => { showError("Chat copied to clipboard as Markdown.", false); })
     .catch(err => { showError("Error copying to clipboard: " + err.message); });
 }
@@ -720,84 +607,20 @@ function handleCopyMd() {
  */
 function handleDownloadJson() {
   console.log("[LLM Chat] Handling download as JSON.");
-  const messagesToSave = messages.map(msg => ({
-      ...msg,
-      content: Array.isArray(msg.content) ? msg.content.join("\n") : msg.content
-  }));
-  const jsonContent = JSON.stringify(messagesToSave, null, 2);
-  const blob = new Blob([jsonContent], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "chat.json";
-  a.click();
-  URL.revokeObjectURL(url);
+  const { messages } = chatState.getState();
+  downloadChatJson(messages);
 }
 
 /**
  * Handles stopping the current chat request.
  */
 function handleStopRequest() {
-  console.log("[LLM Chat] Stop request initiated.");
-  if (streaming) {
-    streaming = false;
-    if (sendButton) sendButton.style.display = "block";
-    if (stopButton) stopButton.style.display = "none";
-    setQuickPromptButtonsBusy(false);
-    clearActiveStreamPlaceholder();
-    showError("Chat request stopped by user.", false);
-    console.log("[LLM Chat] Chat request stopped.");
-
-    const flagButtons = languageFlagsContainer.querySelectorAll(".language-flag-button");
-    flagButtons.forEach(button => {
-      button.classList.remove("language-flag-button-busy");
-      button.title = `Translate last assistant message to ${button.dataset.languageName}`;
-    });
-
-    chrome.runtime.sendMessage({ action: "abortChatRequest" }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error("[LLM Chat] Error sending abort request:", chrome.runtime.lastError);
-      } else if (response && response.status === "aborted") {
-        console.log("[LLM Chat] Background confirmed request abort.");
-      } else {
-        console.log("[LLM Chat] Background could not abort request or no active request.");
-      }
-    });
+    console.log("[LLM Chat] Stop request initiated.");
+    if (chatStreamController.stop()) {
+      showError("Chat request stopped by user.", false);
+      console.log("[LLM Chat] Chat request stopped.");
+    }
   }
-}
-
-/**
- * Removes the visible assistant placeholder for a pending chat response.
- * @param {HTMLElement} wrap - The chat messages wrapper.
- * @param {HTMLElement} streamContainer - The active placeholder message.
- * @param {HTMLElement} modelLabelDiv - The active placeholder model label.
- */
-function clearStreamPlaceholder(wrap, streamContainer, modelLabelDiv) {
-  if (!wrap) {
-    return;
-  }
-
-  if (streamContainer && streamContainer.parentNode === wrap) {
-    wrap.removeChild(streamContainer);
-  }
-
-  if (modelLabelDiv && modelLabelDiv.parentNode === wrap) {
-    wrap.removeChild(modelLabelDiv);
-  }
-
-  if (activeStreamContainer === streamContainer && activeStreamModelLabel === modelLabelDiv) {
-    activeStreamWrap = null;
-    activeStreamContainer = null;
-    activeStreamModelLabel = null;
-  }
-}
-
-/**
- * Removes the currently tracked assistant placeholder after a user stop.
- */
-function clearActiveStreamPlaceholder() {
-  clearStreamPlaceholder(activeStreamWrap, activeStreamContainer, activeStreamModelLabel);
-}
 
 /**
  * Handles keydown events for Ctrl+Enter or Cmd+Enter. (Unchanged)
@@ -805,7 +628,7 @@ function clearActiveStreamPlaceholder() {
 function handleChatInputKeydown(event) {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
     event.preventDefault();
-    if (chatForm && !streaming) {
+    if (chatForm && !chatState.getState().streaming) {
       chatForm.dispatchEvent(new Event("submit", { cancelable: true }));
     }
   }
@@ -818,25 +641,4 @@ function setupCtrlEnterListener() {
   if (chatInput) {
     chatInput.addEventListener("keydown", handleChatInputKeydown);
   }
-}
-
- * Formats the chat messages as Markdown content. (Unchanged)
- */
-function formatChatAsMarkdown() {
-  return messages.map(msg => {
-    let contentString = "";
-    if (Array.isArray(msg.content)) {
-      contentString = msg.content.join("\n");
-    } else if (typeof msg.content === 'string') {
-      contentString = msg.content;
-    } else {
-      contentString = "[Invalid message content]";
-    }
-
-    return msg.role === 'user'
-      ? `**User:**\n${contentString}`
-      : msg.role === 'assistant'
-        ? `**Assistant (${msg.model || 'Unknown'}):**\n${contentString}`
-        : `**System:**\n${contentString}`;
-  }).join("\n\n---\n\n");
 }

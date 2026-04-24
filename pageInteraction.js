@@ -1,6 +1,6 @@
 // pageInteraction.js
 
-console.log("[LLM Content] Script Start (v3.9.43)");
+console.log("[LLM Content] Script Start (v3.9.44)");
 
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.
@@ -19,8 +19,21 @@ import {
   NOTIFICATION_TIMEOUT_SUCCESS_MS,
   NOTIFICATION_TIMEOUT_CRITICAL_MS,
 } from "./constants.js";
-import { sanitizeHtml, sanitizeForSharing, quickCleanHtml } from "./js/htmlSanitizer.js";
-import { ErrorHandler, ErrorSeverity, handleLastError, setErrorNotifier } from "./js/errorHandler.js";
+import { ErrorHandler, ErrorSeverity, setErrorNotifier } from "./js/errorHandler.js";
+import { RuntimeMessageActions, TabMessageActions } from "./js/messaging/actions.js";
+import { sendRuntimeAction } from "./js/messaging/runtimeClient.js";
+import { createContentScriptMessageListener } from "./js/messaging/contentRouter.js";
+import {
+  applyCostTruncationPolicy,
+  createCharacterTokenEstimatePolicy,
+  TRUNCATION_DECISIONS,
+} from "./js/content/truncationPolicy.js";
+import { extractArtifactsFromSelectedElement } from "./js/content/extractionPipeline.js";
+import { getIntegrationErrorMessage } from "./js/integrations/integrationErrors.js";
+import {
+  CONTENT_ARTIFACT_KEYS,
+  getContentArtifactText,
+} from "./js/content/contentArtifacts.js";
 
 // --- Module-level variables (assignments will happen in initialize) ---
 // These are assigned from the static imports for convenience if you prefer this pattern,
@@ -35,36 +48,46 @@ let lastSummary = "";
 let lastModelUsed = "";
 let lastSelectedDomSnippet = null;
 let lastProcessedMarkdown = null;
-let joplinToken = null; // Store the actual Joplin token, not just its boolean presence
+let lastContentArtifacts = null;
+let hasJoplinToken = false;
 
 let messageQueue = [];
 let modulesInitialized = false; // This flag is still useful to queue messages if initialization is async (e.g., fetching settings)
 
-async function getJoplinTokenFromBackground() {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(
-      { action: "getJoplinToken" },
-      (response) => {
-        if (handleLastError("getJoplinToken", DEBUG)) {
-          resolve(null);
-          return;
-        }
+const extractCurrentContentArtifacts = (selectedElement) => extractArtifactsFromSelectedElement(
+  selectedElement,
+  {
+    document,
+    window,
+    debug: DEBUG,
+    chatSnippetMaxLength: MAX_CONTENT_SIZE,
+  },
+);
 
-        if (!response || response.status !== "success") {
-          if (DEBUG) {
-            console.warn(
-              "[LLM Content] Failed to load Joplin token from background:",
-              response?.message || "No response",
-            );
-          }
-          resolve(response?.token || null);
-          return;
-        }
+async function getJoplinCapabilityFromBackground() {
+  try {
+    const { response } = await sendRuntimeAction(RuntimeMessageActions.getJoplinToken);
 
-        resolve(response.token || null);
-      },
-    );
-  });
+    if (!response || response.status !== "success") {
+      if (DEBUG) {
+        console.warn(
+          "[LLM Content] Failed to load Joplin capability from background:",
+          response?.message || "No response",
+        );
+      }
+      return false;
+    }
+
+    return response.hasJoplinToken === true;
+  } catch (error) {
+    if (DEBUG) {
+      console.warn(
+        "[LLM Content] Failed to request Joplin capability from background:",
+        error,
+      );
+    }
+    return false;
+  }
 }
 
 // Input validation limits to prevent DoS attacks
@@ -139,18 +162,6 @@ const validateContent = (element, html) => {
   return { valid: true };
 };
 
-// --- Helper: Detect if content contains common HTML tags ---
-function containsCommonHtmlTags(input) {
-  const str = typeof input === "string" ? input : "";
-  // Quick check for common structural/inline tags
-  const tagPattern = /<\s*(p|div|span|br|ul|ol|li|a|img|h[1-6]|pre|code|table|thead|tbody|tr|td|th|blockquote|strong|b|em|i|section|article|header|footer|nav|figure|figcaption|hr)\b/i;
-  const hasTags = tagPattern.test(str);
-  if (DEBUG) {
-    console.log("[LLM Content] containsCommonHtmlTags:", { hasTags, sample: str.substring(0, 120) });
-  }
-  return hasTags;
-}
-
 // --- Core Processing Function ---
 function processSelectedElement() {
   // Modules are available due to static imports, check if they are defined (Webpack should ensure this)
@@ -195,9 +206,10 @@ function processSelectedElement() {
   // Remove highlight FIRST to get clean content
   Highlighter.removeSelectionHighlight();
 
-  // Capture the full outerHTML for sharing/context
-  const rawHtml = selectedElement.outerHTML;
+  const contentArtifacts = extractCurrentContentArtifacts(selectedElement);
+  const rawHtml = contentArtifacts.rawHtml.value;
   lastSelectedDomSnippet = rawHtml;
+  lastContentArtifacts = contentArtifacts;
 
   if (!rawHtml || rawHtml.trim() === "") {
     if (DEBUG)
@@ -208,87 +220,29 @@ function processSelectedElement() {
     return;
   }
 
-  // For processing, use the INNER content only
-  const contentToProcess = selectedElement.innerHTML;
-
-  // Apply sanitization to the inner content that we will process
-  const sanitizedContent = sanitizeHtml(contentToProcess, { debug: DEBUG });
-
   if (DEBUG) {
     console.log(
-      "[LLM Content] HTML sanitization complete - Original Inner HTML:",
-      contentToProcess.length,
-      "chars, Sanitized Inner HTML:",
-      sanitizedContent.length,
-      "chars"
-    );
-    console.log("[LLM Content] Checking for HTML tags in:", sanitizedContent.substring(0, 100));
-  }
-
-  // If the sanitized INNER content does NOT contain common HTML tags, treat as plain text and skip Markdown conversion
-  if (!containsCommonHtmlTags(sanitizedContent)) {
-    if (DEBUG) {
-      console.log("[LLM Content] Detected plain text snippet. Skipping HTML→Markdown conversion and sending raw text.");
-    }
-    lastProcessedMarkdown = sanitizedContent; // The text is already clean
-    sendToLLM(lastProcessedMarkdown);
-    return;
-  }
-
-  let processedMarkdown;
-  try {
-    const turndown = new TurndownService({
-      headingStyle: "atx",
-      codeBlockStyle: "fenced",
-      bulletListMarker: "-",
-    });
-
-    // Enhanced cleanup for remaining unwanted elements
-    turndown.remove(["script", "style", "nav", "aside", "footer", "header", "form"]);
-
-    // Add custom rule to remove empty divs and spans
-    turndown.addRule('removeEmptyElements', {
-      filter: function (node) {
-        return (node.nodeName === 'DIV' || node.nodeName === 'SPAN') &&
-               !node.textContent.trim() &&
-               !node.querySelector('img, video, audio, iframe');
+      "[LLM Content] Extracted content artifacts:",
+      {
+        rawHtmlLength: contentArtifacts.rawHtml.length,
+        safeHtmlLength: contentArtifacts.safeHtml.length,
+        llmMarkdownLength: contentArtifacts.llmMarkdown.length,
+        chatSnippetLength: contentArtifacts.chatSnippet.length,
+        warnings: contentArtifacts.warnings,
       },
-      replacement: function () {
-        return '';
-      }
-    });
-
-    processedMarkdown = turndown.turndown(sanitizedContent);
-    if (DEBUG)
-      console.log(
-        "[LLM Content] Successfully converted HTML to Markdown:",
-        processedMarkdown.substring(0, 200) +
-          (processedMarkdown.length > 200 ? "..." : ""),
-      );
-    if (DEBUG) {
-      console.log(
-        "[LLM Content] Conversion Details - Sanitized Inner HTML Length: " +
-          sanitizedContent.length +
-          ", Markdown Length: " +
-          processedMarkdown.length,
-      );
-      //console.log("[LLM Content] Full Markdown Content:", processedMarkdown);
-    }
-  } catch (error) {
-    console.error("[LLM Content] Error converting HTML to Markdown:", error);
-    showError("Error processing content for summarization.");
-    return;
+    );
   }
 
-  lastProcessedMarkdown = processedMarkdown;
+  const summaryContent = contentArtifacts.llmMarkdown;
+  lastProcessedMarkdown = summaryContent;
 
   // Use constants directly from import if they are exported, e.g. constants.MIN_MARKDOWN_LENGTH
   const minMarkdownLength = constants.MIN_MARKDOWN_LENGTH || 50; // Assuming MIN_MARKDOWN_LENGTH is exported from constants.js
-  if (!processedMarkdown || processedMarkdown.length < minMarkdownLength) {
+  if (!summaryContent || summaryContent.length < minMarkdownLength) {
     if (DEBUG)
       console.warn(
         "[LLM Content] Markdown output is empty or too short, falling back to raw HTML.",
-        `Markdown length: ${processedMarkdown?.length || 0}`,
+        `Markdown length: ${summaryContent?.length || 0}`,
       );
     showError(
       "Warning: Content processing incomplete, using raw data.",
@@ -298,7 +252,7 @@ function processSelectedElement() {
     // Fallback to sending the original outerHTML snippet
     sendToLLM(rawHtml);
   } else {
-    sendToLLM(processedMarkdown);
+    sendToLLM(summaryContent);
   }
 }
 
@@ -343,14 +297,15 @@ async function validateAndSendToLLM(content) {
     Highlighter.removeSelectionHighlight();
     lastSummary = "";
     lastSelectedDomSnippet = null;
+    lastContentArtifacts = null;
     return;
   }
 
   SummaryPopup.enableButtons(false);
 
-  chrome.runtime.sendMessage({ action: "getSettings" }, (response) => {
-    if (handleLastError("getSettings", DEBUG) || !response) {
-      const errorMsg = `Error getting settings: ${chrome.runtime.lastError?.message || "No response"}`;
+  sendRuntimeAction(RuntimeMessageActions.getSettings).then(({ response }) => {
+    if (!response) {
+      const errorMsg = "Error getting settings: No response";
       ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
       SummaryPopup.updatePopupContent(
         errorMsg,
@@ -364,6 +319,7 @@ async function validateAndSendToLLM(content) {
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
       lastSelectedDomSnippet = null;
+      lastContentArtifacts = null;
       return;
     }
 
@@ -377,7 +333,7 @@ async function validateAndSendToLLM(content) {
       : "truncate";
     const summaryModelId = response.summaryModelId || "";
     // Retrieve NewsBlur token status from settings to pass to updatePopupContent
-    const hasNewsblurToken = !!response.hasNewsblurToken || !!response.newsblurToken;
+    const hasNewsblurToken = response.hasNewsblurToken === true;
 
     if (!summaryModelId) {
       const errorMsg = "Error: No summary model selected.";
@@ -399,26 +355,26 @@ async function validateAndSendToLLM(content) {
       Highlighter.removeSelectionHighlight();
       lastSummary = "";
       lastSelectedDomSnippet = null;
+      lastContentArtifacts = null;
       return;
     }
 
-    const contentSize = content.length;
     const tokensPerChar = constants.TOKENS_PER_CHAR || 227.56 / 1024;
-    const estimatedTokens = Math.ceil(contentSize * tokensPerChar);
+    const tokenEstimatePolicy = createCharacterTokenEstimatePolicy(tokensPerChar);
+    const estimatedTokens = tokenEstimatePolicy.estimateTokens(content);
     if (DEBUG)
       console.log(
         `[LLM Content] Estimated tokens for content: ${estimatedTokens}`,
       );
 
-    chrome.runtime.sendMessage(
-      { action: "getModelPricing", modelId: summaryModelId },
-      (priceResponse) => {
+    sendRuntimeAction(RuntimeMessageActions.getModelPricing, {
+      modelId: summaryModelId,
+    }).then(({ response: priceResponse }) => {
         if (
-          handleLastError("getModelPricing", DEBUG) ||
           !priceResponse ||
           priceResponse.status !== "success"
         ) {
-          const errorMsg = `Error fetching pricing data: ${chrome.runtime.lastError?.message || priceResponse?.message || "Unknown error"}`;
+          const errorMsg = `Error fetching pricing data: ${priceResponse?.message || "Unknown error"}`;
           ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
           SummaryPopup.updatePopupContent(
             errorMsg,
@@ -432,6 +388,7 @@ async function validateAndSendToLLM(content) {
           Highlighter.removeSelectionHighlight();
           lastSummary = "";
           lastSelectedDomSnippet = null;
+          lastContentArtifacts = null;
           return;
         }
 
@@ -445,28 +402,35 @@ async function validateAndSendToLLM(content) {
           return;
         }
 
-        const estimatedCost = estimatedTokens * pricePerToken;
+        const truncationDecision = applyCostTruncationPolicy({
+          content,
+          pricePerToken,
+          maxRequestPrice,
+          maxPriceBehavior,
+          tokenEstimatePolicy,
+        });
+        const estimatedCost = truncationDecision.estimatedCost;
         if (DEBUG)
           console.log(
             `[LLM Content] Estimated cost: $${estimatedCost.toFixed(6)} (max allowed: $${maxRequestPrice.toFixed(3)})`,
           );
 
-        if (estimatedCost > maxRequestPrice) {
-          if (maxPriceBehavior === "truncate") {
-            const maxAllowedTokens = Math.floor(maxRequestPrice / pricePerToken);
-            const maxAllowedChars = Math.floor(maxAllowedTokens / tokensPerChar);
-            if (maxAllowedChars > 0) {
-              const truncatedContent = content.substring(0, maxAllowedChars);
-              showError(
-                `Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Truncating selection to fit the limit.`,
-                false,
-                NOTIFICATION_TIMEOUT_SUCCESS_MS,
-              );
-              sendRequestToBackground(truncatedContent, requestId, hasNewsblurToken);
-              return;
-            }
-          }
-          const errorMsg = `Error: Request exceeds max price of $${maxRequestPrice.toFixed(3)}. Estimated cost: $${estimatedCost.toFixed(6)}.`;
+        if (truncationDecision.decision === TRUNCATION_DECISIONS.TRUNCATE) {
+          showError(
+            truncationDecision.warning,
+            false,
+            NOTIFICATION_TIMEOUT_SUCCESS_MS,
+          );
+          sendRequestToBackground(
+            truncationDecision.content,
+            requestId,
+            hasNewsblurToken,
+          );
+          return;
+        }
+
+        if (truncationDecision.decision === TRUNCATION_DECISIONS.REJECT) {
+          const errorMsg = truncationDecision.error;
           showError(errorMsg);
           SummaryPopup.updatePopupContent(
             errorMsg,
@@ -480,11 +444,47 @@ async function validateAndSendToLLM(content) {
           Highlighter.removeSelectionHighlight();
           lastSummary = "";
           lastSelectedDomSnippet = null;
+          lastContentArtifacts = null;
           return;
         }
-        sendRequestToBackground(content, requestId, hasNewsblurToken);
-      },
+        sendRequestToBackground(
+          truncationDecision.content,
+          requestId,
+          hasNewsblurToken,
+        );
+      }).catch((error) => {
+        const errorMsg = `Error fetching pricing data: ${error.message}`;
+        ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
+        SummaryPopup.updatePopupContent(
+          errorMsg,
+          null,
+          null,
+          pageTitle,
+          true,
+          hasNewsblurToken,
+        );
+        FloatingIcon.removeFloatingIcon();
+        Highlighter.removeSelectionHighlight();
+        lastSummary = "";
+        lastSelectedDomSnippet = null;
+        lastContentArtifacts = null;
+      });
+  }).catch((error) => {
+    const errorMsg = `Error getting settings: ${error.message}`;
+    ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
+    SummaryPopup.updatePopupContent(
+      errorMsg,
+      null,
+      null,
+      pageTitle,
+      true,
+      false,
     );
+    FloatingIcon.removeFloatingIcon();
+    Highlighter.removeSelectionHighlight();
+    lastSummary = "";
+    lastSelectedDomSnippet = null;
+    lastContentArtifacts = null;
   });
 }
 
@@ -495,32 +495,14 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
     console.log("[LLM Request] Sending summarization request to background.");
   const pageURL = window.location.href;
   const pageTitle = document.title;
-  chrome.runtime.sendMessage(
+  sendRuntimeAction(
+    RuntimeMessageActions.requestSummary,
     {
-      action: "requestSummary",
       requestId: requestId,
       selectedHtml: content,
       hasNewsblurToken: hasNewsblurTokenStatus,
     }, // Pass the token status
-    (response) => {
-      if (handleLastError("requestSummary", DEBUG)) {
-        const errorMsg = `Error sending request: ${chrome.runtime.lastError.message}`;
-        ErrorHandler.handle(new Error(errorMsg), "sendRequestToBackground", ErrorSeverity.WARNING, true);
-        if (SummaryPopup)
-          SummaryPopup.updatePopupContent(
-            errorMsg,
-            null,
-            pageURL,
-            pageTitle,
-            true,
-            hasNewsblurTokenStatus,
-          ); // Pass token status
-        if (FloatingIcon) FloatingIcon.removeFloatingIcon();
-        if (Highlighter) Highlighter.removeSelectionHighlight();
-        lastSummary = "";
-        lastSelectedDomSnippet = null;
-        return;
-      }
+  ).then(({ response }) => {
       if (response && response.status === "error") {
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         showError(errorMsg);
@@ -537,6 +519,7 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
         if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
         lastSelectedDomSnippet = null;
+        lastContentArtifacts = null;
       } else if (response && response.status === "processing") {
         if (DEBUG)
           console.log(
@@ -558,9 +541,26 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
         if (Highlighter) Highlighter.removeSelectionHighlight();
         lastSummary = "";
         lastSelectedDomSnippet = null;
+        lastContentArtifacts = null;
       }
-    },
-  );
+    }).catch((error) => {
+      const errorMsg = `Error sending request: ${error.message}`;
+      ErrorHandler.handle(new Error(errorMsg), "sendRequestToBackground", ErrorSeverity.WARNING, true);
+      if (SummaryPopup)
+        SummaryPopup.updatePopupContent(
+          errorMsg,
+          null,
+          pageURL,
+          pageTitle,
+          true,
+          hasNewsblurTokenStatus,
+        ); // Pass token status
+      if (FloatingIcon) FloatingIcon.removeFloatingIcon();
+      if (Highlighter) Highlighter.removeSelectionHighlight();
+      lastSummary = "";
+      lastSelectedDomSnippet = null;
+      lastContentArtifacts = null;
+    });
 }
 
 function sendToLLM(content) {
@@ -578,7 +578,7 @@ function handleElementSelected(element, clickX, clickY) {
     handleIconClick,
     handleIconDismiss,
     handleJoplinIconClick, // Pass a handler for the Joplin icon
-    !!joplinToken, // Pass the boolean indicating if Joplin token is set
+    hasJoplinToken, // Pass the boolean indicating if Joplin token is set
     handleCopyHtmlIconClick, // Pass a handler for the Copy HTML icon
     true, // Always show the Copy HTML icon
   );
@@ -599,6 +599,7 @@ function handleElementDeselected() {
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
   lastProcessedMarkdown = null;
+  lastContentArtifacts = null;
 }
 
 function handleIconClick() {
@@ -618,6 +619,7 @@ function handleIconDismiss() {
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
   lastProcessedMarkdown = null;
+  lastContentArtifacts = null;
 }
 
 // New handler function for the Copy HTML icon click
@@ -633,11 +635,8 @@ async function handleCopyHtmlIconClick() {
   }
 
   try {
-    // Get the full HTML of the selected element
-    const rawHtml = selectedElement.outerHTML;
-
-    // Sanitize the HTML before copying
-    const sanitizedHtml = sanitizeHtml(rawHtml, { debug: DEBUG });
+    const contentArtifacts = extractCurrentContentArtifacts(selectedElement);
+    const sanitizedHtml = contentArtifacts.safeHtml;
 
     if (!sanitizedHtml || sanitizedHtml.trim() === "") {
       showError("Element HTML became empty after cleaning.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
@@ -646,7 +645,7 @@ async function handleCopyHtmlIconClick() {
     }
 
     // Copy to clipboard with both HTML and plain text formats
-    const textContent = selectedElement.textContent || selectedElement.innerText || "";
+    const textContent = contentArtifacts.plainText;
     const htmlBlob = new Blob([sanitizedHtml], { type: "text/html" });
     const textBlob = new Blob([textContent], { type: "text/plain" });
 
@@ -675,16 +674,24 @@ async function handleCopyHtmlIconClick() {
 async function handleJoplinIconClick() {
   if (DEBUG) console.log("[LLM Content] handleJoplinIconClick called.");
 
-  // For Joplin, get the HTML snippet *before* clearing the highlight
-  const rawContent = Highlighter.getSelectedElement()?.outerHTML;
+  // For Joplin, get the content artifacts *before* clearing the highlight
+  const selectedElement = Highlighter.getSelectedElement();
+  const contentArtifacts = selectedElement
+    ? extractCurrentContentArtifacts(selectedElement)
+    : null;
+  const rawContent = contentArtifacts?.rawHtml?.value || "";
+  const contentToSend = getContentArtifactText(
+    contentArtifacts,
+    CONTENT_ARTIFACT_KEYS.JOPLIN_NOTE_BODY_HTML,
+  );
 
   // Remove floating icon and highlight immediately
   FloatingIcon.removeFloatingIcon();
   Highlighter.removeSelectionHighlight();
   Highlighter.resetHighlightState();
 
-  // Ensure the token is available
-  if (!joplinToken) {
+  // Ensure Joplin is configured before opening notebook selection.
+  if (!hasJoplinToken) {
     showError(
       "Joplin API token is not set. Please go to extension options to set it.",
       true,
@@ -703,33 +710,16 @@ async function handleJoplinIconClick() {
     return;
   }
 
-  // Apply sanitization for Joplin content
-  const contentToSend = sanitizeHtml(rawContent, {
-    debug: DEBUG
-  });
   const pageURL = window.location.href; // Get current page URL
 
-  // Check if sanitization left any content
-  if (!contentToSend || contentToSend.trim() === "" || contentToSend.trim() === "<div></div>") {
-    console.warn("[LLM Content] JOPLIN FALLBACK TRIGGERED - Sanitization removed all content");
-    console.log("[LLM Content] Original content length:", rawContent.length);
-    console.log("[LLM Content] Original content preview:", rawContent.substring(0, 300));
-    console.log("[LLM Content] Sanitized content:", contentToSend);
-    console.log("[LLM Content] Sanitized content length:", contentToSend ? contentToSend.length : 0);
-    // Fallback to quick clean (only remove extension classes) if full sanitization removes everything
-    const fallbackContent = quickCleanHtml(rawContent);
-    if (!fallbackContent || fallbackContent.trim() === "") {
-      showError("Content became empty after cleaning. Cannot send to Joplin.", true, NOTIFICATION_TIMEOUT_SUCCESS_MS);
-      if (DEBUG) console.error("[LLM Content] Even fallback cleaning resulted in empty content.");
-      return;
+  if (!contentToSend) {
+    showError("Content became empty after cleaning. Cannot send to Joplin.", true, NOTIFICATION_TIMEOUT_SUCCESS_MS);
+    if (DEBUG) {
+      console.error("[LLM Content] Content artifacts did not include Joplin note body HTML.", {
+        rawHtmlLength: rawContent.length,
+        warnings: contentArtifacts?.warnings || [],
+      });
     }
-    // Use fallback content
-    await JoplinManager.fetchAndShowNotebookSelection(
-      joplinToken,
-      fallbackContent,
-      pageURL,
-      true // isHtmlContent
-    );
     return;
   }
 
@@ -745,7 +735,6 @@ async function handleJoplinIconClick() {
 
   // Use JoplinManager to handle the notebook selection and note creation
   await JoplinManager.fetchAndShowNotebookSelection(
-    joplinToken,
     contentToSend,
     pageURL,
     isHtmlContent,
@@ -768,31 +757,31 @@ function handlePopupClose() {
   lastModelUsed = "";
   lastSelectedDomSnippet = null;
   lastProcessedMarkdown = null;
+  lastContentArtifacts = null;
 }
 
 function handlePopupOptions() {
   if (DEBUG) console.log("[LLM Content] handlePopupOptions called.");
-  chrome.runtime.sendMessage({ action: "openOptionsPage" }, (response) => {
-    if (handleLastError("openOptionsPage", DEBUG)) {
+  sendRuntimeAction(RuntimeMessageActions.openOptionsPage).catch((error) => {
       ErrorHandler.handle(
-        new Error(chrome.runtime.lastError.message),
+        error,
         "handlePopupOptions",
         ErrorSeverity.WARNING,
         true
       );
-    }
   });
   if (SummaryPopup) SummaryPopup.hidePopup();
   if (Highlighter) Highlighter.removeSelectionHighlight();
   if (FloatingIcon) FloatingIcon.removeFloatingIcon();
   lastSummary = "";
   lastSelectedDomSnippet = null;
+  lastContentArtifacts = null;
 }
 
 // --- Chat Context Handling ---
 function openChatWithContext(targetLang = "") {
-  const domSnippet = lastSelectedDomSnippet;
-  const processedMarkdownContent = lastProcessedMarkdown;
+  const domSnippet = lastContentArtifacts?.chatSnippet || lastSelectedDomSnippet;
+  const processedMarkdownContent = lastContentArtifacts?.llmMarkdown || lastProcessedMarkdown;
 
   if (!domSnippet || domSnippet.trim() === "") {
     showError("Cannot open chat: No element content available.");
@@ -830,47 +819,37 @@ function openChatWithContext(targetLang = "") {
       contextPayload,
     );
 
-  chrome.runtime.sendMessage(
-    { action: "setChatContext", ...contextPayload },
-    (response) => {
-      if (handleLastError("setChatContext", DEBUG)) {
-        ErrorHandler.handle(
-          new Error(chrome.runtime.lastError.message),
-          "openChatWithContext",
-          ErrorSeverity.WARNING,
-          true
-        );
-        return;
-      }
+  sendRuntimeAction(
+    RuntimeMessageActions.setChatContext,
+    contextPayload,
+  ).then(({ response }) => {
       if (response && response.status === "ok") {
         if (DEBUG)
           console.log(
             "[LLM Chat Context] Background confirmed context storage. Requesting tab open.",
           );
-        chrome.runtime.sendMessage(
-          { action: "openChatTab" },
-          (openResponse) => {
-            if (handleLastError("openChatTab", DEBUG)) {
+        sendRuntimeAction(RuntimeMessageActions.openChatTab)
+          .then(({ response: openResponse }) => {
+            if (DEBUG)
+              console.log(
+                "[LLM Chat Context] Background ack openChatTab:",
+                openResponse,
+              );
+            if (SummaryPopup) SummaryPopup.hidePopup();
+            lastSummary = "";
+            lastModelUsed = "";
+            lastSelectedDomSnippet = null;
+            lastProcessedMarkdown = null;
+            lastContentArtifacts = null;
+          })
+          .catch((error) => {
               ErrorHandler.handle(
-                new Error(chrome.runtime.lastError.message),
+                error,
                 "openChatWithContext",
                 ErrorSeverity.WARNING,
                 false
               );
-            } else {
-              if (DEBUG)
-                console.log(
-                  "[LLM Chat Context] Background ack openChatTab:",
-                  openResponse,
-                );
-              if (SummaryPopup) SummaryPopup.hidePopup();
-              lastSummary = "";
-              lastModelUsed = "";
-              lastSelectedDomSnippet = null;
-              lastProcessedMarkdown = null;
-            }
-          },
-        );
+          });
       } else {
         console.error(
           "[LLM Chat Context] Background did not confirm context storage:",
@@ -878,17 +857,23 @@ function openChatWithContext(targetLang = "") {
         );
         showError("Failed to prepare chat context.");
       }
-    },
-  );
+    }).catch((error) => {
+      ErrorHandler.handle(
+        error,
+        "openChatWithContext",
+        ErrorSeverity.WARNING,
+        true
+      );
+    });
 }
 
 // --- Core Message Handling Logic ---
 
 /**
  * Handles processSelection action
- * @param {function} sendResponse - Response callback
+ * @returns {object} Message response
  */
-const handleProcessSelection = async (sendResponse) => {
+const handleProcessSelection = async () => {
   const currentSelectedElement = Highlighter?.getSelectedElement();
 
   if (!currentSelectedElement) {
@@ -914,31 +899,40 @@ const handleProcessSelection = async (sendResponse) => {
       SummaryPopup.enableButtons(false);
       setTimeout(SummaryPopup.hidePopup, NOTIFICATION_TIMEOUT_SUCCESS_MS);
     }
-    sendResponse({ status: "error", message: "No element selected" });
-    return;
+    return { status: "error", message: "No element selected" };
   }
 
   try {
     await processSelectedElement();
-    sendResponse({ status: "processing" });
+    return { status: "processing" };
   } catch (error) {
-    sendResponse({ status: "error", message: error.message });
+    return { status: "error", message: error.message };
   }
 };
 
 /**
  * Handles summaryResult action
  * @param {object} req - Request data
- * @param {function} sendResponse - Response callback
+ * @returns {object} Message response
  */
-const handleSummaryResult = async (req, sendResponse) => {
+const handleSummaryResult = async (req) => {
   try {
     displaySummary(req);
-    sendResponse({ status: "success" });
+    return { status: "success" };
   } catch (error) {
-    sendResponse({ status: "error", message: error.message });
+    return { status: "error", message: error.message };
   }
 };
+
+const contentMessageHandlers = Object.freeze({
+  [TabMessageActions.processSelection]: handleProcessSelection,
+  [TabMessageActions.summaryResult]: handleSummaryResult,
+});
+
+const routeContentMessage = createContentScriptMessageListener({
+  handlers: contentMessageHandlers,
+  onError: console.error,
+});
 
 /**
  * Handles incoming messages from background script
@@ -949,25 +943,7 @@ const handleSummaryResult = async (req, sendResponse) => {
  */
 const handleMessage = (req, sender, sendResponse) => {
   if (DEBUG) console.log("[LLM Content] Handling message:", req.action);
-
-  // Always handle asynchronously and return true
-  (async () => {
-    try {
-      if (req.action === "processSelection") {
-        await handleProcessSelection(sendResponse);
-      } else if (req.action === "summaryResult") {
-        await handleSummaryResult(req, sendResponse);
-      } else {
-        sendResponse({ status: "error", message: `Unknown action: ${req.action}` });
-      }
-    } catch (error) {
-      console.error("[LLM Content] Error handling message:", error);
-      sendResponse({ status: "error", message: error.message });
-    }
-  })();
-
-  // Always return true to indicate async response
-  return true;
+  return routeContentMessage(req, sender, sendResponse);
 };
 
 /**
@@ -1078,16 +1054,8 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   return handleMessage(req, sender, sendResponse);
 });
 
-// --- DOM Sanitization and Cleanup Functions ---
-// Note: Main sanitization logic moved to js/htmlSanitizer.js for better modularity
-
-// Helper to remove highlight classes from HTML string (legacy function for backward compatibility)
-function cleanHtmlForNewsblur(htmlString) {
-  return quickCleanHtml(htmlString);
-}
-
 // --- Callback Functions for NewsBlur ---
-function handlePopupNewsblur(hasNewsblurToken) {
+async function handlePopupNewsblur(hasNewsblurToken) {
   if (DEBUG) console.log("[LLM Content] handlePopupNewsblur called.");
 
   if (!hasNewsblurToken) {
@@ -1115,143 +1083,115 @@ function handlePopupNewsblur(hasNewsblurToken) {
     return;
   }
 
-      chrome.storage.sync.get(
-    [constants.STORAGE_KEY_ALSO_SEND_TO_JOPLIN],
-    (settings) => {
-      if (handleLastError("getSettingsForShare", DEBUG)) {
-        ErrorHandler.handle(
-          new Error(chrome.runtime.lastError.message),
-          "handlePopupNewsblur",
-          ErrorSeverity.WARNING,
-          true
-        );
-        return;
-      }
+  let settings;
+  try {
+    const result = await sendRuntimeAction(RuntimeMessageActions.getSettings);
+    settings = result.response || {};
+  } catch (error) {
+    ErrorHandler.handle(
+      error,
+      "handlePopupNewsblur",
+      ErrorSeverity.WARNING,
+      true
+    );
+    return;
+  }
 
-      const alsoSendToJoplin =
-        settings[constants.STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ?? false;
+  const alsoSendToJoplin =
+    settings[constants.STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ?? false;
 
-      // lastSummary is now already the HTML string we need. No parsing required.
-      const summaryHtml = lastSummary;
+  // lastSummary is now already the HTML string we need. No parsing required.
+  const summaryHtml = lastSummary;
 
-      const title = document.title;
-      const story_url = window.location.href;
+  const title = document.title;
+  const story_url = window.location.href;
 
-      // --- START OF NEW TWO-STAGE CLEANING IMPLEMENTATION ---
-
-      // STAGE 1: Sanitize the original messy HTML to remove ads and junk.
-      const sanitizedHtml = sanitizeForSharing(lastSelectedDomSnippet, DEBUG);
-
-      // STAGE 2: Standardize the structure by converting it to Markdown and back to HTML.
-      let finalCleanHtml = sanitizedHtml; // Fallback to sanitized HTML if conversion fails
-
-      try {
-        // Check if marked is available globally
-        if (typeof marked !== "undefined") {
-          const turndownService = new TurndownService();
-          const markdownFromSanitizedHtml = turndownService.turndown(sanitizedHtml);
-          finalCleanHtml = marked.parse(markdownFromSanitizedHtml);
-
-          if (DEBUG) {
-            console.log("[LLM Content] Two-stage cleaning completed successfully");
-            console.log("[LLM Content] Original length:", lastSelectedDomSnippet.length);
-            console.log("[LLM Content] After sanitization:", sanitizedHtml.length);
-            console.log("[LLM Content] After standardization:", finalCleanHtml.length);
-          }
-        } else {
-          console.warn("[LLM Content] marked library not available, using sanitized HTML only");
-          if (DEBUG) console.log("[LLM Content] Falling back to Stage 1 cleaning only");
-        }
-      } catch (error) {
-        console.error("[LLM Content] Error during Stage 2 cleaning:", error);
-        if (DEBUG) console.log("[LLM Content] Falling back to Stage 1 cleaning due to error");
-        // finalCleanHtml already set to sanitizedHtml as fallback
-      }
-
-      // --- END OF NEW TWO-STAGE CLEANING IMPLEMENTATION ---
-
-      // Combine the AI summary with our new, super-clean version of the original content.
-      const combinedContent = summaryHtml + "<hr>" + finalCleanHtml;
-
-      chrome.runtime.sendMessage(
-        {
-          action: "shareToNewsblur",
-          options: {
-            title: title,
-            story_url: story_url,
-            content: combinedContent,
-            comments: "",
-          },
-        },
-        (response) => {
-          if (handleLastError("shareToNewsblur", DEBUG)) {
-            ErrorHandler.handle(
-              new Error(chrome.runtime.lastError.message),
-              "handlePopupNewsblur",
-              ErrorSeverity.WARNING,
-              true
-            );
-            return;
-          }
-          if (response.status === "success") {
-            console.log(
-              "[LLM Content] Successfully sent NewsBlur share request:",
-              response.result,
-            );
-            showError("Shared to NewsBlur successfully!", false, NOTIFICATION_TIMEOUT_SUCCESS_MS);
-          } else {
-            showError(
-              `Failed to share to NewsBlur: ${response.message || "Unknown error"}`,
-            );
-            if (DEBUG)
-              console.error(
-                "[LLM Content] Failed to share to NewsBlur:",
-                response,
-              );
-          }
-        },
-      );
-
-      if (alsoSendToJoplin && joplinToken) {
-        if (DEBUG) console.log("[LLM Content] Also sending content to Joplin.");
-        JoplinManager.fetchAndShowNotebookSelection(
-          joplinToken,
-          combinedContent,
-          story_url,
-          true,
-        );
-      }
-
-      SummaryPopup.hidePopup();
-      Highlighter.removeSelectionHighlight();
-      FloatingIcon.removeFloatingIcon();
-      lastSummary = "";
-      lastModelUsed = "";
-      lastSelectedDomSnippet = null;
-      lastProcessedMarkdown = null;
-    },
+  const newsblurStoryHtml = getContentArtifactText(
+    lastContentArtifacts,
+    CONTENT_ARTIFACT_KEYS.NEWSBLUR_STORY_HTML,
   );
+  if (DEBUG) {
+    console.log("[LLM Content] Using NewsBlur story artifact for NewsBlur share", {
+      rawHtmlLength: lastSelectedDomSnippet.length,
+      newsblurStoryHtmlLength: newsblurStoryHtml.length,
+      warnings: lastContentArtifacts?.warnings || [],
+    });
+  }
+
+  // Combine the AI summary with the NewsBlur original-content artifact.
+  const combinedContent = summaryHtml + "<hr>" + newsblurStoryHtml;
+
+  try {
+    const { response } = await sendRuntimeAction(
+      RuntimeMessageActions.shareToNewsblur,
+      {
+        options: {
+          title: title,
+          story_url: story_url,
+          content: combinedContent,
+          comments: "",
+        },
+      },
+    );
+
+    if (response.status === "success") {
+      console.log(
+        "[LLM Content] Successfully sent NewsBlur share request:",
+        response.result,
+      );
+      showError("Shared to NewsBlur successfully!", false, NOTIFICATION_TIMEOUT_SUCCESS_MS);
+    } else {
+      const message = getIntegrationErrorMessage(response, "Unknown error");
+      showError(
+        `Failed to share to NewsBlur: ${message}`,
+      );
+      if (DEBUG)
+        console.error(
+          "[LLM Content] Failed to share to NewsBlur:",
+          response,
+        );
+    }
+  } catch (error) {
+    ErrorHandler.handle(
+      error,
+      "handlePopupNewsblur",
+      ErrorSeverity.WARNING,
+      true
+    );
+  }
+
+  if (alsoSendToJoplin && hasJoplinToken) {
+    if (DEBUG) console.log("[LLM Content] Also sending content to Joplin.");
+    JoplinManager.fetchAndShowNotebookSelection(
+      combinedContent,
+      story_url,
+      true,
+    );
+  }
+
+  SummaryPopup.hidePopup();
+  Highlighter.removeSelectionHighlight();
+  FloatingIcon.removeFloatingIcon();
+  lastSummary = "";
+  lastModelUsed = "";
+  lastSelectedDomSnippet = null;
+  lastProcessedMarkdown = null;
+  lastContentArtifacts = null;
 }
 
 // --- Initialization Function ---
 async function initialize() {
   try {
-    const syncResult = await chrome.storage.sync.get(["debug", "joplinToken"]);
+    const syncResult = await chrome.storage.sync.get(["debug"]);
 
     DEBUG = !!syncResult.debug;
-
-    let resolvedJoplinToken = syncResult.joplinToken || null;
-    if (!resolvedJoplinToken) {
-      resolvedJoplinToken = await getJoplinTokenFromBackground();
-    }
-
-    joplinToken = resolvedJoplinToken || null;
+    hasJoplinToken = await getJoplinCapabilityFromBackground();
     if (DEBUG)
       console.log(
         "[LLM Content] Initial Debug mode:",
         DEBUG,
         "Joplin Token Loaded:",
-        joplinToken ? "Yes" : "No",
+        hasJoplinToken ? "Yes" : "No",
       );
 
     // showError and renderTextAsHtml are available from static imports at the top.

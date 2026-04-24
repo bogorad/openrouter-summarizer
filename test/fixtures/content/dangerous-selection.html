@@ -1,0 +1,10 @@
+<article id="danger-zone" onclick="steal()" data-track="reader">
+  <h1 onmouseover="steal()">Unsafe story</h1>
+  <p>Useful body text remains after cleanup.</p>
+  <script>alert("owned")</script>
+  <style>.story { display: none; }</style>
+  <a href="javascript:alert(1)" title="bad link">Bad link</a>
+  <a href="data:text/html;base64,PHNjcmlwdD4=">Data link</a>
+  <img src="javascript:alert(1)" onerror="steal()" alt="Unsafe image">
+  <iframe srcdoc="<p>bad</p>"></iframe>
+</article>

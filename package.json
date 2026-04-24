@@ -1,13 +1,17 @@
 {
   "name": "openrouter-summarizer",
-  "version": "3.9.43",
+  "version": "3.9.44",
+  "type": "module",
   "description": "**Summarize any web page content and chat with the context using OpenRouter.ai APIs** _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_",
   "main": "background.js",
   "directories": {
     "lib": "lib"
   },
   "scripts": {
-    "test": "webpack --mode production"
+    "build": "webpack --config webpack.config.cjs --mode production",
+    "test:entrypoints": "node --test test/entrypoints/moduleValidation.test.js",
+    "test:unit": "node --test",
+    "test": "npm run build && npm run test:unit"
   },
   "repository": {
     "type": "git",

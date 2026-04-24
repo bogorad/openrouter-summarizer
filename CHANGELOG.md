@@ -1,3 +1,5 @@
+- **Version 3.9.44:** Reclaimed Beads rebuild work after crash recovery; closed completed chat renderer, chat stream lifecycle, options language, options prompt/token, and integration secret-capability tasks; fixed the chat renderer regression test hang.
+
 - **Version 3.9.43:** Fixed Beads-tracked runtime and security bugs from the v3-10 cleanup pass; aligned package/manifest version metadata and replaced the failing placeholder test script with the Webpack build gate.
 
 - **Version 3.9.42:** Added configurable chat quick-prompt buttons between model selection and message input; buttons are managed in Options (title + prompt) and send immediately when clicked.
