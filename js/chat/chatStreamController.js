@@ -1,6 +1,6 @@
 // js/chat/chatStreamController.js
 /**
- * Short Spec: Coordinates chat request streaming, abort, placeholder cleanup,
+ * Short Spec: Coordinates chat completion requests, abort, placeholder cleanup,
  * and final UI state restoration.
  * Called from: chat.js and chat stream controller unit tests.
  */
@@ -59,6 +59,10 @@ export const createChatStreamController = ({
       return;
     }
 
+    if (response?.requestId) {
+      request.backgroundRequestId = response.requestId;
+    }
+
     finishActiveRequest(request);
 
     if (response?.status === "success" && response.content !== undefined) {
@@ -95,7 +99,7 @@ export const createChatStreamController = ({
 
   return {
     /**
-     * Starts a chat request and tracks the active stream placeholder.
+     * Starts a chat request and tracks the active pending placeholder.
      * @param {string} userText - User prompt text.
      * @returns {boolean} True when a request was started.
      */
@@ -124,6 +128,7 @@ export const createChatStreamController = ({
       const apiMessages = buildApiMessages(userText, messages, chatContext);
       const request = {
         id: nextRequestId,
+        backgroundRequestId: `chat-${Date.now()}-${nextRequestId}`,
         model,
         placeholder,
         placeholderCleaned: false,
@@ -135,8 +140,14 @@ export const createChatStreamController = ({
       sendRuntimeAction(actions.llmChatStream, {
         messages: apiMessages,
         model: selectedModelId,
+        requestId: request.backgroundRequestId,
       })
-        .then(({ response }) => handleResponse(request, response))
+        .then(({ response }) => {
+          if (response?.requestId) {
+            request.backgroundRequestId = response.requestId;
+          }
+          handleResponse(request, response);
+        })
         .catch((error) => handleFailure(request, error));
 
       return true;
@@ -155,8 +166,14 @@ export const createChatStreamController = ({
       request.stopped = true;
       finishActiveRequest(request);
 
-      sendRuntimeAction(actions.abortChatRequest)
+      const requestId = request.backgroundRequestId;
+      sendRuntimeAction(actions.abortChatRequest, { requestId })
         .then(({ response }) => {
+          if (response?.requestId && response.requestId !== requestId) {
+            logger.log("[LLM Chat] Ignoring stale abort confirmation.");
+            return;
+          }
+
           if (response?.status === "aborted") {
             logger.log("[LLM Chat] Background confirmed request abort.");
             return;

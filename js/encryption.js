@@ -1,15 +1,25 @@
-// js/encryption.js - Encryption utilities for sensitive tokens
+// js/encryption.js - Local token obfuscation utilities
 
 import { Logger } from "./logger.js";
 
 const ENCRYPTION_KEY_NAME = 'encryptionKey_v1';
 const MIN_ENCRYPTED_BYTES = 13;
+const BYTE_TO_STRING_CHUNK_SIZE = 0x8000;
 const MISSING_CRYPTO_HELPER =
   "Web Crypto API is unavailable in this context.";
 const MISSING_SUBTLE_API =
   "Web Crypto subtle API is missing or incomplete in this context.";
 const MISSING_RANDOM_SOURCE =
   "Crypto.getRandomValues is unavailable in this context.";
+
+export const SECRET_STORAGE_PROTECTION = Object.freeze({
+  ciphertextStorage: "chrome.storage.local",
+  keyStorage: "chrome.storage.local",
+  usesSameStorageBoundary: true,
+  providesStrongEncryptionAtRest: false,
+  description:
+    "AES-GCM hides token values from casual display, but the key is stored beside the ciphertext and does not provide strong encryption at rest.",
+});
 
 function getCryptoHelpers() {
   const scope =
@@ -46,8 +56,23 @@ function getCryptoHelpers() {
   return { cryptoObj, subtle };
 }
 
+function bytesToBase64(bytes) {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += BYTE_TO_STRING_CHUNK_SIZE) {
+    const chunk = bytes.subarray(index, index + BYTE_TO_STRING_CHUNK_SIZE);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+}
+
 /**
- * Gets or creates an AES-GCM encryption key stored in chrome.storage.local
+ * Gets or creates the AES-GCM key used for local token obfuscation.
+ *
+ * The key is stored in chrome.storage.local beside the ciphertext. This keeps
+ * token values out of casual UI/storage display, but it is not strong
+ * encryption at rest against anything with read access to chrome.storage.local.
+ *
  * @returns {Promise<CryptoKey>} The encryption key
  */
 export async function getOrCreateEncryptionKey() {
@@ -80,7 +105,8 @@ export async function getOrCreateEncryptionKey() {
 }
 
 /**
- * Encrypts plaintext using AES-GCM
+ * Obfuscates plaintext using AES-GCM with a key stored in the same local area.
+ *
  * @param {string} plaintext - Text to encrypt
  * @returns {Promise<string>} Base64 encoded encrypted data
  */
@@ -102,11 +128,12 @@ export async function encryptSensitiveData(plaintext) {
   combined.set(iv);
   combined.set(new Uint8Array(ciphertext), iv.length);
   
-  return btoa(String.fromCharCode(...combined));
+  return bytesToBase64(combined);
 }
 
 /**
- * Decrypts encrypted data using AES-GCM
+ * Decrypts data produced by encryptSensitiveData.
+ *
  * @param {string} encrypted - Base64 encoded encrypted data
  * @returns {Promise<{success: boolean, data: string, error: string|null}>} Result object
  *   - success: true if decryption succeeded or input was empty, false on failure

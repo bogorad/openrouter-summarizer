@@ -22,7 +22,10 @@ import {
   createOptionsModelSection,
   getBaseModelId,
 } from "./js/options/modelSection.js";
-import { createOptionsLanguageSection } from "./js/options/languageSection.js";
+import {
+  createOptionsLanguageSection,
+  loadLanguageMetadata,
+} from "./js/options/languageSection.js";
 import {
   createOptionsQuickPromptSection,
   normalizeQuickPromptsForSave,
@@ -260,16 +263,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       statusMessage.className = "status-message";
     }
 
-    try {
-      const langDataResponse = await fetch(
-        chrome.runtime.getURL("country-flags/languages.json"),
-      );
-      const langData = await langDataResponse.json();
-      allLanguages = Object.keys(langData).map((name) => ({
-        name,
-        code: langData[name],
-      }));
+    allLanguages = await loadLanguageMetadata({
+      onError: (error) => {
+        showError(
+          `Error loading language metadata: ${error.message}. Using fallback language options.`,
+        );
+        if (optionsState.debug) {
+          console.error("[LLM Options] Error loading language metadata.", error);
+        }
+      },
+    });
 
+    try {
       const data = await loadStoredSettings();
 
       optionsState.debug = data.debug ?? DEFAULT_DEBUG_MODE;

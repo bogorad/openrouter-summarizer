@@ -11,8 +11,35 @@ import {
 } from "../state/secretStore.js";
 
 const TOKEN_SAVE_DEBOUNCE_MS = 300;
+const TOKEN_DECRYPT_FAILURE_PLACEHOLDER =
+  "Stored token could not be decrypted. Re-enter to replace it.";
+
+const originalInputPlaceholders = new WeakMap();
 
 const getInputValue = (input) => (input ? input.value.trim() : "");
+
+const rememberInputPlaceholder = (input) => {
+  if (!input || originalInputPlaceholders.has(input)) return;
+  originalInputPlaceholders.set(input, input.placeholder || "");
+};
+
+const setTokenLoadFailure = (input, error) => {
+  if (!input) return;
+  rememberInputPlaceholder(input);
+  input.placeholder = TOKEN_DECRYPT_FAILURE_PLACEHOLDER;
+  input.title = error || TOKEN_DECRYPT_FAILURE_PLACEHOLDER;
+  input.setAttribute?.("aria-invalid", "true");
+  input.setCustomValidity?.(TOKEN_DECRYPT_FAILURE_PLACEHOLDER);
+};
+
+const clearTokenLoadFailure = (input) => {
+  if (!input) return;
+  rememberInputPlaceholder(input);
+  input.placeholder = originalInputPlaceholders.get(input) || "";
+  input.title = "";
+  input.removeAttribute?.("aria-invalid");
+  input.setCustomValidity?.("");
+};
 
 const maskToken = (token) => {
   if (!token || token.length <= 4) return "****";
@@ -131,6 +158,9 @@ export const createOptionsTokenSection = ({
   onSaveSettings = () => {},
   onApiKeyEntered = () => {},
   onDebug = () => false,
+  loadOpenRouterApiKeyFn = loadOpenRouterApiKey,
+  loadNewsblurTokenFn = loadNewsblurToken,
+  loadJoplinTokenFn = loadJoplinToken,
 } = {}) => {
   let debounceTimeoutId = null;
 
@@ -175,32 +205,38 @@ export const createOptionsTokenSection = ({
 
   const loadTokens = async () => {
     const [apiKeyResult, newsblurResult, joplinResult] = await Promise.all([
-      loadOpenRouterApiKey(),
-      loadNewsblurToken(),
-      loadJoplinToken(),
+      loadOpenRouterApiKeyFn(),
+      loadNewsblurTokenFn(),
+      loadJoplinTokenFn(),
     ]);
 
+    const loadedTokens = {};
     if (!apiKeyResult.success) {
       console.error("[Options] Failed to decrypt API key:", apiKeyResult.error);
+      setTokenLoadFailure(apiKeyInput, apiKeyResult.error);
+    } else {
+      loadedTokens.apiKey = apiKeyResult.data;
+      clearTokenLoadFailure(apiKeyInput);
     }
     if (!newsblurResult.success) {
       console.error(
         "[Options] Failed to decrypt NewsBlur token:",
         newsblurResult.error,
       );
+      setTokenLoadFailure(newsblurTokenInput, newsblurResult.error);
+    } else {
+      loadedTokens.newsblurToken = newsblurResult.data;
+      clearTokenLoadFailure(newsblurTokenInput);
     }
     if (!joplinResult.success) {
       console.error("[Options] Failed to decrypt Joplin token:", joplinResult.error);
+      setTokenLoadFailure(joplinTokenInput, joplinResult.error);
+    } else {
+      loadedTokens.joplinToken = joplinResult.data;
+      clearTokenLoadFailure(joplinTokenInput);
     }
 
-    state.setTokens(
-      {
-        apiKey: apiKeyResult.data,
-        newsblurToken: newsblurResult.data,
-        joplinToken: joplinResult.data,
-      },
-      { dirty: false },
-    );
+    state.setTokens(loadedTokens, { dirty: false });
     setInputsFromState();
   };
 
@@ -228,6 +264,7 @@ export const createOptionsTokenSection = ({
   };
 
   const handleNewsblurTokenInput = () => {
+    clearTokenLoadFailure(newsblurTokenInput);
     if (debounceTimeoutId) clearTimeout(debounceTimeoutId);
     debounceTimeoutId = setTimeout(() => {
       const tokenValue = extractNewsblurToken(getInputValue(newsblurTokenInput), {
@@ -242,6 +279,7 @@ export const createOptionsTokenSection = ({
   };
 
   const handleApiAndJoplinInput = (event) => {
+    clearTokenLoadFailure(event.target);
     saveAfterDebounce(() => {
       if (event.target.id !== "apiKey") return;
       const apiKey = getInputValue(apiKeyInput);

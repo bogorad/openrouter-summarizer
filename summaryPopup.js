@@ -8,6 +8,7 @@
 
 import { createButton, setButtonDisabled } from "./js/ui/buttons.js";
 import { createElement } from "./js/ui/dom.js";
+import { sanitizeHtml } from "./js/htmlSanitizer.js";
 import { createPopup } from "./js/ui/popup.js";
 import { renderTarget, RENDER_TARGET_MODES } from "./js/ui/renderTarget.js";
 
@@ -305,6 +306,7 @@ async function handleRichTextCopyClick(contentDiv, copyBtn) {
 
   if (htmlToCopy && textToCopy) {
     try {
+      htmlToCopy = sanitizeHtml(htmlToCopy);
       const htmlBlob = new Blob([htmlToCopy], { type: "text/html" });
       const textBlob = new Blob([textToCopy], { type: "text/plain" });
       const clipboardItem = new ClipboardItem({

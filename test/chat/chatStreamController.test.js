@@ -108,9 +108,14 @@ describe("chatStreamController", () => {
     assert.equal(harness.controller.start("Follow up?"), true);
     assert.equal(harness.store.getState().streaming, true);
     assert.equal(harness.wrap.children.length, 2);
+    assert.equal(typeof harness.runtimeCalls[0].payload.requestId, "string");
 
     harness.llmDeferred.resolve({
-      response: { status: "success", content: "Answer" },
+      response: {
+        status: "success",
+        requestId: harness.runtimeCalls[0].payload.requestId,
+        content: "Answer",
+      },
     });
     await waitForPromiseHandlers();
 
@@ -172,6 +177,10 @@ describe("chatStreamController", () => {
       harness.runtimeCalls.filter((call) => call.action === "abortChatRequest").length,
       1,
     );
+    assert.deepEqual(harness.runtimeCalls[1], {
+      action: "abortChatRequest",
+      payload: { requestId: harness.runtimeCalls[0].payload.requestId },
+    });
 
     harness.abortDeferred.resolve({ response: { status: "aborted" } });
     harness.llmDeferred.resolve({

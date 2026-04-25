@@ -10,6 +10,8 @@ import {
   DEFAULT_MODEL_OPTIONS,
   DEFAULT_XML_PROMPT_TEMPLATE,
   OPENROUTER_API_URL,
+  REQUEST_TIMEOUT,
+  SUMMARY_MAX_CONTENT_SIZE,
   sanitizeLanguageCode,
   LANGUAGE_DETECTION_MODELS,
 } from "../constants.js";
@@ -18,6 +20,78 @@ import { decryptSensitiveData } from "./encryption.js";
 import { isTabClosedError, getSystemPrompt } from "./backgroundUtils.js";
 import { ErrorHandler, ErrorSeverity } from "./errorHandler.js";
 import { Logger } from "./logger.js";
+
+const SUMMARY_TIMEOUT_MESSAGE = "Summary request timed out. Please try again.";
+
+const createAbortController = (timeoutMs) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  return { controller, timeoutId };
+};
+
+const validateSelectedHtml = (selectedHtml) => {
+  if (typeof selectedHtml !== "string") {
+    return {
+      valid: false,
+      message: "Selected content must be a string.",
+    };
+  }
+
+  if (selectedHtml.trim() === "") {
+    return {
+      valid: false,
+      message: "Selected content is empty.",
+    };
+  }
+
+  if (selectedHtml.length > SUMMARY_MAX_CONTENT_SIZE) {
+    return {
+      valid: false,
+      message: `Selected content exceeds maximum size of ${SUMMARY_MAX_CONTENT_SIZE / 1024}KB.`,
+    };
+  }
+
+  return { valid: true };
+};
+
+const createSummaryErrorMessage = (error) => {
+  if (error?.name === "AbortError") {
+    return SUMMARY_TIMEOUT_MESSAGE;
+  }
+
+  return error?.message || "Summary request failed.";
+};
+
+const sendSummaryResultToTab = (sender, message, DEBUG = false) => {
+  if (!sender.tab?.id) {
+    if (DEBUG) {
+      Logger.warn("[LLM Summary Handler]", "No tab ID available to send summary response.");
+    }
+    return;
+  }
+
+  chrome.tabs.sendMessage(sender.tab.id, message, () => {
+    if (!chrome.runtime.lastError) return;
+
+    if (isTabClosedError(chrome.runtime.lastError)) {
+      if (DEBUG) {
+        Logger.info("[LLM Summary Handler]",
+          `Tab ${sender.tab.id} closed before summary response could be sent.`,
+          chrome.runtime.lastError.message,
+        );
+      }
+      return;
+    }
+
+    Logger.error("[LLM Summary Handler]",
+      `Error sending summary response to tab ${sender.tab.id}:`,
+      chrome.runtime.lastError.message,
+    );
+  });
+};
 
 // Helper function to detect language of content
 const detectLanguage = async (apiKey, contentSnippet, DEBUG = false) => {
@@ -79,15 +153,35 @@ export async function handleRequestSummary(
   sendResponse,
   DEBUG = false,
 ) {
+  const requestId = request?.requestId;
+  const language_info = [];
+  let hasNewsblurTokenStatus = false;
+
   if (DEBUG) {
     Logger.info("[LLM Summary Handler]", "Handling requestSummary for ID:",
-      request.requestId,
+      requestId,
       "with hasNewsblurToken:",
-      request.hasNewsblurToken,
+      request?.hasNewsblurToken,
     );
   }
 
   try {
+    hasNewsblurTokenStatus = request.hasNewsblurToken || false;
+    const validation = validateSelectedHtml(request.selectedHtml);
+    if (!validation.valid) {
+      Logger.error("[LLM Summary Handler]", validation.message);
+      sendResponse({ status: "error", message: validation.message });
+      sendSummaryResultToTab(sender, {
+        action: "summaryResult",
+        requestId,
+        error: validation.message,
+        language_info,
+        hasNewsblurToken: hasNewsblurTokenStatus,
+      }, DEBUG);
+      return;
+    }
+
+    const selectedHtml = request.selectedHtml;
     const data = await chrome.storage.sync.get([
       STORAGE_KEY_SUMMARY_MODEL_ID,
       STORAGE_KEY_BULLET_COUNT,
@@ -102,7 +196,17 @@ export async function handleRequestSummary(
     const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
     const decryptResult = await decryptSensitiveData(encryptedApiKey);
     if (!decryptResult.success) {
+      const errorMsg = "Stored API key could not be decrypted. Re-enter the API key in options.";
       Logger.error("[LLM Summary Handler]", "Failed to decrypt API key:", decryptResult.error);
+      sendResponse({ status: "error", message: errorMsg });
+      sendSummaryResultToTab(sender, {
+        action: "summaryResult",
+        requestId,
+        error: errorMsg,
+        language_info,
+        hasNewsblurToken: hasNewsblurTokenStatus,
+      }, DEBUG);
+      return;
     }
     const apiKey = decryptResult.data;
 
@@ -113,9 +217,10 @@ export async function handleRequestSummary(
       });
     }
     const summaryModelId = data[STORAGE_KEY_SUMMARY_MODEL_ID];
-    const language_info = Array.isArray(data[STORAGE_KEY_LANGUAGE_INFO])
+    const storedLanguageInfo = Array.isArray(data[STORAGE_KEY_LANGUAGE_INFO])
       ? data[STORAGE_KEY_LANGUAGE_INFO]
       : [];
+    language_info.splice(0, language_info.length, ...storedLanguageInfo);
     let models = DEFAULT_MODEL_OPTIONS;
     if (
       Array.isArray(data[STORAGE_KEY_MODELS]) &&
@@ -127,21 +232,18 @@ export async function handleRequestSummary(
       models = data[STORAGE_KEY_MODELS].map((m) => ({ id: m.id }));
     }
     const modelIds = models.map((m) => m.id);
-    const hasNewsblurTokenStatus = request.hasNewsblurToken || false;
 
     if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
       const errorMsg = "API key is required and must be a non-empty string.";
       Logger.error("[LLM Summary Handler]", "API key is missing or invalid for summary request.");
       sendResponse({ status: "error", message: errorMsg });
-      if (sender.tab?.id) {
-        chrome.tabs.sendMessage(sender.tab.id, {
-          action: "summaryResult",
-          requestId: request.requestId,
-          error: errorMsg,
-          language_info: language_info,
-          hasNewsblurToken: hasNewsblurTokenStatus,
-        });
-      }
+      sendSummaryResultToTab(sender, {
+        action: "summaryResult",
+        requestId,
+        error: errorMsg,
+        language_info: language_info,
+        hasNewsblurToken: hasNewsblurTokenStatus,
+      }, DEBUG);
       return;
     }
 
@@ -154,15 +256,13 @@ export async function handleRequestSummary(
       const errorMsg = `Default Summary Model ("${summaryModelId || "None"}") is not selected or is invalid.`;
       Logger.error("[LLM Summary Handler]", `${errorMsg} Available:`, modelIds);
       sendResponse({ status: "error", message: errorMsg });
-      if (sender.tab?.id) {
-        chrome.tabs.sendMessage(sender.tab.id, {
-          action: "summaryResult",
-          requestId: request.requestId,
-          error: errorMsg,
-          language_info: language_info,
-          hasNewsblurToken: hasNewsblurTokenStatus,
-        });
-      }
+      sendSummaryResultToTab(sender, {
+        action: "summaryResult",
+        requestId,
+        error: errorMsg,
+        language_info: language_info,
+        hasNewsblurToken: hasNewsblurTokenStatus,
+      }, DEBUG);
       return;
     }
 
@@ -173,7 +273,7 @@ export async function handleRequestSummary(
       targetLanguage = "eng";
       Logger.debug("[LLM Summary Handler]", "Using forced US English language setting:", targetLanguage);
     } else {
-      const snippet = request.selectedHtml.substring(0, 1024);
+      const snippet = selectedHtml.substring(0, 1024);
       Logger.debug("[LLM Summary Handler]", "Detecting language for snippet:", snippet.substring(0, 80) + "...");
       targetLanguage = await detectLanguage(apiKey, snippet, DEBUG);
       Logger.debug("[LLM Summary Handler]", "Detected language code:", targetLanguage);
@@ -192,27 +292,38 @@ export async function handleRequestSummary(
       model: summaryModelId,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: request.selectedHtml },
+        { role: "user", content: selectedHtml },
       ],
     };
 
     if (DEBUG) {
-      Logger.info("[LLM Summary Handler]", "Sending payload to OpenRouter for summary:", payload);
+      Logger.info("[LLM Summary Handler]", "Sending summary request to OpenRouter:", {
+        requestId,
+        model: summaryModelId,
+        selectedHtmlLength: selectedHtml.length,
+      });
     }
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
-          "X-Title": "OR-Summ: Summary",
+    const { controller, timeoutId } = createAbortController(REQUEST_TIMEOUT);
+    let response;
+    try {
+      response = await fetch(
+        OPENROUTER_API_URL,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/bogorad/openrouter-summarizer",
+            "X-Title": "OR-Summ: Summary",
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
         },
-        body: JSON.stringify(payload),
-      },
-    );
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const text = await response.text();
@@ -221,22 +332,22 @@ export async function handleRequestSummary(
 
     const responseData = await response.json();
 
-    if (DEBUG) {
-      Logger.info("[LLM Summary Handler]", "Received raw summary response data:", responseData);
-    }
+    Logger.debug("[LLM Summary Handler]", "Received summary response metadata:", {
+      requestId,
+      model: responseData.model || responseData.model_id || summaryModelId,
+      choiceCount: Array.isArray(responseData.choices) ? responseData.choices.length : 0,
+    });
 
     if (responseData?.error?.message) {
       const errorMsg = `ERROR: ${responseData.error.message}`;
       Logger.error("[LLM Summary Handler]", "API returned an error during summary:", responseData.error);
-      if (sender.tab?.id) {
-        chrome.tabs.sendMessage(sender.tab.id, {
-          action: "summaryResult",
-          requestId: request.requestId,
-          error: errorMsg,
-          language_info: language_info,
-          hasNewsblurToken: hasNewsblurTokenStatus,
-        });
-      }
+      sendSummaryResultToTab(sender, {
+        action: "summaryResult",
+        requestId,
+        error: errorMsg,
+        language_info: language_info,
+        hasNewsblurToken: hasNewsblurTokenStatus,
+      }, DEBUG);
       sendResponse({ status: "error", message: errorMsg });
       return;
     }
@@ -262,47 +373,24 @@ export async function handleRequestSummary(
       Logger.info("[LLM Summary Handler]", "Cleaned summary content:", summaryContent.substring(0, 200) + "...");
     }
 
-    if (DEBUG) {
-      Logger.info("[LLM Summary Handler]", "Received HTML summary content:", summaryContent);
-    }
-
     const completeResponse = {
       action: "summaryResult",
-      requestId: request.requestId,
+      requestId,
       summary: summaryContent,
       model: responseData.model || responseData.model_id || summaryModelId,
       language_info: language_info,
       hasNewsblurToken: hasNewsblurTokenStatus,
-      fullResponse: DEBUG ? responseData : "[Debug data omitted for brevity]",
     };
 
     if (DEBUG) {
-      Logger.info("[LLM Summary Handler]", "Complete response being sent to content script:", completeResponse);
+      Logger.info("[LLM Summary Handler]", "Sending summary response to content script:", {
+        requestId: completeResponse.requestId,
+        model: completeResponse.model,
+        summaryLength: summaryContent.length,
+      });
     }
 
-    if (sender.tab?.id) {
-      chrome.tabs.sendMessage(sender.tab.id, completeResponse, () => {
-        if (chrome.runtime.lastError) {
-          if (isTabClosedError(chrome.runtime.lastError)) {
-            if (DEBUG) {
-              Logger.info("[LLM Summary Handler]",
-                `Tab ${sender.tab.id} closed before summary response could be sent.`,
-                chrome.runtime.lastError.message,
-              );
-            }
-          } else {
-            Logger.error("[LLM Summary Handler]",
-              `Error sending summary response to tab ${sender.tab.id}:`,
-              chrome.runtime.lastError.message,
-            );
-          }
-        }
-      });
-    } else {
-      if (DEBUG) {
-        Logger.warn("[LLM Summary Handler]", "No tab ID available to send summary response.");
-      }
-    }
+    sendSummaryResultToTab(sender, completeResponse, DEBUG);
 
     if (DEBUG) {
       Logger.info("[LLM Summary Handler]", "Sending requestSummary response - OK (processing).");
@@ -310,7 +398,15 @@ export async function handleRequestSummary(
 
     sendResponse({ status: "processing" });
   } catch (error) {
+    const errorMsg = createSummaryErrorMessage(error);
     ErrorHandler.handle(error, "handleRequestSummary", ErrorSeverity.FATAL, false);
-    sendResponse({ status: "error", message: error.message });
+    sendSummaryResultToTab(sender, {
+      action: "summaryResult",
+      requestId,
+      error: errorMsg,
+      language_info,
+      hasNewsblurToken: hasNewsblurTokenStatus,
+    }, DEBUG);
+    sendResponse({ status: "error", message: errorMsg });
   }
 }

@@ -3,6 +3,8 @@ import { beforeEach, describe, it } from "node:test";
 
 import {
   createDefaultLanguageInfo,
+  loadLanguageMetadata,
+  normalizeLanguageMetadata,
   normalizeLanguageInfoForSave,
   resolveLanguageFlagUrl,
 } from "../../js/options/languageSection.js";
@@ -52,6 +54,34 @@ describe("languageSection", () => {
         svg_path: "chrome-extension://test-extension/country-flags/svg/fr.svg",
       },
     ]);
+  });
+
+  it("normalizes language metadata for autocomplete rows", () => {
+    assert.deepEqual(
+      normalizeLanguageMetadata({
+        English: "gb",
+        Spanish: "es",
+        MissingCode: "",
+      }),
+      [
+        { name: "English", code: "gb" },
+        { name: "Spanish", code: "es" },
+      ],
+    );
+    assert.deepEqual(normalizeLanguageMetadata(null), []);
+  });
+
+  it("loads language metadata with a fallback when metadata is unavailable", async () => {
+    const errors = [];
+    const languages = await loadLanguageMetadata({
+      fetchJson: async () => {
+        throw new Error("missing language asset");
+      },
+      onError: (error) => errors.push(error.message),
+    });
+
+    assert.deepEqual(languages, []);
+    assert.deepEqual(errors, ["missing language asset"]);
   });
 
   it("normalizes valid language rows and skips invalid rows before saving", () => {

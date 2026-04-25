@@ -94,6 +94,34 @@ const renderMessageContent = (target, content) => {
 };
 
 /**
+ * Renders user-authored content as inert text.
+ * @param {Element} target - Element receiving rendered content.
+ * @param {string|string[]} content - Message content.
+ * @returns {Element} Updated target.
+ * @example Called by renderUserMessage().
+ */
+const renderPlainMessageContent = (target, content) => {
+  if (Array.isArray(content)) {
+    return renderTarget(target, {
+      mode: RENDER_TARGET_MODES.TEXT,
+      content: content.map((item) => String(item || "")).join("\n"),
+    });
+  }
+
+  if (typeof content === "string") {
+    return renderTarget(target, {
+      mode: RENDER_TARGET_MODES.TEXT,
+      content,
+    });
+  }
+
+  return renderTarget(target, {
+    mode: RENDER_TARGET_MODES.TEXT,
+    content: INVALID_MESSAGE_CONTENT,
+  });
+};
+
+/**
  * Creates an assistant chat message element.
  * @param {Object} message - Chat message.
  * @returns {HTMLElement} Rendered assistant message.
@@ -127,7 +155,7 @@ const renderUserMessage = (message) => {
   const messageDiv = createElement("div", {
     className: ["msg", "user"],
   });
-  renderMessageContent(messageDiv, message.content);
+  renderPlainMessageContent(messageDiv, message.content);
   return messageDiv;
 };
 

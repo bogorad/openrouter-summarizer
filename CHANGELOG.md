@@ -1,3 +1,5 @@
+- **Version 3.9.46:** Closed all audit-unified Beads with summary lifecycle hardening, request-scoped chat aborts, stricter token decrypt/load error handling, narrowed Joplin CSP, sanitized legacy rich-copy output, and options/token resilience fixes.
+
 - **Version 3.9.45:** Finished the remaining rebuild Beads: migrated options pricing controls and chat quick-prompt/translation controls into modules, cleaned stale options CSS selectors, and closed the chat, options, and integration rebuild epics.
 
 - **Version 3.9.44:** Reclaimed Beads rebuild work after crash recovery; closed completed chat renderer, chat stream lifecycle, options language, options prompt/token, and integration secret-capability tasks; fixed the chat renderer regression test hang.

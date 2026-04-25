@@ -18,6 +18,7 @@ import {
   NOTIFICATION_TIMEOUT_MINOR_MS,
   NOTIFICATION_TIMEOUT_SUCCESS_MS,
   NOTIFICATION_TIMEOUT_CRITICAL_MS,
+  SUMMARY_MAX_CONTENT_SIZE,
 } from "./constants.js";
 import { ErrorHandler, ErrorSeverity, setErrorNotifier } from "./js/errorHandler.js";
 import { RuntimeMessageActions, TabMessageActions } from "./js/messaging/actions.js";
@@ -49,6 +50,7 @@ let lastModelUsed = "";
 let lastSelectedDomSnippet = null;
 let lastProcessedMarkdown = null;
 let lastContentArtifacts = null;
+let activeSummaryRequestId = null;
 let hasJoplinToken = false;
 
 let messageQueue = [];
@@ -60,7 +62,7 @@ const extractCurrentContentArtifacts = (selectedElement) => extractArtifactsFrom
     document,
     window,
     debug: DEBUG,
-    chatSnippetMaxLength: MAX_CONTENT_SIZE,
+    chatSnippetMaxLength: SUMMARY_MAX_CONTENT_SIZE,
   },
 );
 
@@ -91,10 +93,31 @@ async function getJoplinCapabilityFromBackground() {
 }
 
 // Input validation limits to prevent DoS attacks
-const MAX_CONTENT_SIZE = 1024 * 1024; // 1MB limit
 const MAX_NESTING_DEPTH = 100;
 const MAX_ELEMENT_COUNT = 10000;
 const PROCESSING_TIMEOUT_MS = 30000; // 30 seconds
+
+const isActiveSummaryRequest = (requestId) =>
+  activeSummaryRequestId && requestId === activeSummaryRequestId;
+
+const logStaleSummaryRequest = (source, requestId) => {
+  if (!DEBUG) return;
+  console.log(
+    `[LLM Content] Ignoring stale summary response in ${source}:`,
+    requestId,
+    "active:",
+    activeSummaryRequestId,
+  );
+};
+
+const clearSummaryState = () => {
+  lastSummary = "";
+  lastModelUsed = "";
+  lastSelectedDomSnippet = null;
+  lastProcessedMarkdown = null;
+  lastContentArtifacts = null;
+  activeSummaryRequestId = null;
+};
 
 // --- Prompt Assembly Function (Placeholder - ensure constants is loaded if used here) ---
 
@@ -134,10 +157,10 @@ const countElements = (element) => {
  */
 const validateContent = (element, html) => {
   // Check content size
-  if (html.length > MAX_CONTENT_SIZE) {
+  if (html.length > SUMMARY_MAX_CONTENT_SIZE) {
     return {
       valid: false,
-      error: `Error: Selected content exceeds maximum size of ${MAX_CONTENT_SIZE / 1024}KB. Please select a smaller section.`
+      error: `Error: Selected content exceeds maximum size of ${SUMMARY_MAX_CONTENT_SIZE / 1024}KB. Please select a smaller section.`
     };
   }
 
@@ -270,6 +293,7 @@ async function validateAndSendToLLM(content) {
     );
 
   const requestId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  activeSummaryRequestId = requestId;
   lastSummary = "Thinking...";
   const pageTitle = document.title; // ADDED: Get page title
 
@@ -295,15 +319,18 @@ async function validateAndSendToLLM(content) {
     showError("Error displaying summary popup.");
     FloatingIcon.removeFloatingIcon();
     Highlighter.removeSelectionHighlight();
-    lastSummary = "";
-    lastSelectedDomSnippet = null;
-    lastContentArtifacts = null;
+    clearSummaryState();
     return;
   }
 
   SummaryPopup.enableButtons(false);
 
   sendRuntimeAction(RuntimeMessageActions.getSettings).then(({ response }) => {
+    if (!isActiveSummaryRequest(requestId)) {
+      logStaleSummaryRequest("getSettings", requestId);
+      return;
+    }
+
     if (!response) {
       const errorMsg = "Error getting settings: No response";
       ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
@@ -317,9 +344,7 @@ async function validateAndSendToLLM(content) {
       ); // MODIFIED: Pass pageTitle
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
-      lastSummary = "";
-      lastSelectedDomSnippet = null;
-      lastContentArtifacts = null;
+      clearSummaryState();
       return;
     }
 
@@ -353,9 +378,7 @@ async function validateAndSendToLLM(content) {
       ); // MODIFIED: Pass pageTitle
       FloatingIcon.removeFloatingIcon();
       Highlighter.removeSelectionHighlight();
-      lastSummary = "";
-      lastSelectedDomSnippet = null;
-      lastContentArtifacts = null;
+      clearSummaryState();
       return;
     }
 
@@ -370,6 +393,11 @@ async function validateAndSendToLLM(content) {
     sendRuntimeAction(RuntimeMessageActions.getModelPricing, {
       modelId: summaryModelId,
     }).then(({ response: priceResponse }) => {
+        if (!isActiveSummaryRequest(requestId)) {
+          logStaleSummaryRequest("getModelPricing", requestId);
+          return;
+        }
+
         if (
           !priceResponse ||
           priceResponse.status !== "success"
@@ -386,9 +414,7 @@ async function validateAndSendToLLM(content) {
           ); // MODIFIED: Pass pageTitle
           FloatingIcon.removeFloatingIcon();
           Highlighter.removeSelectionHighlight();
-          lastSummary = "";
-          lastSelectedDomSnippet = null;
-          lastContentArtifacts = null;
+          clearSummaryState();
           return;
         }
 
@@ -442,9 +468,7 @@ async function validateAndSendToLLM(content) {
           ); // MODIFIED: Pass pageTitle
           FloatingIcon.removeFloatingIcon();
           Highlighter.removeSelectionHighlight();
-          lastSummary = "";
-          lastSelectedDomSnippet = null;
-          lastContentArtifacts = null;
+          clearSummaryState();
           return;
         }
         sendRequestToBackground(
@@ -453,6 +477,11 @@ async function validateAndSendToLLM(content) {
           hasNewsblurToken,
         );
       }).catch((error) => {
+        if (!isActiveSummaryRequest(requestId)) {
+          logStaleSummaryRequest("getModelPricing catch", requestId);
+          return;
+        }
+
         const errorMsg = `Error fetching pricing data: ${error.message}`;
         ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
         SummaryPopup.updatePopupContent(
@@ -465,11 +494,14 @@ async function validateAndSendToLLM(content) {
         );
         FloatingIcon.removeFloatingIcon();
         Highlighter.removeSelectionHighlight();
-        lastSummary = "";
-        lastSelectedDomSnippet = null;
-        lastContentArtifacts = null;
+        clearSummaryState();
       });
   }).catch((error) => {
+    if (!isActiveSummaryRequest(requestId)) {
+      logStaleSummaryRequest("getSettings catch", requestId);
+      return;
+    }
+
     const errorMsg = `Error getting settings: ${error.message}`;
     ErrorHandler.handle(new Error(errorMsg), "validateAndSendToLLM", ErrorSeverity.WARNING, true);
     SummaryPopup.updatePopupContent(
@@ -482,9 +514,7 @@ async function validateAndSendToLLM(content) {
     );
     FloatingIcon.removeFloatingIcon();
     Highlighter.removeSelectionHighlight();
-    lastSummary = "";
-    lastSelectedDomSnippet = null;
-    lastContentArtifacts = null;
+    clearSummaryState();
   });
 }
 
@@ -503,6 +533,11 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
       hasNewsblurToken: hasNewsblurTokenStatus,
     }, // Pass the token status
   ).then(({ response }) => {
+      if (!isActiveSummaryRequest(requestId)) {
+        logStaleSummaryRequest("requestSummary", requestId);
+        return;
+      }
+
       if (response && response.status === "error") {
         const errorMsg = `Error: ${response.message || "Background validation failed."}`;
         showError(errorMsg);
@@ -517,9 +552,7 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
           ); // Pass token status
         if (FloatingIcon) FloatingIcon.removeFloatingIcon();
         if (Highlighter) Highlighter.removeSelectionHighlight();
-        lastSummary = "";
-        lastSelectedDomSnippet = null;
-        lastContentArtifacts = null;
+        clearSummaryState();
       } else if (response && response.status === "processing") {
         if (DEBUG)
           console.log(
@@ -539,11 +572,14 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
           ); // Pass token status
         if (FloatingIcon) FloatingIcon.removeFloatingIcon();
         if (Highlighter) Highlighter.removeSelectionHighlight();
-        lastSummary = "";
-        lastSelectedDomSnippet = null;
-        lastContentArtifacts = null;
+        clearSummaryState();
       }
     }).catch((error) => {
+      if (!isActiveSummaryRequest(requestId)) {
+        logStaleSummaryRequest("requestSummary catch", requestId);
+        return;
+      }
+
       const errorMsg = `Error sending request: ${error.message}`;
       ErrorHandler.handle(new Error(errorMsg), "sendRequestToBackground", ErrorSeverity.WARNING, true);
       if (SummaryPopup)
@@ -557,9 +593,7 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
         ); // Pass token status
       if (FloatingIcon) FloatingIcon.removeFloatingIcon();
       if (Highlighter) Highlighter.removeSelectionHighlight();
-      lastSummary = "";
-      lastSelectedDomSnippet = null;
-      lastContentArtifacts = null;
+      clearSummaryState();
     });
 }
 
@@ -595,11 +629,7 @@ function handleElementDeselected() {
     FloatingIcon.removeFloatingIcon();
   }
 
-  lastSummary = "";
-  lastModelUsed = "";
-  lastSelectedDomSnippet = null;
-  lastProcessedMarkdown = null;
-  lastContentArtifacts = null;
+  clearSummaryState();
 }
 
 function handleIconClick() {
@@ -615,11 +645,7 @@ function handleIconDismiss() {
   if (DEBUG) console.log("[LLM Content] handleIconDismiss called.");
   Highlighter.resetHighlightState();
   Highlighter.removeSelectionHighlight();
-  lastSummary = "";
-  lastModelUsed = "";
-  lastSelectedDomSnippet = null;
-  lastProcessedMarkdown = null;
-  lastContentArtifacts = null;
+  clearSummaryState();
 }
 
 // New handler function for the Copy HTML icon click
@@ -753,11 +779,7 @@ function handlePopupClose() {
   if (!SummaryPopup || !Highlighter || !FloatingIcon) return;
   if (DEBUG) console.log("[LLM Content] handlePopupClose called.");
   SummaryPopup.hidePopup();
-  lastSummary = "";
-  lastModelUsed = "";
-  lastSelectedDomSnippet = null;
-  lastProcessedMarkdown = null;
-  lastContentArtifacts = null;
+  clearSummaryState();
 }
 
 function handlePopupOptions() {
@@ -773,9 +795,7 @@ function handlePopupOptions() {
   if (SummaryPopup) SummaryPopup.hidePopup();
   if (Highlighter) Highlighter.removeSelectionHighlight();
   if (FloatingIcon) FloatingIcon.removeFloatingIcon();
-  lastSummary = "";
-  lastSelectedDomSnippet = null;
-  lastContentArtifacts = null;
+  clearSummaryState();
 }
 
 // --- Chat Context Handling ---
@@ -834,13 +854,9 @@ function openChatWithContext(targetLang = "") {
               console.log(
                 "[LLM Chat Context] Background ack openChatTab:",
                 openResponse,
-              );
+            );
             if (SummaryPopup) SummaryPopup.hidePopup();
-            lastSummary = "";
-            lastModelUsed = "";
-            lastSelectedDomSnippet = null;
-            lastProcessedMarkdown = null;
-            lastContentArtifacts = null;
+            clearSummaryState();
           })
           .catch((error) => {
               ErrorHandler.handle(
@@ -952,6 +968,11 @@ const handleMessage = (req, sender, sendResponse) => {
  * @param {object} response - The message object received from the background script.
  */
 function displaySummary(response) {
+  if (!isActiveSummaryRequest(response.requestId)) {
+    logStaleSummaryRequest("displaySummary", response.requestId);
+    return;
+  }
+
   if (DEBUG)
     console.log(
       "[LLM Content] Received summary result from background:",
@@ -1172,11 +1193,7 @@ async function handlePopupNewsblur(hasNewsblurToken) {
   SummaryPopup.hidePopup();
   Highlighter.removeSelectionHighlight();
   FloatingIcon.removeFloatingIcon();
-  lastSummary = "";
-  lastModelUsed = "";
-  lastSelectedDomSnippet = null;
-  lastProcessedMarkdown = null;
-  lastContentArtifacts = null;
+  clearSummaryState();
 }
 
 // --- Initialization Function ---

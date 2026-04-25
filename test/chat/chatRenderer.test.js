@@ -82,6 +82,21 @@ describe("chatRenderer", () => {
     assert.equal(target.querySelector(".msg.system-info").textContent, "Status");
   });
 
+  it("renders user messages that start with HTML-like markup as text", () => {
+    const content = "<p onclick=\"alert(1)\">Hello</p><img src=x onerror=alert(1)>";
+
+    renderChatMessages(target, {
+      messages: [
+        { role: "user", content },
+      ],
+    });
+
+    const userMessage = target.querySelector(".msg.user");
+    assert.equal(userMessage.textContent, content);
+    assert.equal(Boolean(userMessage.querySelector("p")), false);
+    assert.equal(Boolean(userMessage.querySelector("img")), false);
+  });
+
   it("renders array content as a sanitized list", () => {
     renderChatMessages(target, {
       messages: [

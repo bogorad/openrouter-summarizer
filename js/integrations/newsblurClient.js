@@ -37,6 +37,11 @@ export const shareToNewsblur = async (
     const tokenResult = await loadToken();
     if (!tokenResult.success) {
       Logger.error("[LLM Background]", "Failed to load NewsBlur token:", tokenResult.error);
+      return {
+        code: -1,
+        message: `Failed to load stored NewsBlur token: ${tokenResult.error || "Unknown storage error."}`,
+        tokenStatus: tokenResult.status,
+      };
     }
     token = tokenResult.data;
   }

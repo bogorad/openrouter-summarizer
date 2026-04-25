@@ -122,6 +122,7 @@ export const STORAGE_KEY_JOPLIN_TOKEN_LOCAL =
   "joplinTokenLocal";
 
 // --- Joplin API ---
+// Keep this fixed port aligned with manifest.json connect-src.
 export const JOPLIN_API_BASE_URL = "http://localhost:41184";
 export const JOPLIN_API_FOLDERS_ENDPOINT = "/folders";
 export const JOPLIN_API_NOTES_ENDPOINT = "/notes";
@@ -271,7 +272,9 @@ export const NOTIFICATION_TIMEOUT_SUCCESS_MS = 3000; // Major success (API opera
 export const NOTIFICATION_TIMEOUT_CRITICAL_MS = 5000; // Critical errors (auth failures, config issues)
 
 // --- Content Processing ---
+export const SUMMARY_MAX_CONTENT_SIZE = 1024 * 1024; // 1MB selected content limit
 export const SNIPPET_TRUNCATION_LIMIT = 65568; // Max characters for DOM snippets in chat context
+// Retain a short redacted history for diagnostics without storing raw stacks.
 export const MAX_ERROR_LOG_ENTRIES = 50; // Maximum errors to keep in error log
 
 // --- Error Messages (Confirmed) ---

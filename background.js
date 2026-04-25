@@ -49,6 +49,8 @@ import {
   SECRET_JOPLIN_TOKEN,
   SECRET_NEWSBLUR_TOKEN,
   SECRET_OPENROUTER_API_KEY,
+  SECRET_LOAD_STATUS_MISSING,
+  SECRET_LOAD_STATUS_STORAGE_UNAVAILABLE,
   loadJoplinToken,
   loadNewsblurToken,
   loadOpenRouterApiKey,
@@ -63,6 +65,18 @@ import {
 Logger.info("[LLM Background]", "Service Worker Start (v3.9.45)");
 
 let DEBUG = false;
+
+const createTokenLoadErrorResponse = (tokenResult, label) => ({
+  status: "error",
+  code: "token_load_failed",
+  tokenStatus: tokenResult.status,
+  message: `Failed to load stored ${label}: ${tokenResult.error || "Unknown storage error."}`,
+});
+
+const hasUsableTokenResult = (tokenResult) =>
+  tokenResult.success ||
+  tokenResult.status === SECRET_LOAD_STATUS_MISSING ||
+  tokenResult.status === SECRET_LOAD_STATUS_STORAGE_UNAVAILABLE;
 
 const refreshDebugState = async (request, sender) => {
   const settings = await loadSettings();
@@ -123,7 +137,7 @@ loadSettings().then((settings) => {
 });
 
 // Migration: Move tokens from sync to encrypted local storage.
-// Keeps legacy sync tokens until secretStore saves them successfully.
+// Removes each legacy sync token after its matching secretStore save succeeds.
 async function migrateTokensToEncryptedStorage() {
   try {
     const syncData = await chrome.storage.sync.get([
@@ -148,10 +162,9 @@ async function migrateTokensToEncryptedStorage() {
         Logger.error("[Migration]", `Secret migration failed for ${syncKey}:`, saveResult.error);
         return;
       }
-    }
 
-    const syncKeysToRemove = tokensToMigrate.map(t => t.syncKey);
-    await chrome.storage.sync.remove(syncKeysToRemove);
+      await chrome.storage.sync.remove(syncKey);
+    }
 
     Logger.info("[Migration]", `Successfully migrated ${tokensToMigrate.length} token(s) to encrypted local storage`);
   } catch (e) {
@@ -291,7 +304,7 @@ backgroundMessageRouter
     handleLlmChatStream(request, sendResponse, currentDebug)
   ))
   .register(RuntimeMessageActions.abortChatRequest, createLegacyHandler((request, sender, sendResponse, currentDebug) =>
-    handleAbortChatRequest(sendResponse, currentDebug)
+    handleAbortChatRequest(request, sendResponse, currentDebug)
   ))
   .register(RuntimeMessageActions.setChatContext, createLegacyHandler((request, sender, sendResponse, currentDebug) =>
     handleSetChatContext(request, sendResponse, currentDebug)
@@ -309,8 +322,10 @@ backgroundMessageRouter
     Logger.debug("[LLM Background]", "Received fetchJoplinNotebooks request.");
     try {
       const tokenResult = await loadJoplinToken();
-      if (!tokenResult.success) {
+      if (!hasUsableTokenResult(tokenResult)) {
         Logger.error("[LLM Background]", "Failed to load Joplin token:", tokenResult.error);
+        sendResponse(createTokenLoadErrorResponse(tokenResult, "Joplin token"));
+        return;
       }
       const folders = await fetchJoplinFolders(tokenResult.data, { debug: currentDebug });
       sendResponse({ status: "success", folders: folders });
@@ -323,8 +338,10 @@ backgroundMessageRouter
     Logger.debug("[LLM Background]", "Received createJoplinNote request.", request);
     try {
       const tokenResult = await loadJoplinToken();
-      if (!tokenResult.success) {
+      if (!hasUsableTokenResult(tokenResult)) {
         Logger.error("[LLM Background]", "Failed to load Joplin token:", tokenResult.error);
+        sendResponse(createTokenLoadErrorResponse(tokenResult, "Joplin token"));
+        return;
       }
       const result = await createJoplinNote({
         joplinToken: tokenResult.data,
@@ -342,8 +359,10 @@ backgroundMessageRouter
   .register(RuntimeMessageActions.getNewsblurToken, createLegacyHandler(async (request, sender, sendResponse) => {
     try {
       const tokenResult = await loadNewsblurToken();
-      if (!tokenResult.success) {
+      if (!hasUsableTokenResult(tokenResult)) {
         Logger.error("[LLM Background]", "Failed to load NewsBlur token:", tokenResult.error);
+        sendResponse(createTokenLoadErrorResponse(tokenResult, "NewsBlur token"));
+        return;
       }
       sendResponse({
         status: "success",
@@ -360,12 +379,14 @@ backgroundMessageRouter
   .register(RuntimeMessageActions.getJoplinToken, createLegacyHandler(async (request, sender, sendResponse) => {
     try {
       const tokenResult = await loadJoplinToken();
-      if (!tokenResult.success) {
+      if (!hasUsableTokenResult(tokenResult)) {
         Logger.error(
           "[LLM Background]",
           "Failed to load Joplin token:",
           tokenResult.error,
         );
+        sendResponse(createTokenLoadErrorResponse(tokenResult, "Joplin token"));
+        return;
       }
       sendResponse({
         status: "success",

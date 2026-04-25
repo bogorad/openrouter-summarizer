@@ -100,9 +100,9 @@ document.addEventListener("DOMContentLoaded", () => {
         actions: RuntimeMessageActions,
         getMessagesWrap: () => chatMessagesInnerDiv,
         setBusy: setChatBusyState,
-        onSuccess: handleStreamSuccess,
-        onError: handleStreamError,
-        onAborted: handleStreamAborted,
+        onSuccess: handleCompletionSuccess,
+        onError: handleCompletionError,
+        onAborted: handleCompletionAborted,
         scrollToBottom,
       });
       chatControls = createChatControls({
@@ -307,7 +307,7 @@ function queueAndSendUserMessage(userText) {
 
 /**
  * Updates controls that should be disabled while a chat response is pending.
- * @param {boolean} isBusy - Whether chat is currently streaming.
+ * @param {boolean} isBusy - Whether a chat completion is pending.
  */
 function setChatBusyState(isBusy) {
     if (sendButton) sendButton.style.display = isBusy ? "none" : "block";
@@ -319,7 +319,7 @@ function setChatBusyState(isBusy) {
  * Stores and renders a completed assistant response.
  * @param {object} result - Stream success result.
  */
-function handleStreamSuccess(result) {
+function handleCompletionSuccess(result) {
     if (DEBUG) console.log("[LLM Chat] Received successful direct content:", result.content.substring(0,100)+"...");
 
     chatState.addMessage({
@@ -331,19 +331,19 @@ function handleStreamSuccess(result) {
 }
 
 /**
- * Shows a stream error.
+ * Shows a chat completion error.
  * @param {string} message - Error message.
  * @param {object} response - Raw error response.
  */
-function handleStreamError(message, response) {
-    console.error("[LLM Chat] Chat stream error:", response);
+function handleCompletionError(message, response) {
+    console.error("[LLM Chat] Chat completion error:", response);
     showError(`Error: ${message}`);
 }
 
 /**
- * Handles an aborted stream response.
+ * Handles an aborted chat completion response.
  */
-function handleStreamAborted() {
+function handleCompletionAborted() {
     console.log("[LLM Chat] Chat request was aborted.");
 }
 

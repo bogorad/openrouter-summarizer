@@ -17,6 +17,10 @@ export const setErrorNotifier = (notifier) => {
   userErrorNotifier = typeof notifier === "function" ? notifier : null;
 };
 
+const REDACTED_ERROR_MESSAGE = "Error details redacted";
+const REDACTED_CONTEXT = "redactedContext";
+const SAFE_CONTEXT_PATTERN = /^[A-Za-z0-9_.:-]{1,120}$/;
+
 /**
  * Centralized error handler for consistent error processing
  */
@@ -35,6 +39,7 @@ export class ErrorHandler {
     const errorInfo = {
       errorId,
       timestamp: new Date().toISOString(),
+      name: error.name || "Error",
       message: error.message,
       stack: error.stack,
       context,
@@ -99,7 +104,7 @@ export class ErrorHandler {
           return;
         }
         const log = data.errorLog || [];
-        log.push(errorInfo);
+        log.push(this.getPersistableErrorInfo(errorInfo));
         if (log.length > MAX_ERROR_LOG_ENTRIES) log.shift(); // Keep last MAX_ERROR_LOG_ENTRIES errors
         chrome.storage.local.set({ errorLog: log }, () => {
           // Check for storage write errors - use console.warn to avoid recursion
@@ -112,6 +117,68 @@ export class ErrorHandler {
       // Silent fail for error tracking - outer try/catch prevents crashes
       console.warn('[ErrorHandler] Error tracking failed:', e.message);
     }
+  }
+
+  /**
+   * Creates a storage-safe error summary without raw messages or stack traces.
+   * @param {object} errorInfo - Full error information used for console logging
+   * @returns {object} Redacted error information safe for chrome.storage.local
+   */
+  static getPersistableErrorInfo(errorInfo) {
+    return {
+      errorId: errorInfo.errorId,
+      timestamp: errorInfo.timestamp,
+      name: this.getSafeErrorName(errorInfo.name),
+      message: this.getRedactedMessage(errorInfo.message),
+      context: this.getSafeContext(errorInfo.context),
+      severity: errorInfo.severity
+    };
+  }
+
+  /**
+   * Returns a bounded error name that cannot carry contextual payload text.
+   * @param {string} name - Error name
+   * @returns {string} Safe error name
+   */
+  static getSafeErrorName(name) {
+    return SAFE_CONTEXT_PATTERN.test(name || "") ? name : "Error";
+  }
+
+  /**
+   * Converts raw error text into a generic category for persisted logs.
+   * @param {string} message - Raw error message
+   * @returns {string} Redacted message category
+   */
+  static getRedactedMessage(message) {
+    const lowerMessage = typeof message === "string" ? message.toLowerCase() : "";
+    if (lowerMessage.includes("401") || lowerMessage.includes("unauthorized") || lowerMessage.includes("api key")) {
+      return "Authentication error";
+    }
+    if (lowerMessage.includes("429") || lowerMessage.includes("rate limit")) {
+      return "Quota or rate limit error";
+    }
+    if (lowerMessage.includes("timeout") || lowerMessage.includes("timed out")) {
+      return "Timeout error";
+    }
+    if (lowerMessage.includes("network") || lowerMessage.includes("fetch")) {
+      return "Network error";
+    }
+    if (lowerMessage.includes("validation") || lowerMessage.includes("invalid")) {
+      return "Validation error";
+    }
+    return REDACTED_ERROR_MESSAGE;
+  }
+
+  /**
+   * Keeps static code-location contexts and drops arbitrary contextual text.
+   * @param {string} context - Error context
+   * @returns {string} Safe context label
+   */
+  static getSafeContext(context) {
+    if (typeof context !== "string") {
+      return REDACTED_CONTEXT;
+    }
+    return SAFE_CONTEXT_PATTERN.test(context) ? context : REDACTED_CONTEXT;
   }
   
   /**

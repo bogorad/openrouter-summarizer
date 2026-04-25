@@ -21,6 +21,13 @@ export const SECRET_OPENROUTER_API_KEY = "openRouterApiKey";
 export const SECRET_JOPLIN_TOKEN = "joplinToken";
 export const SECRET_NEWSBLUR_TOKEN = "newsblurToken";
 
+export const SECRET_LOAD_STATUS_AVAILABLE = "available";
+export const SECRET_LOAD_STATUS_MISSING = "missing";
+export const SECRET_LOAD_STATUS_DECRYPT_FAILED = "decrypt_failed";
+export const SECRET_LOAD_STATUS_STORAGE_UNAVAILABLE = "storage_unavailable";
+export const SECRET_LOAD_STATUS_LOAD_FAILED = "load_failed";
+export const SECRET_LOAD_STATUS_UNSUPPORTED = "unsupported";
+
 const SECRET_DEFINITIONS = Object.freeze({
   [SECRET_OPENROUTER_API_KEY]: Object.freeze({
     storageKey: STORAGE_KEY_API_KEY_LOCAL,
@@ -43,6 +50,7 @@ const EMPTY_SECRET_RESULT = Object.freeze({
   success: true,
   data: "",
   error: null,
+  status: SECRET_LOAD_STATUS_MISSING,
 });
 
 /**
@@ -104,7 +112,7 @@ export const saveNewsblurToken = (token) => {
 /**
  * Loads the OpenRouter API key for privileged background flows.
  *
- * @returns {Promise<{success: boolean, data: string, error: string|null}>}
+ * @returns {Promise<{success: boolean, data: string, error: string|null, status: string}>}
  * Called by: future background service handlers.
  */
 export const loadOpenRouterApiKey = () => {
@@ -114,7 +122,7 @@ export const loadOpenRouterApiKey = () => {
 /**
  * Loads the Joplin token for privileged background flows.
  *
- * @returns {Promise<{success: boolean, data: string, error: string|null}>}
+ * @returns {Promise<{success: boolean, data: string, error: string|null, status: string}>}
  * Called by: future background service handlers.
  */
 export const loadJoplinToken = () => {
@@ -124,7 +132,7 @@ export const loadJoplinToken = () => {
 /**
  * Loads the NewsBlur token for privileged background flows.
  *
- * @returns {Promise<{success: boolean, data: string, error: string|null}>}
+ * @returns {Promise<{success: boolean, data: string, error: string|null, status: string}>}
  * Called by: future background service handlers.
  */
 export const loadNewsblurToken = () => {
@@ -230,7 +238,7 @@ export const saveSecret = async (
  * Loads and decrypts a named secret for privileged service code.
  *
  * @param {string} secretName Supported secret identifier.
- * @returns {Promise<{success: boolean, data: string, error: string|null}>}
+ * @returns {Promise<{success: boolean, data: string, error: string|null, status: string}>}
  * Called by: exported per-secret load helpers and capability checks.
  */
 export const loadSecret = async (
@@ -243,11 +251,17 @@ export const loadSecret = async (
       success: false,
       data: "",
       error: definition.error,
+      status: SECRET_LOAD_STATUS_UNSUPPORTED,
     };
   }
 
   if (!hasSecretStorage(chromeApi)) {
-    return EMPTY_SECRET_RESULT;
+    return {
+      success: true,
+      data: "",
+      error: null,
+      status: SECRET_LOAD_STATUS_STORAGE_UNAVAILABLE,
+    };
   }
 
   try {
@@ -255,12 +269,30 @@ export const loadSecret = async (
       definition.data.storageKey,
     );
     const encrypted = stored[definition.data.storageKey];
-    return decryptSensitiveData(encrypted);
+    if (!encrypted) {
+      return EMPTY_SECRET_RESULT;
+    }
+
+    const decryptResult = await decryptSensitiveData(encrypted);
+    if (!decryptResult.success) {
+      return {
+        ...decryptResult,
+        status: SECRET_LOAD_STATUS_DECRYPT_FAILED,
+      };
+    }
+
+    return {
+      ...decryptResult,
+      status: decryptResult.data.trim() === ""
+        ? SECRET_LOAD_STATUS_MISSING
+        : SECRET_LOAD_STATUS_AVAILABLE,
+    };
   } catch (error) {
     return {
       success: false,
       data: "",
       error: createSecretErrorMessage("load", definition.data.label, error),
+      status: SECRET_LOAD_STATUS_LOAD_FAILED,
     };
   }
 };

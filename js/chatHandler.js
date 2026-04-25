@@ -1,6 +1,6 @@
 // js/chatHandler.js
 /**
- * @fileoverview Handles LLM chat streaming requests and abort functionality.
+ * @fileoverview Handles LLM chat completion requests and abort functionality.
  * Manages AbortControllers with size limits and automatic cleanup to prevent memory leaks.
  */
 import {
@@ -76,9 +76,9 @@ const cleanupStaleControllers = () => {
 // Start periodic cleanup interval as backup safety mechanism
 setInterval(cleanupStaleControllers, CONTROLLER_CLEANUP_INTERVAL_MS);
 
-export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
+export function handleLlmChatCompletion(request, sendResponse, DEBUG = false) {
   if (DEBUG) {
-    Logger.info("[LLM Chat Handler]", "Received llmChatStream request:",
+    Logger.info("[LLM Chat Handler]", "Received direct chat completion request:",
       // Mask API key for security
       { ...request, messages: "[MESSAGES]" },
     );
@@ -132,13 +132,16 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
       const payload = {
         model: request.model,
         messages: request.messages,
+        stream: false,
         max_tokens: 4096, // Added max_tokens parameter
       };
 
       const controller = new AbortController();
 
-      // Generate unique request ID
-      const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const requestId =
+        typeof request.requestId === "string" && request.requestId.trim() !== ""
+          ? request.requestId.trim()
+          : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
       // Evict oldest controllers if at size limit before adding new one
       evictOldestControllers(DEBUG);
@@ -159,9 +162,6 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
           if (DEBUG) Logger.info("[LLM Chat Handler]", `Auto-cleaned stale request ${requestId}`);
         }
       }, CONTROLLER_TIMEOUT_MS);
-
-      // Store only requestId in session storage for abort lookup
-      chrome.storage.session.set({ currentChatRequestId: requestId });
 
       fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -194,10 +194,7 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
           }
 
           if (DEBUG)
-            Logger.warn("[LLM Chat Handler]", "Non-streaming response received, which is unexpected. Processing direct content.");
-
-          // Clean up the request ID from session storage on successful completion
-          chrome.storage.session.remove("currentChatRequestId");
+            Logger.info("[LLM Chat Handler]", "Direct chat completion response received.");
 
           const directContent = data?.choices?.[0]?.message?.content?.trim();
           if (directContent) {
@@ -207,7 +204,12 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
                 "Model:",
                 data.model,
               );
-            sendResponse({ status: "success", content: directContent });
+            sendResponse({
+              status: "success",
+              responseType: "completion",
+              requestId,
+              content: directContent,
+            });
           } else {
             sendResponse({
               status: "error",
@@ -218,9 +220,6 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
         .catch((error) => {
           // Clean up controller on error
           activeControllers.delete(requestId);
-
-          // Clean up the request ID from session storage on error
-          chrome.storage.session.remove("currentChatRequestId");
 
           if (error.name === "AbortError") {
             Logger.debug("[LLM Chat Handler]", "Chat fetch aborted.");
@@ -234,33 +233,45 @@ export function handleLlmChatStream(request, sendResponse, DEBUG = false) {
   );
 }
 
+// Legacy action bridge: the runtime action is still named llmChatStream.
+export const handleLlmChatStream = handleLlmChatCompletion;
+
 /**
- * Handles abort request for active chat.
- * Looks up the current request ID from session storage and aborts it.
+  * Handles abort request for an active chat request.
+  * @param {object} request - Runtime request containing the requestId to abort.
  * @param {Function} sendResponse - Callback to send response
  * @param {boolean} DEBUG - Enable debug logging
  * @returns {boolean} True to keep message channel open
  */
-export function handleAbortChatRequest(sendResponse, DEBUG = false) {
+export function handleAbortChatRequest(request, sendResponse, DEBUG = false) {
   Logger.debug("[LLM Chat Handler]", "Handling abortChatRequest.");
-  chrome.storage.session.get("currentChatRequestId", (data) => {
-    const requestId = data.currentChatRequestId;
-    const requestData = activeControllers.get(requestId);
+  const requestId = request?.requestId;
+  if (!requestId) {
+    sendResponse({
+      status: "error",
+      message: "Missing chat request id.",
+    });
+    return true;
+  }
 
-    if (requestData && requestData.controller) {
-      const aborted = safeAbort(requestData.controller);
-      activeControllers.delete(requestId);
-      chrome.storage.session.remove("currentChatRequestId");
-      if (DEBUG) {
-        Logger.info("[LLM Chat Handler]", "AbortController triggered abort.");
-      }
-      sendResponse({ status: aborted ? "aborted" : "error", message: aborted ? undefined : "Failed to abort request" });
-    } else {
-      if (DEBUG) {
-        Logger.info("[LLM Chat Handler]", "No active request or valid controller to abort.");
-      }
-      sendResponse({ status: "no active request" });
+  const requestData = activeControllers.get(requestId);
+  if (requestData && requestData.controller) {
+    const aborted = safeAbort(requestData.controller);
+    activeControllers.delete(requestId);
+    if (DEBUG) {
+      Logger.info("[LLM Chat Handler]", "AbortController triggered abort.");
     }
-  });
+    sendResponse({
+      status: aborted ? "aborted" : "error",
+      requestId,
+      message: aborted ? undefined : "Failed to abort request",
+    });
+    return true;
+  }
+
+  if (DEBUG) {
+    Logger.info("[LLM Chat Handler]", "No active request or valid controller to abort.");
+  }
+  sendResponse({ status: "no active request", requestId });
   return true; // Keep message channel open
 }

@@ -34,6 +34,65 @@ export const resolveLanguageFlagUrl = (languageCode) => {
 const normalizeLanguageName = (value) =>
   typeof value === "string" ? value.trim() : "";
 
+/**
+ * Converts language metadata into autocomplete rows.
+ *
+ * Call sites: language metadata load flow and tests.
+ *
+ * @param {object} languageData
+ * @returns {Array}
+ */
+export const normalizeLanguageMetadata = (languageData) => {
+  if (
+    !languageData ||
+    typeof languageData !== "object" ||
+    Array.isArray(languageData)
+  ) {
+    return [];
+  }
+
+  return Object.keys(languageData)
+    .filter(
+      (name) =>
+        typeof name === "string" &&
+        name.trim() !== "" &&
+        typeof languageData[name] === "string" &&
+        languageData[name].trim() !== "",
+    )
+    .map((name) => ({
+      name,
+      code: languageData[name],
+    }));
+};
+
+/**
+ * Loads language metadata with a language-only fallback.
+ *
+ * Call sites: options.js load flow and tests.
+ *
+ * @param {object} options
+ * @returns {Promise<Array>}
+ */
+export const loadLanguageMetadata = async ({
+  fetchJson = async () => {
+    const response = await fetch(
+      chrome.runtime.getURL("country-flags/languages.json"),
+    );
+    if (!response.ok) {
+      throw new Error(`Language metadata request failed with status ${response.status}.`);
+    }
+    return response.json();
+  },
+  onError = () => {},
+} = {}) => {
+  try {
+    return normalizeLanguageMetadata(await fetchJson());
+  } catch (error) {
+    onError(error);
+    return [];
+  }
+};
+
 const findLanguageByName = (languages, languageName) => {
   const normalizedName = normalizeLanguageName(languageName).toLowerCase();
   if (normalizedName === "" || !Array.isArray(languages)) return null;
