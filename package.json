@@ -1,6 +1,6 @@
 {
   "name": "openrouter-summarizer",
-  "version": "3.9.46",
+  "version": "3.10.1",
   "type": "module",
   "description": "**Summarize any web page content and chat with the context using OpenRouter.ai APIs** _Featuring interactive chat, reliable HTML summaries, flexible options, and chat export!_",
   "main": "background.js",

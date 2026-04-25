@@ -62,7 +62,7 @@ import {
   saveSettings,
 } from "./js/state/settingsStore.js";
 
-Logger.info("[LLM Background]", "Service Worker Start (v3.9.45)");
+Logger.info("[LLM Background]", "Service Worker Start (v3.10.1)");
 
 let DEBUG = false;
 
