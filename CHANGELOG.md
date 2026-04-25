@@ -1,3 +1,5 @@
+- **Version 3.10.2:** Updated default model and language-detection fallback model constants.
+
 - **Version 3.10.1:** Bumped extension and package metadata for the 3.10.1 release.
 
 - **Version 3.9.46:** Closed all audit-unified Beads with summary lifecycle hardening, request-scoped chat aborts, stricter token decrypt/load error handling, narrowed Joplin CSP, sanitized legacy rich-copy output, and options/token resilience fixes.

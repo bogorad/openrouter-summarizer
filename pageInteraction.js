@@ -1,6 +1,6 @@
 // pageInteraction.js
 
-console.log("[LLM Content] Script Start (v3.10.1)");
+console.log("[LLM Content] Script Start (v3.10.2)");
 
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.

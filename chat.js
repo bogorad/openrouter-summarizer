@@ -8,7 +8,7 @@
  * Dependencies: utils.js for showError.
  */
 
-console.log("[LLM Chat] Script Start (v3.10.1)");
+console.log("[LLM Chat] Script Start (v3.10.2)");
 
 // ==== GLOBAL STATE ====
 import { showError } from "./utils.js";

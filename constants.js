@@ -213,13 +213,15 @@ export const DEFAULT_CHAT_QUICK_PROMPTS = [
 
 // --- Default Models (Labels Removed) ---
 export const DEFAULT_MODEL_OPTIONS = [
-  { id: "google/gemini-2.5-flash-lite" },
-  { id: "google/gemini-3-pro-preview" },
+  { id: "google/gemini-3.1-flash-lite-preview" },
+  { id: "google/gemini-3.1-pro-preview" },
+  { id: "openai/gpt-5.5-pro" },
+  { id: "openai/gpt-5.4-mini" },
   { id: "anthropic/claude-haiku-4.5" },
-  { id: "anthropic/claude-opus-4.6" },
+  { id: "anthropic/claude-opus-4.7" },
   { id: "qwen/qwen3-max-thinking" },
-  { id: "openai/gpt-5-chat" },
-  { id: "x-ai/grok-4.1-fast" },
+  { id: "x-ai/grok-4.20" },
+  { id: "deepseek/deepseek-v4-pro" },
 ];
 
 // --- Default Languages for Pre-population ---
@@ -306,6 +308,7 @@ export const TOKENS_PER_KB = 320; // Approximation based on 4.5 characters per t
 // Language detection models with fallback options
 export const LANGUAGE_DETECTION_MODELS = [
   "moonshotai/kimi-k2-0905",
+  "deepseek/deepseek-v4-flash",
   "google/gemini-flash-1.5",
   "anthropic/claude-3-haiku-20240307",
 ];
