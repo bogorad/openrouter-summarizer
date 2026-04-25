@@ -8,7 +8,7 @@
  * Dependencies: utils.js for showError.
  */
 
-console.log("[LLM Chat] Script Start (v3.9.44)");
+console.log("[LLM Chat] Script Start (v3.9.45)");
 
 // ==== GLOBAL STATE ====
 import { showError } from "./utils.js";
@@ -20,6 +20,7 @@ import {
   buildTranslationRequest,
 } from "./js/chat/chatContextBuilder.js";
 import { createChatStreamController } from "./js/chat/chatStreamController.js";
+import { createChatControls } from "./js/chat/chatControls.js";
 import {
   renderChatMessages,
   renderStreamingPlaceholder,
@@ -36,6 +37,7 @@ import { sendRuntimeAction } from "./js/messaging/runtimeClient.js";
 let DEBUG = false; // Updated by getSettings response
 let chatMessagesInnerDiv = null;
 let chatStreamController = null;
+let chatControls = null;
 
 // ==== DOM Element References ====
 let downloadMdBtn,
@@ -102,6 +104,16 @@ document.addEventListener("DOMContentLoaded", () => {
         onError: handleStreamError,
         onAborted: handleStreamAborted,
         scrollToBottom,
+      });
+      chatControls = createChatControls({
+        languageFlagsContainer,
+        quickPromptsContainer,
+        chatState,
+        buildTranslationRequest,
+        queueAndSendUserMessage,
+        showError,
+        logger: console,
+        isDebug: () => DEBUG,
       });
       initializeChat(); // Start the initialization process
       chatForm.addEventListener("submit", handleFormSubmit);
@@ -188,8 +200,8 @@ async function initializeChat() {
     populateModelDropdown(defaultChatModelId); // Pass the specific chat default
 
     // Render flags
-    renderLanguageFlags();
-    renderQuickPromptButtons();
+    chatControls.renderLanguageFlags();
+    chatControls.renderQuickPromptButtons();
 
     // --- Step 2: Fetch Session Context for Initial Message ---
     // This runs *after* settings are processed
@@ -270,132 +282,6 @@ function focusInput() {
 }
 
 /**
- * Renders language flag buttons in the chat interface.
- */
-function renderLanguageFlags() {
-  if (!languageFlagsContainer) {
-    console.error("[LLM Chat] Language flags container not found.");
-    return;
-  }
-  languageFlagsContainer.innerHTML = ""; // Clear existing flags
-
-  const { language_info } = chatState.getState();
-  if (!Array.isArray(language_info) || language_info.length === 0) {
-    if (DEBUG) console.log("[LLM Chat] No configured languages to render flags.");
-    return;
-  }
-
-  if (DEBUG) console.log("[LLM Chat] Rendering language flags:", language_info);
-
-  language_info.forEach((langInfo) => {
-    const flagButton = document.createElement("button");
-    flagButton.className = "language-flag-button";
-    flagButton.title = `Translate last assistant message to ${langInfo.language_name}`;
-    flagButton.dataset.languageName = langInfo.language_name;
-
-    const flagImg = document.createElement("img");
-    flagImg.className = "language-flag";
-    flagImg.src = langInfo.svg_path;
-    flagImg.alt = `${langInfo.language_name} flag`;
-    flagImg.style.pointerEvents = "none";
-
-    flagButton.appendChild(flagImg);
-    flagButton.addEventListener("click", handleFlagButtonClick);
-    languageFlagsContainer.appendChild(flagButton);
-  });
-}
-
-/**
- * Renders quick prompt buttons in the chat interface.
- */
-function renderQuickPromptButtons() {
-  if (!quickPromptsContainer) {
-    console.error("[LLM Chat] Quick prompts container not found.");
-    return;
-  }
-
-  quickPromptsContainer.innerHTML = "";
-
-  const { chatQuickPrompts, streaming } = chatState.getState();
-  if (!Array.isArray(chatQuickPrompts) || chatQuickPrompts.length === 0) {
-    return;
-  }
-
-  chatQuickPrompts.forEach((quickPrompt) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "quick-prompt-button";
-    button.textContent = quickPrompt.title;
-    button.title = quickPrompt.prompt;
-    button.dataset.quickPrompt = quickPrompt.prompt;
-    button.disabled = streaming;
-    button.addEventListener("click", handleQuickPromptButtonClick);
-    quickPromptsContainer.appendChild(button);
-  });
-}
-
-/**
- * Handles click events on language flag buttons.
- * @param {Event} event - The click event.
- */
-function handleFlagButtonClick(event) {
-  const { messages, streaming } = chatState.getState();
-  if (streaming) {
-    if (DEBUG) console.log("[LLM Chat] Flag click ignored: Chat is currently streaming.");
-    showError("Chat is busy. Please wait for the current response to finish.", false, NOTIFICATION_TIMEOUT_MINOR_MS);
-    return;
-  }
-
-  const targetLanguage = event.currentTarget.dataset.languageName;
-  if (!targetLanguage) {
-    console.error("[LLM Chat] Flag button missing language name data.");
-    showError("Error: Could not determine target language for translation.");
-    return;
-  }
-
-  const lastAssistantMessage = messages.slice().reverse().find(msg => msg.role === "assistant");
-
-  if (!lastAssistantMessage || !lastAssistantMessage.content) {
-    showError("No previous assistant message to translate.", false);
-    if (DEBUG) console.log("[LLM Chat] Cannot translate: No previous assistant message found.");
-    return;
-  }
-
-  let textToTranslate = "";
-  if (Array.isArray(lastAssistantMessage.content)) {
-    textToTranslate = lastAssistantMessage.content.join("\n");
-  } else if (typeof lastAssistantMessage.content === 'string') {
-    textToTranslate = lastAssistantMessage.content;
-  } else {
-    showError("Cannot translate: Invalid format of the last message.", false);
-    if (DEBUG) console.log("[LLM Chat] Cannot translate: Invalid content type of last assistant message.", lastAssistantMessage.content);
-    return;
-  }
-
-  if (DEBUG) console.log(`[LLM Chat] Flag clicked for translation to: ${targetLanguage}. Text to translate:`, textToTranslate.substring(0, 200) + (textToTranslate.length > 200 ? "..." : ""));
-
-  const userMessage = buildTranslationRequest(targetLanguage, textToTranslate);
-
-  queueAndSendUserMessage(userMessage);
-}
-
-/**
- * Handles click events on quick prompt buttons.
- * @param {Event} event - The click event.
- */
-function handleQuickPromptButtonClick(event) {
-  const quickPromptText = event.currentTarget?.dataset.quickPrompt;
-
-  if (!quickPromptText) {
-    console.error("[LLM Chat] Quick prompt button missing prompt text.");
-    showError("Error: Could not load this quick prompt.");
-    return;
-  }
-
-  queueAndSendUserMessage(quickPromptText);
-}
-
-/**
  * Adds a user message to chat and sends it through the request pipeline.
  * @param {string} userText - The text input by the user.
  * @returns {boolean} True when message was sent.
@@ -420,37 +306,13 @@ function queueAndSendUserMessage(userText) {
   }
 
 /**
- * Updates busy state for quick prompt buttons.
- * @param {boolean} isBusy - Whether chat is currently streaming.
- */
-function setQuickPromptButtonsBusy(isBusy) {
-  if (!quickPromptsContainer) {
-    return;
-  }
-
-  const quickPromptButtons = quickPromptsContainer.querySelectorAll(".quick-prompt-button");
-  quickPromptButtons.forEach((button) => {
-    button.disabled = isBusy;
-    button.classList.toggle("quick-prompt-button-busy", isBusy);
-  });
-}
-
-/**
  * Updates controls that should be disabled while a chat response is pending.
  * @param {boolean} isBusy - Whether chat is currently streaming.
  */
 function setChatBusyState(isBusy) {
     if (sendButton) sendButton.style.display = isBusy ? "none" : "block";
     if (stopButton) stopButton.style.display = isBusy ? "block" : "none";
-    setQuickPromptButtonsBusy(isBusy);
-
-    const flagButtons = languageFlagsContainer.querySelectorAll(".language-flag-button");
-    flagButtons.forEach(button => {
-      button.classList.toggle("language-flag-button-busy", isBusy);
-      button.title = isBusy
-        ? "Chat is busy, cannot translate now"
-        : `Translate last assistant message to ${button.dataset.languageName}`;
-    });
+    chatControls.setBusy(isBusy);
 }
 
 /**

@@ -70,7 +70,12 @@ const applyDataset = (el, dataset) => {
 
   Object.entries(dataset).forEach(([key, value]) => {
     if (!key || value === null || typeof value === "undefined") return;
-    el.dataset[key] = String(value);
+    if (el.dataset) {
+      el.dataset[key] = String(value);
+      return;
+    }
+    const attrName = String(key).replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+    el.setAttribute(`data-${attrName}`, String(value));
   });
 };
 

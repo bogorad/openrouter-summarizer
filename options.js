@@ -7,9 +7,7 @@ import {
   DEFAULT_MODEL_OPTIONS,
   DEFAULT_MAX_REQUEST_PRICE,
   STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
-  DEFAULT_CACHE_EXPIRY_DAYS,
   DEBOUNCE_DELAY,
-  TOKENS_PER_KB,
   NOTIFICATION_TIMEOUT_MINOR_MS,
 } from "./constants.js";
 import * as constants from "./constants.js";
@@ -20,8 +18,6 @@ import {
   SETTINGS_STORAGE_AREA_LOCAL,
   loadSettings as loadStoredSettings,
 } from "./js/state/settingsStore.js";
-import { RuntimeMessageActions } from "./js/messaging/actions.js";
-import { sendRuntimeAction } from "./js/messaging/runtimeClient.js";
 import {
   createOptionsModelSection,
   getBaseModelId,
@@ -34,9 +30,10 @@ import {
 import { createOptionsState } from "./js/options/optionsState.js";
 import { createOptionsPromptSection } from "./js/options/promptSection.js";
 import { createOptionsTokenSection } from "./js/options/tokenSection.js";
+import { createOptionsPricingSection } from "./js/options/pricingSection.js";
 import { showError, redactSensitiveData } from "./utils.js";
 
-console.log("[LLM Options] Script Start v3.9.44");
+console.log("[LLM Options] Script Start v3.9.45");
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
@@ -89,7 +86,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const MAX_CHAT_QUICK_PROMPTS = 10;
   const STORAGE_KEY_MAX_REQUEST_PRICE = "maxRequestPrice";
   const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
-  const MAX_PRICE_INPUT_DEBOUNCE_MS = 1000;
   const STORAGE_KEY_CHAT_QUICK_PROMPTS =
     typeof constants.STORAGE_KEY_CHAT_QUICK_PROMPTS === "string"
       ? constants.STORAGE_KEY_CHAT_QUICK_PROMPTS
@@ -114,9 +110,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     alwaysUseUsEnglish: true,
     alsoSendToJoplin: false,
   });
-  let maxPriceDebounceTimeoutId = null;
   let allLanguages = []; // For autocomplete suggestions for languages
   let allModels = []; // For autocomplete suggestions for models
+  let pricingSection = null;
 
   function getDefaultChatQuickPrompts() {
     return normalizeQuickPromptsForSave(DEFAULT_CHAT_QUICK_PROMPTS, {
@@ -131,10 +127,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     maxModels: MAX_MODELS,
     getAutocompleteModels: () => allModels,
     hasApiKey: () => (apiKeyInput ? apiKeyInput.value.trim() !== "" : false),
-    onPricingRecalculate: () => calculateKbLimitForSummary(),
-    onCheckPricingData: () => checkPricingData(),
+    onPricingRecalculate: () => pricingSection.calculateKbLimitForSummary(),
+    onCheckPricingData: () => pricingSection.checkPricingData(),
     onRefreshKnownModels: () =>
-      refreshKnownModelsAndPricesAndUpdateUi({ shouldSaveSettings: false }),
+      pricingSection.refreshKnownModelsAndPricesAndUpdateUi({
+        shouldSaveSettings: false,
+      }),
     onSaveSettings: () => saveSettings(),
     onDebug: () => optionsState.debug,
     alertUser: (message) => alert(message),
@@ -176,276 +174,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     state: optionsState,
     debounceDelay: DEBOUNCE_DELAY,
     onSaveSettings: () => saveSettings(),
-    onApiKeyEntered: () => updateKnownModelsAndPricing(),
+    onApiKeyEntered: () => pricingSection.updateKnownModelsAndPricing(),
     onDebug: () => optionsState.debug,
   });
 
-  // --- Price Limit Calculation and Display ---
-  /**
-   * Calculates the KB limit for the current summary model based on cached or fetched pricing data.
-   */
-  async function calculateKbLimitForSummary() {
-    if (!maxKbDisplay) return;
-
-    maxKbDisplay.textContent = `max price: ${optionsState.maxRequestPrice.toFixed(3)} max KiB: Calculating...`;
-    optionsState.summaryKbLimit = "";
-
-    if (!optionsState.summaryModelId) {
-      maxKbDisplay.innerHTML = `
-        <table class="price-kb-table">
-          <thead>
-            <tr>
-              <th>Max Price (USD)</th>
-              <th>Max KiB</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${optionsState.maxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
-              <td>No model selected</td>
-            </tr>
-          </tbody>
-        </table>
-      `;
-      document
-        .getElementById("maxPriceInput")
-        .addEventListener("input", handleMaxPriceInput);
-      document
-        .getElementById("maxPriceInput")
-        .addEventListener("blur", handleMaxPriceBlur);
-      optionsState.summaryKbLimit = "";
-      return;
-    }
-
-    const baseSummaryModelId = getBaseModelId(optionsState.summaryModelId);
-    const modelData = optionsState.knownModelsAndPrices[baseSummaryModelId];
-    const currentTime = Date.now();
-    const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-
-    if (modelData && currentTime - modelData.timestamp < cacheExpiry) {
-      const pricePerToken = modelData.pricePerToken || 0;
-      let kbLimit = "Calculating...";
-      if (pricePerToken === 0) {
-        optionsState.summaryKbLimit = "No limit";
-        kbLimit = "No limit";
-      } else if (optionsState.maxRequestPrice === 0) {
-        optionsState.summaryKbLimit = "0";
-        kbLimit = "0";
-      } else {
-        const maxTokens = optionsState.maxRequestPrice / pricePerToken;
-        const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
-        optionsState.summaryKbLimit = maxKb.toString();
-        kbLimit = `~${maxKb}`;
-      }
-      maxKbDisplay.innerHTML = `
-        <table class="price-kb-table">
-          <thead>
-            <tr>
-              <th>Max Price (USD)</th>
-              <th>Max KiB</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${optionsState.maxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
-              <td>${kbLimit}</td>
-            </tr>
-          </tbody>
-        </table>
-      `;
-      document
-        .getElementById("maxPriceInput")
-        .addEventListener("input", handleMaxPriceInput);
-      document
-        .getElementById("maxPriceInput")
-        .addEventListener("blur", handleMaxPriceBlur);
-      if (optionsState.debug)
-        console.log(
-          "[LLM Options] Used cached data for ${optionsState.summaryModelId}:",
-          redactSensitiveData(modelData),
-        );
-      return;
-    }
-
-    try {
-      const { response } = await sendRuntimeAction(
-        RuntimeMessageActions.getModelPricing,
-        { modelId: baseSummaryModelId },
-      );
-
-      if (!response || response.status !== "success") {
-        maxKbDisplay.textContent = `max price: ${optionsState.maxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
-        optionsState.summaryKbLimit = "";
-        if (optionsState.debug)
-          console.error(
-            "[LLM Options] Error fetching model pricing:",
-            response?.message || "No response",
-          );
-        return;
-      }
-
-        const pricePerToken = response.pricePerToken || 0;
-        optionsState.pricingCache[optionsState.summaryModelId] = {
-          pricePerToken,
-          timestamp: currentTime,
-        };
-        await saveStorageArea(SETTINGS_STORAGE_AREA_LOCAL, {
-          [STORAGE_KEY_PRICING_CACHE]: optionsState.pricingCache,
-        });
-        if (optionsState.debug)
-          console.log(
-            `[LLM Options] Updated pricing cache for ${optionsState.summaryModelId}`,
-          );
-
-        let kbLimit = "Calculating...";
-        if (pricePerToken === 0) {
-          optionsState.summaryKbLimit = "No limit";
-          kbLimit = "No limit";
-        } else if (optionsState.maxRequestPrice === 0) {
-          optionsState.summaryKbLimit = "0";
-          kbLimit = "0";
-        } else {
-          const maxTokens = optionsState.maxRequestPrice / pricePerToken;
-          const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
-          optionsState.summaryKbLimit = maxKb.toString();
-          kbLimit = `~${maxKb}`;
-        }
-        maxKbDisplay.innerHTML = `
-        <table class="price-kb-table">
-          <thead>
-            <tr>
-              <th>Max Price (USD)</th>
-              <th>Max KiB</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><input type="number" id="maxPriceInput" step="0.001" min="0" value="${optionsState.maxRequestPrice.toFixed(3)}" style="width: 80px;"></td>
-              <td>${kbLimit}</td>
-            </tr>
-          </tbody>
-        </table>
-      `;
-        document
-          .getElementById("maxPriceInput")
-          .addEventListener("input", handleMaxPriceInput);
-        document
-          .getElementById("maxPriceInput")
-          .addEventListener("blur", handleMaxPriceBlur);
-    } catch (error) {
-      maxKbDisplay.textContent = `max price: ${optionsState.maxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
-      optionsState.summaryKbLimit = "";
-      if (optionsState.debug)
-        console.error(
-          "[LLM Options] Error fetching model pricing:",
-          error,
-        );
-    }
-  }
-  // --- Pricing Data Check and Update Functions ---
-  /**
-   * Checks if model and pricing data is available and updates the notification UI.
-   * Triggers an automatic update if data is missing or expired.
-   */
-  function checkModelAndPricingData() {
-    if (!pricingNotification) return;
-
-    const currentTime = Date.now();
-    const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    let isDataExpired = true;
-
-    if (Object.keys(optionsState.knownModelsAndPrices).length > 0) {
-      const firstModel = Object.values(optionsState.knownModelsAndPrices)[0];
-      if (firstModel && firstModel.timestamp) {
-        isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
-      }
-    }
-
-    if (Object.keys(optionsState.knownModelsAndPrices).length === 0 || isDataExpired) {
-      pricingNotification.textContent =
-        "Model and pricing data missing or expired. Fetching data...";
-      updateKnownModelsAndPricing();
-    } else {
-      pricingNotification.textContent = "Model and pricing data up to date.";
-      validateCurrentModels();
-      updateAllModelsList(); // Update autocomplete list after data is confirmed
-    }
-  }
-
-  /**
-   * Updates model and pricing data for all models by fetching from the API.
-   * Saves settings if the API key is valid and refresh is successful.
-   */
-  async function refreshKnownModelsAndPricesAndUpdateUi(
-    { shouldSaveSettings = true } = {},
-  ) {
-    if (!pricingNotification || !updatePricingBtn) return;
-    if (updatePricingBtn.disabled) return;
-
-    updatePricingBtn.disabled = true;
-    pricingNotification.textContent = "Fetching model and pricing data...";
-
-    try {
-      const { response } = await sendRuntimeAction(
-        RuntimeMessageActions.updateKnownModelsAndPricing,
-      );
-
-      if (!response || response.status !== "success") {
-        pricingNotification.textContent = `Error updating data: ${response?.message || "Unknown error"}`;
-        if (optionsState.debug)
-          console.error(
-            "[LLM Options] Error updating model and pricing data:",
-            response?.message || "No response",
-          );
-        updatePricingBtn.disabled = false;
-        return;
-      }
-
-        const updated = response.updated || 0;
-        pricingNotification.textContent = shouldSaveSettings
-          ? `Updated data for ${updated} model(s). Settings saved.`
-          : `Updated data for ${updated} model(s).`;
-        if (optionsState.debug)
-          console.log(`[LLM Options] Updated data for ${updated} models.`);
-
-        const cacheData = await loadStorageArea(
-          SETTINGS_STORAGE_AREA_LOCAL,
-          STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
-        );
-        optionsState.knownModelsAndPrices =
-          cacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
-        if (optionsState.debug)
-          console.log(
-            "[LLM Options] Reloaded model and pricing data:",
-            redactSensitiveData(optionsState.knownModelsAndPrices),
-          );
-        calculateKbLimitForSummary(); // Recalculate KB limit after updating data
-        validateCurrentModels(); // Validate models after update
-        updateAllModelsList(); // Update autocomplete list after data refresh
-
-        if (shouldSaveSettings && apiKeyInput && apiKeyInput.value.trim()) {
-          if (optionsState.debug)
-            console.log(
-              "[LLM Options] API key validated, saving settings automatically.",
-            );
-          saveSettings();
-        }
-
-      updatePricingBtn.disabled = false;
-    } catch (error) {
-      pricingNotification.textContent = `Error updating data: ${error.message}`;
-      if (optionsState.debug)
-        console.error(
-          "[LLM Options] Error updating model and pricing data:",
-          error,
-        );
-      updatePricingBtn.disabled = false;
-    }
-  }
-
-  function updateKnownModelsAndPricing() {
-    refreshKnownModelsAndPricesAndUpdateUi({ shouldSaveSettings: true });
-  }
+  pricingSection = createOptionsPricingSection({
+    maxKbDisplay,
+    pricingNotification,
+    updatePricingBtn,
+    state: optionsState,
+    getHasApiKey: () => (apiKeyInput ? apiKeyInput.value.trim() !== "" : false),
+    setAutocompleteModels: (models) => {
+      allModels = models;
+    },
+    validateCurrentModels,
+    saveSettings,
+    logger: console,
+    redact: redactSensitiveData,
+  });
 
   /**
    * Validates current models against known_models_and_prices and updates UI if necessary.
@@ -632,7 +378,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
 
       // Populate allModels from optionsState.knownModelsAndPrices for autocomplete
-      updateAllModelsList();
+      pricingSection.updateAllModelsList();
 
       if (statusMessage) {
         statusMessage.textContent = "Options loaded.";
@@ -679,8 +425,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     modelSection.render();
     languageSection.render();
     quickPromptSection.render();
-    calculateKbLimitForSummary();
-    checkModelAndPricingData(); // Check pricing data on load
+    pricingSection.calculateKbLimitForSummary();
+    pricingSection.checkModelAndPricingData(); // Check pricing data on load
   }
 
   // UPDATED Save Settings function (No Labels) with encryption
@@ -859,7 +605,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       modelSection.render();
       languageSection.render();
       quickPromptSection.render();
-      calculateKbLimitForSummary();
+      pricingSection.calculateKbLimitForSummary();
       // Reset the radio button for max price behavior
       document.querySelector(
         `input[name="maxPriceBehavior"][value="${optionsState.maxPriceBehavior}"]`,
@@ -882,91 +628,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   // --- End Load, Save, Reset ---
-
-  /**
-   * Handles input changes for the max price field in the table.
-   */
-  function handleMaxPriceInput(event) {
-    if (maxPriceDebounceTimeoutId) {
-      clearTimeout(maxPriceDebounceTimeoutId);
-    }
-    maxPriceDebounceTimeoutId = setTimeout(() => {
-      const priceValue = parseFloat(event.target.value);
-
-      // Avoid clamping mid-entry; enforce minimum on blur.
-      if (Number.isFinite(priceValue) && priceValue >= 0.001) {
-        optionsState.maxRequestPrice = priceValue;
-        calculateKbLimitForSummary();
-      }
-
-      maxPriceDebounceTimeoutId = null;
-    }, MAX_PRICE_INPUT_DEBOUNCE_MS);
-  }
-
-  /**
-   * Handles blur event for the max price field to reset invalid values.
-   */
-  function handleMaxPriceBlur(event) {
-    const priceValue = parseFloat(event.target.value);
-
-    if (maxPriceDebounceTimeoutId) {
-      clearTimeout(maxPriceDebounceTimeoutId);
-      maxPriceDebounceTimeoutId = null;
-    }
-
-    if (!Number.isFinite(priceValue) || priceValue < 0.001) {
-      optionsState.maxRequestPrice = DEFAULT_MAX_REQUEST_PRICE;
-      event.target.value = DEFAULT_MAX_REQUEST_PRICE.toFixed(3);
-    } else {
-      optionsState.maxRequestPrice = priceValue;
-      event.target.value = priceValue.toFixed(3);
-    }
-
-    calculateKbLimitForSummary();
-  }
-
-  /**
-   * Updates the allModels list for autocomplete from optionsState.knownModelsAndPrices.
-   */
-  function updateAllModelsList() {
-    allModels = Object.values(optionsState.knownModelsAndPrices).map((model) => ({
-      id: model.id,
-      name: model.name || "",
-    }));
-    if (optionsState.debug)
-      console.log(
-        "[LLM Options] Updated allModels list for autocomplete:",
-        allModels.length,
-        "models available.",
-      );
-  }
-
-  /**
-   * Checks pricing data for all configured models and updates if necessary.
-   */
-  function checkPricingData() {
-    if (!pricingNotification) return;
-
-    const currentTime = Date.now();
-    const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    let isDataExpired = true;
-
-    if (Object.keys(optionsState.knownModelsAndPrices).length > 0) {
-      const firstModel = Object.values(optionsState.knownModelsAndPrices)[0];
-      if (firstModel && firstModel.timestamp) {
-        isDataExpired = currentTime - firstModel.timestamp >= cacheExpiry;
-      }
-    }
-
-    if (Object.keys(optionsState.knownModelsAndPrices).length === 0 || isDataExpired) {
-      pricingNotification.textContent =
-        "Model and pricing data missing or expired. Fetching data...";
-      updateKnownModelsAndPricing();
-    } else {
-      pricingNotification.textContent = "Model and pricing data up to date.";
-      updateAllModelsList(); // Ensure autocomplete list is updated
-    }
-  }
 
   // --- Tab Handling ---
   function setupTabNavigation() {
@@ -1076,7 +737,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("[LLM Options] Save button not found.");
       }
       if (updatePricingBtn) {
-        updatePricingBtn.addEventListener("click", updateKnownModelsAndPricing);
+      updatePricingBtn.addEventListener(
+        "click",
+        pricingSection.updateKnownModelsAndPricing,
+      );
       } else {
         console.error("[LLM Options] Update Model Pricing button not found.");
       }

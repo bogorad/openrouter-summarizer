@@ -1,3 +1,5 @@
+- **Version 3.9.45:** Finished the remaining rebuild Beads: migrated options pricing controls and chat quick-prompt/translation controls into modules, cleaned stale options CSS selectors, and closed the chat, options, and integration rebuild epics.
+
 - **Version 3.9.44:** Reclaimed Beads rebuild work after crash recovery; closed completed chat renderer, chat stream lifecycle, options language, options prompt/token, and integration secret-capability tasks; fixed the chat renderer regression test hang.
 
 - **Version 3.9.43:** Fixed Beads-tracked runtime and security bugs from the v3-10 cleanup pass; aligned package/manifest version metadata and replaced the failing placeholder test script with the Webpack build gate.

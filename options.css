@@ -929,8 +929,8 @@ img.language-flag {
   margin-bottom: 0;
 }
 
-.prompt-preamble,
-.prompt-postamble {
+#promptPrefixReadonly,
+#promptSuffixReadonly {
   background: linear-gradient(
     135deg,
     var(--surface-100) 0%,
@@ -940,7 +940,6 @@ img.language-flag {
   border: 1px solid var(--surface-300);
 }
 
-textarea#promptFormatInstructions,
 textarea#promptUserFormattingEditable {
   background: linear-gradient(135deg, #ffffff 0%, var(--surface-50) 100%);
   border: 3px solid var(--primary-300);
@@ -959,7 +958,6 @@ textarea#promptUserFormattingEditable {
   box-shadow: var(--shadow-1);
 }
 
-textarea#promptFormatInstructions:focus,
 textarea#promptUserFormattingEditable:focus {
   border-color: var(--primary-500);
   box-shadow: 0 0 0 3px rgba(243, 115, 22, 0.1);
