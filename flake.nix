@@ -24,8 +24,7 @@
             nodejs_24
             nix-ld
             zsh
-            nodePackages.pnpm
-            nodePackages.typescript
+            typescript
             esbuild # build
             prettier # format js/ts
             biome # format json
@@ -41,7 +40,7 @@
             # Ensure npm dependencies are installed
             if [ ! -d node_modules ]; then
               echo "Installing npm dependencies..."
-              ${pkgs.nodePackages.npm}/bin/npm install || { echo "Error: npm install failed"; exit 1; }
+              npm install || { echo "Error: npm install failed"; exit 1; }
             fi
             # Add node_modules/.bin to PATH
             export PATH=$PWD/node_modules/.bin:$PATH
