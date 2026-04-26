@@ -161,8 +161,8 @@ you are prohibited from editorializing!!!
 
 <user_formatting>
 each bullet point should be a concise string,
-starting with a bold tag-like idea and a colon,
-and followed by description.
+starting with a bold tag-like idea and a colon (Capitailze each word, no special symbols),
+and followed by description, all lower-case, no special symbols.
 
 the very first bullet should answer the standard
 journalism questions: who/what/when/where/why
