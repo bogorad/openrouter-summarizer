@@ -16,6 +16,8 @@ import {
   STORAGE_KEY_LANGUAGE_INFO,
   STORAGE_KEY_MAX_REQUEST_PRICE,
   STORAGE_KEY_MODELS,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE,
   STORAGE_KEY_PROMPT_TEMPLATE,
   STORAGE_KEY_SUMMARY_MODEL_ID,
 } from "../../constants.js";
@@ -33,6 +35,8 @@ import {
   normalizeMaxPriceBehavior,
   normalizeMaxRequestPrice,
   normalizeModelSelection,
+  normalizeNewsblurSharePrefaceEnabled,
+  normalizeNewsblurSharePrefaceTemplate,
   normalizeSettingsForUi,
 } from "./settingsSchema.js";
 
@@ -212,6 +216,14 @@ export const normalizeStoredSettings = (storedSettings = {}) => {
     [STORAGE_KEY_ALSO_SEND_TO_JOPLIN]:
       settings[STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ??
       UI_SAFE_SETTINGS_DEFAULTS.alsoSendToJoplin,
+    [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED]:
+      normalizeNewsblurSharePrefaceEnabled(
+        settings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED],
+      ),
+    [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE]:
+      normalizeNewsblurSharePrefaceTemplate(
+        settings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE],
+      ),
   };
 };
 

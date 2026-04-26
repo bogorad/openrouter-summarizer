@@ -7,6 +7,8 @@ import {
   DEFAULT_MODEL_OPTIONS,
   DEFAULT_MAX_REQUEST_PRICE,
   STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE,
   DEBOUNCE_DELAY,
   NOTIFICATION_TIMEOUT_MINOR_MS,
 } from "./constants.js";
@@ -36,11 +38,17 @@ import { createOptionsTokenSection } from "./js/options/tokenSection.js";
 import { createOptionsPricingSection } from "./js/options/pricingSection.js";
 import { showError, redactSensitiveData } from "./utils.js";
 
-console.log("[LLM Options] Script Start v3.10.2");
+console.log("[LLM Options] Script Start v3.10.3");
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");
   const newsblurTokenInput = document.getElementById("newsblurToken");
+  const newsblurSharePrefaceEnabledCheckbox = document.getElementById(
+    "newsblurSharePrefaceEnabled",
+  );
+  const newsblurSharePrefaceTemplateInput = document.getElementById(
+    "newsblurSharePrefaceTemplate",
+  );
   const joplinTokenInput = document.getElementById("joplinToken"); // New: Joplin Token Input
   const alsoSendToJoplinCheckbox = document.getElementById("alsoSendToJoplin");
   const modelSelectionArea = document.getElementById("modelSelectionArea");
@@ -112,6 +120,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     bulletCount: DEFAULT_BULLET_COUNT,
     alwaysUseUsEnglish: true,
     alsoSendToJoplin: false,
+    newsblurSharePrefaceEnabled: false,
+    newsblurSharePrefaceTemplate: "",
   });
   let allLanguages = []; // For autocomplete suggestions for languages
   let allModels = []; // For autocomplete suggestions for models
@@ -284,6 +294,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const alsoSendToJoplin = data[STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ?? false;
       tokenSection.setAlsoSendToJoplin(alsoSendToJoplin, { dirty: false });
+      const newsblurSharePrefaceEnabled =
+        data[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED] === true;
+      const newsblurSharePrefaceTemplate =
+        data[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE] || "";
+      optionsState.setNewsblurSharePrefaceEnabled(newsblurSharePrefaceEnabled, {
+        dirty: false,
+      });
+      optionsState.setNewsblurSharePrefaceTemplate(newsblurSharePrefaceTemplate, {
+        dirty: false,
+      });
+      if (newsblurSharePrefaceEnabledCheckbox) {
+        newsblurSharePrefaceEnabledCheckbox.checked = newsblurSharePrefaceEnabled;
+      }
+      if (newsblurSharePrefaceTemplateInput) {
+        newsblurSharePrefaceTemplateInput.value = newsblurSharePrefaceTemplate;
+      }
 
       // Load language detection setting (default to true = always use US English)
       const alwaysUseUsEnglish = data[STORAGE_KEY_ALWAYS_USE_US_ENGLISH] ?? true;
@@ -414,6 +440,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       optionsState.chatModelId = firstDefaultId;
       optionsState.languages = [];
       optionsState.quickPrompts = getDefaultChatQuickPrompts();
+      optionsState.setNewsblurSharePrefaceEnabled(false, { dirty: false });
+      optionsState.setNewsblurSharePrefaceTemplate("", { dirty: false });
+      if (newsblurSharePrefaceEnabledCheckbox) {
+        newsblurSharePrefaceEnabledCheckbox.checked = false;
+      }
+      if (newsblurSharePrefaceTemplateInput) {
+        newsblurSharePrefaceTemplateInput.value = "";
+      }
 
       optionsState.promptTemplate = DEFAULT_XML_PROMPT_TEMPLATE;
       promptSection.render();
@@ -454,6 +488,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     optionsState.setAlwaysUseUsEnglish(alwaysUseUsEnglish);
     optionsState.setAlsoSendToJoplin(
       alsoSendToJoplinCheckbox ? alsoSendToJoplinCheckbox.checked : false,
+    );
+    optionsState.setNewsblurSharePrefaceEnabled(
+      newsblurSharePrefaceEnabledCheckbox
+        ? newsblurSharePrefaceEnabledCheckbox.checked
+        : false,
+    );
+    optionsState.setNewsblurSharePrefaceTemplate(
+      newsblurSharePrefaceTemplateInput
+        ? newsblurSharePrefaceTemplateInput.value
+        : "",
     );
 
     // Filter models: keep only valid IDs, limit count, store only {id: string}
@@ -513,6 +557,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       [STORAGE_KEY_ALSO_SEND_TO_JOPLIN]: alsoSendToJoplinCheckbox
         ? alsoSendToJoplinCheckbox.checked
         : false,
+      [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED]:
+        optionsState.newsblurSharePrefaceEnabled,
+      [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE]:
+        optionsState.newsblurSharePrefaceTemplate,
     };
 
     if (optionsState.debug) {
@@ -606,6 +654,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       optionsState.setAlsoSendToJoplin(false);
       tokenSection.setAlsoSendToJoplin(false);
+      optionsState.setNewsblurSharePrefaceEnabled(false);
+      optionsState.setNewsblurSharePrefaceTemplate("");
+      if (newsblurSharePrefaceEnabledCheckbox) {
+        newsblurSharePrefaceEnabledCheckbox.checked = false;
+      }
+      if (newsblurSharePrefaceTemplateInput) {
+        newsblurSharePrefaceTemplateInput.value = "";
+      }
 
       modelSection.render();
       languageSection.render();

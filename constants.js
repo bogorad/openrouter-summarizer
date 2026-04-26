@@ -22,6 +22,10 @@ export const STORAGE_KEY_MAX_REQUEST_PRICE =
 export const STORAGE_KEY_KNOWN_MODELS_AND_PRICES =
   "knownModelsAndPrices";
 export const STORAGE_KEY_NEWSBLUR_TOKEN = "newsblurToken";
+export const STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED =
+  "newsblurSharePrefaceEnabled";
+export const STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE =
+  "newsblurSharePrefaceTemplate";
 export const STORAGE_KEY_JOPLIN_TOKEN = "joplinToken"; // New: Joplin Token
 export const STORAGE_KEY_ALSO_SEND_TO_JOPLIN =
   "alsoSendToJoplin";

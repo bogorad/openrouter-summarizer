@@ -31,6 +31,8 @@ import {
   STORAGE_KEY_LANGUAGE_INFO,
   STORAGE_KEY_MAX_REQUEST_PRICE,
   STORAGE_KEY_MODELS,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE,
   STORAGE_KEY_NEWSBLUR_TOKEN,
   STORAGE_KEY_NEWSBLUR_TOKEN_LOCAL,
   STORAGE_KEY_PROMPT_TEMPLATE,
@@ -51,6 +53,8 @@ export const DEFAULT_BULLET_COUNT = String(DEFAULT_BULLET_COUNT_NUM);
 export const DEFAULT_MAX_PRICE_BEHAVIOR = "truncate";
 export const DEFAULT_ALWAYS_USE_US_ENGLISH = true;
 export const DEFAULT_ALSO_SEND_TO_JOPLIN = false;
+export const DEFAULT_NEWSBLUR_SHARE_PREFACE_ENABLED = false;
+export const DEFAULT_NEWSBLUR_SHARE_PREFACE_TEMPLATE = "";
 export const DEFAULT_LANGUAGE_INFO = [];
 export const DEFAULT_LAST_ACTIVE_TAB = "summary-tab";
 
@@ -80,6 +84,8 @@ export const SYNC_STORAGE_KEYS = Object.freeze([
   STORAGE_KEY_PROMPT_TEMPLATE,
   STORAGE_KEY_ALWAYS_USE_US_ENGLISH,
   STORAGE_KEY_ALSO_SEND_TO_JOPLIN,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE,
 ]);
 
 export const LOCAL_STORAGE_KEYS = Object.freeze([
@@ -122,9 +128,21 @@ export const UI_SAFE_SETTINGS_DEFAULTS = Object.freeze({
   promptTemplate: DEFAULT_XML_PROMPT_TEMPLATE,
   alwaysUseUsEnglish: DEFAULT_ALWAYS_USE_US_ENGLISH,
   alsoSendToJoplin: DEFAULT_ALSO_SEND_TO_JOPLIN,
+  newsblurSharePrefaceEnabled: DEFAULT_NEWSBLUR_SHARE_PREFACE_ENABLED,
+  newsblurSharePrefaceTemplate: DEFAULT_NEWSBLUR_SHARE_PREFACE_TEMPLATE,
 });
 
 export const normalizeDebug = (value) => value === true;
+
+export const normalizeNewsblurSharePrefaceEnabled = (value) => value === true;
+
+export const normalizeNewsblurSharePrefaceTemplate = (value) => {
+  if (typeof value !== "string") {
+    return DEFAULT_NEWSBLUR_SHARE_PREFACE_TEMPLATE;
+  }
+
+  return value.trim();
+};
 
 export const normalizeBulletCount = (value, fallback = DEFAULT_BULLET_COUNT) => {
   const normalized = typeof value === "number" ? String(value) : value;
@@ -317,6 +335,12 @@ export const normalizeSettingsForUi = (storedSettings = {}) => {
     alsoSendToJoplin:
       storedSettings[STORAGE_KEY_ALSO_SEND_TO_JOPLIN] ??
       DEFAULT_ALSO_SEND_TO_JOPLIN,
+    newsblurSharePrefaceEnabled: normalizeNewsblurSharePrefaceEnabled(
+      storedSettings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED],
+    ),
+    newsblurSharePrefaceTemplate: normalizeNewsblurSharePrefaceTemplate(
+      storedSettings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE],
+    ),
   };
 };
 

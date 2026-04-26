@@ -15,6 +15,8 @@ import {
   STORAGE_KEY_LANGUAGE_INFO,
   STORAGE_KEY_MAX_REQUEST_PRICE,
   STORAGE_KEY_MODELS,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE,
   STORAGE_KEY_PROMPT_TEMPLATE,
   STORAGE_KEY_SUMMARY_MODEL_ID,
 } from "../../constants.js";
@@ -30,6 +32,8 @@ import {
   normalizeMaxPriceBehavior,
   normalizeMaxRequestPrice,
   normalizeModelSelection,
+  normalizeNewsblurSharePrefaceEnabled,
+  normalizeNewsblurSharePrefaceTemplate,
   normalizeSettingsForUi,
 } from "../../js/state/settingsSchema.js";
 
@@ -64,9 +68,22 @@ describe("settingsSchema", () => {
     assert.equal(UI_SAFE_SETTINGS_DEFAULTS.hasApiKey, false);
     assert.equal(UI_SAFE_SETTINGS_DEFAULTS.hasNewsblurToken, false);
     assert.equal(UI_SAFE_SETTINGS_DEFAULTS.hasJoplinToken, false);
+    assert.equal(UI_SAFE_SETTINGS_DEFAULTS.newsblurSharePrefaceEnabled, false);
+    assert.equal(UI_SAFE_SETTINGS_DEFAULTS.newsblurSharePrefaceTemplate, "");
     assert.equal("apiKey" in UI_SAFE_SETTINGS_DEFAULTS, false);
     assert.equal("newsblurToken" in UI_SAFE_SETTINGS_DEFAULTS, false);
     assert.equal("joplinToken" in UI_SAFE_SETTINGS_DEFAULTS, false);
+  });
+
+  it("normalizes NewsBlur share preface settings conservatively", () => {
+    assert.equal(normalizeNewsblurSharePrefaceEnabled(true), true);
+    assert.equal(normalizeNewsblurSharePrefaceEnabled("true"), false);
+    assert.equal(normalizeNewsblurSharePrefaceEnabled(1), false);
+    assert.equal(
+      normalizeNewsblurSharePrefaceTemplate(" LLM (@LLMNAME@) says: "),
+      "LLM (@LLMNAME@) says:",
+    );
+    assert.equal(normalizeNewsblurSharePrefaceTemplate(null), "");
   });
 
   it("falls back invalid selected models to the first available model", () => {
@@ -155,6 +172,9 @@ describe("settingsSchema", () => {
         { title: "Next", prompt: "What follows?" },
       ],
       [STORAGE_KEY_PROMPT_TEMPLATE]: "Custom prompt",
+      [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED]: true,
+      [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE]:
+        " LLM (@LLMNAME@) says: ",
     });
 
     assert.equal(settings.summaryModelId, "model/a");
@@ -170,5 +190,17 @@ describe("settingsSchema", () => {
       { title: "Next", prompt: "What follows?" },
     ]);
     assert.equal(settings.promptTemplate, "Custom prompt");
+    assert.equal(settings.newsblurSharePrefaceEnabled, true);
+    assert.equal(
+      settings.newsblurSharePrefaceTemplate,
+      "LLM (@LLMNAME@) says:",
+    );
+  });
+
+  it("returns default NewsBlur preface values for empty UI settings", () => {
+    const settings = normalizeSettingsForUi({});
+
+    assert.equal(settings.newsblurSharePrefaceEnabled, false);
+    assert.equal(settings.newsblurSharePrefaceTemplate, "");
   });
 });

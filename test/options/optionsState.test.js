@@ -81,6 +81,32 @@ describe("optionsState", () => {
     assert.equal(state.saving, false);
   });
 
+  it("tracks NewsBlur preface settings with dirty control", () => {
+    const state = createOptionsState({
+      newsblurSharePrefaceEnabled: true,
+      newsblurSharePrefaceTemplate: "  LLM (@LLMNAME@) says:  ",
+    });
+
+    assert.equal(state.newsblurSharePrefaceEnabled, true);
+    assert.equal(
+      state.newsblurSharePrefaceTemplate,
+      "LLM (@LLMNAME@) says:",
+    );
+
+    state.markClean();
+    state.setNewsblurSharePrefaceEnabled(false, { dirty: false });
+    state.setNewsblurSharePrefaceTemplate("  Draft line  ", { dirty: false });
+
+    assert.equal(state.newsblurSharePrefaceEnabled, false);
+    assert.equal(state.newsblurSharePrefaceTemplate, "Draft line");
+    assert.equal(state.dirty, false);
+
+    state.setNewsblurSharePrefaceEnabled(true);
+
+    assert.equal(state.newsblurSharePrefaceEnabled, true);
+    assert.equal(state.dirty, true);
+  });
+
   it("parses prompt templates without XML wrapper as editable text", () => {
     assert.deepEqual(parseOptionsPromptTemplate("plain text"), {
       prefix: "",

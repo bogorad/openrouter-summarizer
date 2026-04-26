@@ -13,6 +13,8 @@ import {
   STORAGE_KEY_LANGUAGE_INFO,
   STORAGE_KEY_MAX_REQUEST_PRICE,
   STORAGE_KEY_MODELS,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED,
+  STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE,
   STORAGE_KEY_PROMPT_TEMPLATE,
   STORAGE_KEY_SUMMARY_MODEL_ID,
 } from "../../constants.js";
@@ -61,6 +63,8 @@ describe("settingsStore", () => {
       settings[STORAGE_KEY_CHAT_QUICK_PROMPTS],
       DEFAULT_CHAT_QUICK_PROMPTS,
     );
+    assert.equal(settings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED], false);
+    assert.equal(settings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE], "");
   });
 
   it("normalizes legacy models, invalid selections, and language alias values", () => {
@@ -94,6 +98,8 @@ describe("settingsStore", () => {
       [STORAGE_KEY_MAX_PRICE_BEHAVIOR]: "halt",
       [STORAGE_KEY_CHAT_QUICK_PROMPTS]: [{ title: "", prompt: "" }],
       [STORAGE_KEY_ALWAYS_USE_US_ENGLISH]: false,
+      [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED]: "true",
+      [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE]: 42,
     });
 
     const result = await migrateSettings({ chromeApi: chromeMock });
@@ -111,12 +117,22 @@ describe("settingsStore", () => {
       DEFAULT_CHAT_QUICK_PROMPTS,
     );
     assert.equal(result.settings[STORAGE_KEY_ALWAYS_USE_US_ENGLISH], false);
+    assert.equal(
+      result.settings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED],
+      false,
+    );
+    assert.equal(
+      result.settings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE],
+      "",
+    );
     assert.equal(syncStore[STORAGE_KEY_SUMMARY_MODEL_ID], "model/a");
     assert.equal(syncStore[STORAGE_KEY_MAX_PRICE_BEHAVIOR], "truncate");
     assert.deepEqual(
       syncStore[STORAGE_KEY_CHAT_QUICK_PROMPTS],
       DEFAULT_CHAT_QUICK_PROMPTS,
     );
+    assert.equal(syncStore[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED], false);
+    assert.equal(syncStore[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE], "");
   });
 
   it("saves partial settings after merging and normalizing current storage", async () => {
@@ -131,6 +147,9 @@ describe("settingsStore", () => {
         [STORAGE_KEY_CHAT_MODEL_ID]: "model/b",
         [STORAGE_KEY_MAX_REQUEST_PRICE]: "0.42",
         [STORAGE_KEY_PROMPT_TEMPLATE]: " Updated prompt ",
+        [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED]: true,
+        [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE]:
+          " LLM (@LLMNAME@) says: ",
       },
       { chromeApi: chromeMock },
     );
@@ -140,7 +159,36 @@ describe("settingsStore", () => {
     assert.equal(saved[STORAGE_KEY_CHAT_MODEL_ID], "model/b");
     assert.equal(saved[STORAGE_KEY_MAX_REQUEST_PRICE], 0.42);
     assert.equal(saved[STORAGE_KEY_PROMPT_TEMPLATE], " Updated prompt ");
+    assert.equal(saved[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED], true);
+    assert.equal(
+      saved[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE],
+      "LLM (@LLMNAME@) says:",
+    );
     assert.equal(syncStore[STORAGE_KEY_CHAT_MODEL_ID], "model/b");
+    assert.equal(syncStore[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED], true);
+    assert.equal(
+      syncStore[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE],
+      "LLM (@LLMNAME@) says:",
+    );
+  });
+
+  it("round-trips saved NewsBlur share preface settings through sync storage", async () => {
+    await saveSettings(
+      {
+        [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED]: true,
+        [STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE]:
+          "LLM (@LLMNAME@) says:",
+      },
+      { chromeApi: chromeMock },
+    );
+
+    const settings = await loadSettings({ chromeApi: chromeMock });
+
+    assert.equal(settings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED], true);
+    assert.equal(
+      settings[STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE],
+      "LLM (@LLMNAME@) says:",
+    );
   });
 
   it("returns UI-safe settings with capability flags only", async () => {

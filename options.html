@@ -142,6 +142,13 @@
         <label for="newsblurToken" class="sr-only">NewsBlur API Token</label>
         <input type="text" id="newsblurToken" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxx" class="wide-input" aria-describedby="newsblurTokenDesc newsblurTokenNote">
         <p class="note" id="newsblurTokenNote">This token is stored locally and used to share articles to your NewsBlur account.</p>
+        <div class="option-group checkbox-group" style="margin-top: 15px;">
+          <input type="checkbox" id="newsblurSharePrefaceEnabled">
+          <label for="newsblurSharePrefaceEnabled">Add a preface line when sharing to NewsBlur</label>
+        </div>
+        <label for="newsblurSharePrefaceTemplate">When sharing to newsblur, preface with this line:</label>
+        <input type="text" id="newsblurSharePrefaceTemplate" placeholder="LLM (@LLMNAME@) says:" class="wide-input" aria-describedby="newsblurSharePrefaceNote">
+        <p class="note" id="newsblurSharePrefaceNote">Use @LLMNAME@ to insert the model that generated the summary.</p>
       </div>
 
       <!-- Joplin API Token Section -->

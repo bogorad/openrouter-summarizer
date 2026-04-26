@@ -1,6 +1,6 @@
 // pageInteraction.js
 
-console.log("[LLM Content] Script Start (v3.10.2)");
+console.log("[LLM Content] Script Start (v3.10.3)");
 
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.
@@ -35,6 +35,7 @@ import {
   CONTENT_ARTIFACT_KEYS,
   getContentArtifactText,
 } from "./js/content/contentArtifacts.js";
+import { buildNewsblurShareContent } from "./js/integrations/newsblurShareContent.js";
 
 // --- Module-level variables (assignments will happen in initialize) ---
 // These are assigned from the static imports for convenience if you prefer this pattern,
@@ -1139,8 +1140,17 @@ async function handlePopupNewsblur(hasNewsblurToken) {
     });
   }
 
-  // Combine the AI summary with the NewsBlur original-content artifact.
-  const combinedContent = summaryHtml + "<hr>" + newsblurStoryHtml;
+  // Keep Joplin's dual-share payload unchanged; only NewsBlur applies the optional preface.
+  const joplinContent = summaryHtml + "<hr>" + newsblurStoryHtml;
+  const newsblurContent = buildNewsblurShareContent({
+    summaryHtml,
+    newsblurStoryHtml,
+    prefaceEnabled:
+      settings[constants.STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_ENABLED],
+    prefaceTemplate:
+      settings[constants.STORAGE_KEY_NEWSBLUR_SHARE_PREFACE_TEMPLATE],
+    modelName: lastModelUsed || "Unknown",
+  });
 
   try {
     const { response } = await sendRuntimeAction(
@@ -1149,7 +1159,7 @@ async function handlePopupNewsblur(hasNewsblurToken) {
         options: {
           title: title,
           story_url: story_url,
-          content: combinedContent,
+          content: newsblurContent,
           comments: "",
         },
       },
@@ -1184,7 +1194,7 @@ async function handlePopupNewsblur(hasNewsblurToken) {
   if (alsoSendToJoplin && hasJoplinToken) {
     if (DEBUG) console.log("[LLM Content] Also sending content to Joplin.");
     JoplinManager.fetchAndShowNotebookSelection(
-      combinedContent,
+      joplinContent,
       story_url,
       true,
     );

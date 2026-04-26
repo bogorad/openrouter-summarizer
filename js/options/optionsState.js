@@ -50,6 +50,8 @@ const cloneState = (state) => ({
   bulletCount: state.bulletCount,
   alwaysUseUsEnglish: state.alwaysUseUsEnglish,
   alsoSendToJoplin: state.alsoSendToJoplin,
+  newsblurSharePrefaceEnabled: state.newsblurSharePrefaceEnabled,
+  newsblurSharePrefaceTemplate: state.newsblurSharePrefaceTemplate,
   tokens: { ...state.tokens },
   tokenCapabilities: { ...state.tokenCapabilities },
   pricingCache: cloneRecord(state.pricingCache),
@@ -134,6 +136,11 @@ export const createOptionsState = (defaults = {}) => {
       typeof defaults.bulletCount === "string" ? defaults.bulletCount : "5",
     alwaysUseUsEnglish: defaults.alwaysUseUsEnglish !== false,
     alsoSendToJoplin: defaults.alsoSendToJoplin === true,
+    newsblurSharePrefaceEnabled: defaults.newsblurSharePrefaceEnabled === true,
+    newsblurSharePrefaceTemplate:
+      typeof defaults.newsblurSharePrefaceTemplate === "string"
+        ? defaults.newsblurSharePrefaceTemplate.trim()
+        : "",
     tokens: normalizeTokenState(defaults.tokens),
     tokenCapabilities: normalizeTokenCapabilities(defaults.tokenCapabilities),
     pricingCache: cloneRecord(defaults.pricingCache),
@@ -238,6 +245,12 @@ export const createOptionsState = (defaults = {}) => {
     get alsoSendToJoplin() {
       return state.alsoSendToJoplin;
     },
+    get newsblurSharePrefaceEnabled() {
+      return state.newsblurSharePrefaceEnabled;
+    },
+    get newsblurSharePrefaceTemplate() {
+      return state.newsblurSharePrefaceTemplate;
+    },
     get tokens() {
       return state.tokens;
     },
@@ -329,6 +342,15 @@ export const createOptionsState = (defaults = {}) => {
     },
     setAlsoSendToJoplin(value, { dirty = true } = {}) {
       state.alsoSendToJoplin = value === true;
+      if (dirty) markDirty();
+    },
+    setNewsblurSharePrefaceEnabled(value, { dirty = true } = {}) {
+      state.newsblurSharePrefaceEnabled = value === true;
+      if (dirty) markDirty();
+    },
+    setNewsblurSharePrefaceTemplate(value, { dirty = true } = {}) {
+      state.newsblurSharePrefaceTemplate =
+        typeof value === "string" ? value.trim() : "";
       if (dirty) markDirty();
     },
     setTokens(tokens, { dirty = true } = {}) {
