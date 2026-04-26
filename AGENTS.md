@@ -236,13 +236,10 @@ bd close bd-42 --reason "Completed" --json
    - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
 5. **Complete**: `bd close <id> --reason "Done"`
 
-### Auto-Sync
+### Sync
 
-bd automatically syncs via Dolt:
-
-- Each write auto-commits to Dolt history
-- Use `bd dolt push`/`bd dolt pull` for remote sync
-- No manual export/import needed!
+bd writes issue updates locally. Export Beads state to `.beads/issues.jsonl`
+and commit that file with the related code changes.
 
 ### Important Rules
 
@@ -268,7 +265,8 @@ For more details, see README.md and docs/QUICKSTART.md.
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd dolt push
+   bd export --no-memories -o .beads/issues.jsonl
+   git add .beads/issues.jsonl
    git push
    git status  # MUST show "up to date with origin"
    ```

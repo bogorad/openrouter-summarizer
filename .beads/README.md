@@ -26,8 +26,8 @@ bd show <issue-id>
 bd update <issue-id> --claim
 bd update <issue-id> --status done
 
-# Sync with Dolt remote
-bd dolt push
+# Export issues for git
+bd export --no-memories -o .beads/issues.jsonl
 ```
 
 ### Working with Issues
