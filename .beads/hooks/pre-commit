@@ -4,50 +4,50 @@
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "$repo_root" ]; then
-    exit 0
+  exit 0
 fi
 
 beads_dir="$repo_root/.beads"
 issues_file="$beads_dir/issues.jsonl"
 
 if [ ! -d "$beads_dir" ]; then
-    exit 0
+  exit 0
 fi
 
 if ! command -v bd >/dev/null 2>&1; then
-    echo "Error: bd command not found; cannot export Beads issues to JSONL." >&2
-    exit 1
+  echo "Error: bd command not found; cannot export Beads issues to JSONL." >&2
+  exit 1
 fi
 
 tmp_file="$(mktemp "${TMPDIR:-/tmp}/beads-issues.XXXXXX")"
 if [ -z "$tmp_file" ]; then
-    echo "Error: failed to create temporary file for Beads JSONL export." >&2
-    exit 1
+  echo "Error: failed to create temporary file for Beads JSONL export." >&2
+  exit 1
 fi
 
 cd "$repo_root" || {
-    rm -f "$tmp_file"
-    exit 1
+  rm -f "$tmp_file"
+  exit 1
 }
 
-export_output="$(bd export --no-memories -o "$tmp_file" 2>&1)"
+export_output="$(bd export --all -o "$tmp_file" 2>&1)"
 export_status=$?
 if [ "$export_status" -ne 0 ]; then
-    rm -f "$tmp_file"
-    echo "Error: failed to export Beads issues to JSONL." >&2
-    printf '%s\n' "$export_output" >&2
-    exit 1
+  rm -f "$tmp_file"
+  echo "Error: failed to export Beads issues to JSONL." >&2
+  printf '%s\n' "$export_output" >&2
+  exit 1
 fi
 
 if ! mv "$tmp_file" "$issues_file"; then
-    rm -f "$tmp_file"
-    echo "Error: failed to update $issues_file." >&2
-    exit 1
+  rm -f "$tmp_file"
+  echo "Error: failed to update $issues_file." >&2
+  exit 1
 fi
 
 if ! git add -- "$issues_file"; then
-    echo "Error: failed to stage $issues_file." >&2
-    exit 1
+  echo "Error: failed to stage $issues_file." >&2
+  exit 1
 fi
 
 exit 0
