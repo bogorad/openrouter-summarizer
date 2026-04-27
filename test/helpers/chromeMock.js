@@ -141,6 +141,9 @@ export const createChromeMock = () => {
       set lastError(error) {
         lastError = error;
       },
+      getManifest() {
+        return { version: "0.0.0-test" };
+      },
       sendMessage(message, callback) {
         calls.runtimeSendMessage.push(cloneValue(message));
         const sender = { id: "test-extension" };

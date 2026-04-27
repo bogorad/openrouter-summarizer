@@ -8,10 +8,9 @@
  * Dependencies: utils.js for showError.
  */
 
-console.log("[LLM Chat] Script Start (v3.10.4)");
-
 // ==== GLOBAL STATE ====
 import { showError } from "./utils.js";
+import { formatVersionedLog } from "./js/version.js";
 import {
   NOTIFICATION_TIMEOUT_MINOR_MS,
 } from "./constants.js";
@@ -33,6 +32,8 @@ import {
 import { chatState } from "./js/chat/chatState.js";
 import { RuntimeMessageActions } from "./js/messaging/actions.js";
 import { sendRuntimeAction } from "./js/messaging/runtimeClient.js";
+
+console.log(formatVersionedLog("LLM Chat", "Script Start"));
 
 let DEBUG = false; // Updated by getSettings response
 let chatMessagesInnerDiv = null;

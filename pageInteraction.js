@@ -1,10 +1,9 @@
 // pageInteraction.js
 
-console.log("[LLM Content] Script Start (v3.10.4)");
-
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.
 import TurndownService from "turndown";
+import { formatVersionedLog } from "./js/version.js";
 import {
   showError as importedShowError,
   renderTextAsHtml as importedRenderTextAsHtml,
@@ -36,6 +35,8 @@ import {
   getContentArtifactText,
 } from "./js/content/contentArtifacts.js";
 import { buildNewsblurShareContent } from "./js/integrations/newsblurShareContent.js";
+
+console.log(formatVersionedLog("LLM Content", "Script Start"));
 
 // --- Module-level variables (assignments will happen in initialize) ---
 // These are assigned from the static imports for convenience if you prefer this pattern,

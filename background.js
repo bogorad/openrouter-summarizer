@@ -61,10 +61,11 @@ import {
   migrateSettings,
   saveSettings,
 } from "./js/state/settingsStore.js";
+import { getExtensionVersion } from "./js/version.js";
 
 const NEWSBLUR_SHARE_TIMEOUT_MS = 15000;
 
-Logger.info("[LLM Background]", "Service Worker Start (v3.10.4)");
+Logger.info("[LLM Background]", `Service Worker Start (v${getExtensionVersion()})`);
 
 let DEBUG = false;
 

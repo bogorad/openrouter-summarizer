@@ -1,3 +1,5 @@
+- **Version 3.10.5:** Centralized startup banner version logging through the runtime manifest version so script files no longer carry duplicated release strings.
+
 - **Version 3.10.4:** Fixed NewsBlur sharing in-flight behavior by disabling popup actions during share, preventing duplicate submissions, and adding 15-second UI and network timeouts with retry-safe failure handling.
 
 - **Version 3.10.3:** Added an optional, off-by-default NewsBlur share preface line. The preface template supports `@LLMNAME@`, which is replaced with the summary model name when sharing.
