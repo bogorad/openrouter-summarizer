@@ -38,7 +38,7 @@ import { createOptionsTokenSection } from "./js/options/tokenSection.js";
 import { createOptionsPricingSection } from "./js/options/pricingSection.js";
 import { showError, redactSensitiveData } from "./utils.js";
 
-console.log("[LLM Options] Script Start v3.10.3");
+console.log("[LLM Options] Script Start v3.10.4");
 
 document.addEventListener("DOMContentLoaded", async () => {
   const apiKeyInput = document.getElementById("apiKey");

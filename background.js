@@ -62,7 +62,9 @@ import {
   saveSettings,
 } from "./js/state/settingsStore.js";
 
-Logger.info("[LLM Background]", "Service Worker Start (v3.10.3)");
+const NEWSBLUR_SHARE_TIMEOUT_MS = 15000;
+
+Logger.info("[LLM Background]", "Service Worker Start (v3.10.4)");
 
 let DEBUG = false;
 
@@ -408,6 +410,7 @@ backgroundMessageRouter
       const apiResult = await shareToNewsblur(request.options, {
         debug: currentDebug,
         loadToken: loadNewsblurToken,
+        timeoutMs: NEWSBLUR_SHARE_TIMEOUT_MS,
       });
       if (apiResult?.code < 0 || apiResult?.result === "error") {
         sendResponse(normalizeIntegrationError("newsblur", apiResult));

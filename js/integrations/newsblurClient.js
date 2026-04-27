@@ -10,6 +10,79 @@ import { Logger } from "../logger.js";
 const DEFAULT_NEWSBLUR_DOMAIN = "www.newsblur.com";
 
 const getFetch = (fetchImpl) => fetchImpl || globalThis.fetch;
+const getAbortController = (AbortControllerImpl) => AbortControllerImpl || globalThis.AbortController;
+
+const formatTimeoutDuration = (timeoutMs) => `${timeoutMs / 1000} seconds`;
+
+const createAbortController = ({
+  timeoutMs,
+  signal,
+  AbortControllerImpl,
+  setTimeoutImpl,
+  clearTimeoutImpl,
+}) => {
+  if (!timeoutMs && !signal) {
+    return {
+      signal: null,
+      timedOut: () => false,
+      cleanup: () => {},
+    };
+  }
+
+  const AbortControllerCtor = getAbortController(AbortControllerImpl);
+  if (!AbortControllerCtor) {
+    return {
+      signal,
+      timedOut: () => false,
+      cleanup: () => {},
+    };
+  }
+
+  const controller = new AbortControllerCtor();
+  let timeoutId = null;
+  let didTimeout = false;
+  let removeAbortListener = () => {};
+
+  if (signal) {
+    const handleAbort = () => {
+      controller.abort();
+    };
+
+    if (signal.aborted) {
+      handleAbort();
+    } else if (typeof signal.addEventListener === "function") {
+      signal.addEventListener("abort", handleAbort, { once: true });
+      removeAbortListener = () => signal.removeEventListener("abort", handleAbort);
+    }
+  }
+
+  if (timeoutMs > 0) {
+    timeoutId = setTimeoutImpl(() => {
+      didTimeout = true;
+      controller.abort();
+    }, timeoutMs);
+  }
+
+  return {
+    signal: controller.signal,
+    timedOut: () => didTimeout,
+    cleanup: () => {
+      if (timeoutId !== null) {
+        clearTimeoutImpl(timeoutId);
+      }
+      removeAbortListener();
+    },
+  };
+};
+
+const createAbortResponse = (timeoutMs, didTimeout) => ({
+  code: -1,
+  message: didTimeout
+    ? `NewsBlur sharing timed out after ${formatTimeoutDuration(timeoutMs)}. Network timeout.`
+    : "NewsBlur sharing was aborted before completion. Network request aborted.",
+});
+
+const isAbortError = (error) => error?.name === "AbortError";
 
 /**
  * Shares a story to NewsBlur using the existing extension payload shape.
@@ -24,11 +97,22 @@ const getFetch = (fetchImpl) => fetchImpl || globalThis.fetch;
  * @param {boolean} options.debug - Whether to log debug details.
  * @param {Function} options.fetchImpl - Fetch implementation for tests.
  * @param {Function} options.loadToken - Token loader for privileged callers.
+ * @param {number} options.timeoutMs - Optional request timeout in milliseconds.
+ * @param {AbortSignal} options.signal - Optional external abort signal.
  * @returns {Promise<object>} NewsBlur API response or normalized error object.
  */
 export const shareToNewsblur = async (
   shareOptions,
-  { debug = false, fetchImpl, loadToken } = {},
+  {
+    debug = false,
+    fetchImpl,
+    loadToken,
+    timeoutMs = 0,
+    signal,
+    AbortControllerImpl,
+    setTimeoutImpl = globalThis.setTimeout,
+    clearTimeoutImpl = globalThis.clearTimeout,
+  } = {},
 ) => {
   const options = shareOptions || {};
   let token = options.token;
@@ -55,14 +139,27 @@ export const shareToNewsblur = async (
   payload.append("content", options.content);
   payload.append("comments", options.comments);
 
+  const abortState = createAbortController({
+    timeoutMs,
+    signal,
+    AbortControllerImpl,
+    setTimeoutImpl,
+    clearTimeoutImpl,
+  });
+  const fetchOptions = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    },
+    body: payload.toString(),
+  };
+
+  if (abortState.signal) {
+    fetchOptions.signal = abortState.signal;
+  }
+
   try {
-    const response = await fetchApi(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      },
-      body: payload.toString(),
-    });
+    const response = await fetchApi(apiUrl, fetchOptions);
 
     if (!response.ok) {
       return await handleNewsblurHttpError(response, debug);
@@ -86,8 +183,14 @@ export const shareToNewsblur = async (
     if (debug) Logger.info("[LLM NewsBlur]", "Successfully shared to NewsBlur!");
     return result;
   } catch (error) {
+    if (abortState.timedOut() || signal?.aborted || isAbortError(error)) {
+      return createAbortResponse(timeoutMs, abortState.timedOut());
+    }
+
     Logger.error("[LLM NewsBlur]", "Failed to share to NewsBlur (caught error):", error);
     return { code: -1, message: error.message };
+  } finally {
+    abortState.cleanup();
   }
 };
 

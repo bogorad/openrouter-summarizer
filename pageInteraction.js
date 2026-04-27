@@ -1,6 +1,6 @@
 // pageInteraction.js
 
-console.log("[LLM Content] Script Start (v3.10.3)");
+console.log("[LLM Content] Script Start (v3.10.4)");
 
 // --- Static Imports ---
 // Webpack will bundle these and their dependencies.
@@ -53,9 +53,14 @@ let lastProcessedMarkdown = null;
 let lastContentArtifacts = null;
 let activeSummaryRequestId = null;
 let hasJoplinToken = false;
+let newsblurShareInFlight = false;
 
 let messageQueue = [];
 let modulesInitialized = false; // This flag is still useful to queue messages if initialization is async (e.g., fetching settings)
+
+const NEWSBLUR_SHARE_TIMEOUT_MS = 15000;
+const NEWSBLUR_SHARE_TIMEOUT_MESSAGE =
+  "NewsBlur share timed out after 15 seconds.";
 
 const extractCurrentContentArtifacts = (selectedElement) => extractArtifactsFromSelectedElement(
   selectedElement,
@@ -109,6 +114,44 @@ const logStaleSummaryRequest = (source, requestId) => {
     "active:",
     activeSummaryRequestId,
   );
+};
+
+const setPopupActionsDisabled = (disabled) => {
+  if (typeof SummaryPopup?.setActionsDisabled === "function") {
+    SummaryPopup.setActionsDisabled(disabled);
+    return;
+  }
+
+  if (typeof SummaryPopup?.setAllActionsDisabled === "function") {
+    SummaryPopup.setAllActionsDisabled(disabled);
+    return;
+  }
+
+  if (typeof SummaryPopup?.setActionButtonsDisabled === "function") {
+    SummaryPopup.setActionButtonsDisabled(disabled);
+    return;
+  }
+
+  SummaryPopup?.enableButtons?.(!disabled);
+};
+
+const createNewsblurShareTimeoutError = () => {
+  const error = new Error(NEWSBLUR_SHARE_TIMEOUT_MESSAGE);
+  error.code = "NEWSBLUR_SHARE_TIMEOUT";
+  return error;
+};
+
+const withNewsblurShareTimeout = (promise) => {
+  let timeoutId = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(createNewsblurShareTimeoutError());
+    }, NEWSBLUR_SHARE_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
 };
 
 const clearSummaryState = () => {
@@ -1080,6 +1123,11 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
 async function handlePopupNewsblur(hasNewsblurToken) {
   if (DEBUG) console.log("[LLM Content] handlePopupNewsblur called.");
 
+  if (newsblurShareInFlight) {
+    if (DEBUG) console.log("[LLM Content] Ignoring duplicate NewsBlur share click.");
+    return;
+  }
+
   if (!hasNewsblurToken) {
     const msg = "NewsBlur token is missing. Please set it in the options.";
     console.error("[LLM Content] NewsBlur share failed: " + msg);
@@ -1105,17 +1153,18 @@ async function handlePopupNewsblur(hasNewsblurToken) {
     return;
   }
 
+  newsblurShareInFlight = true;
+  setPopupActionsDisabled(true);
+
   let settings;
   try {
     const result = await sendRuntimeAction(RuntimeMessageActions.getSettings);
     settings = result.response || {};
   } catch (error) {
-    ErrorHandler.handle(
-      error,
-      "handlePopupNewsblur",
-      ErrorSeverity.WARNING,
-      true
-    );
+    const message = error?.message || "Unable to load settings.";
+    showError(`Failed to share to NewsBlur: ${message}`);
+    newsblurShareInFlight = false;
+    setPopupActionsDisabled(false);
     return;
   }
 
@@ -1153,16 +1202,18 @@ async function handlePopupNewsblur(hasNewsblurToken) {
   });
 
   try {
-    const { response } = await sendRuntimeAction(
-      RuntimeMessageActions.shareToNewsblur,
-      {
-        options: {
-          title: title,
-          story_url: story_url,
-          content: newsblurContent,
-          comments: "",
+    const { response } = await withNewsblurShareTimeout(
+      sendRuntimeAction(
+        RuntimeMessageActions.shareToNewsblur,
+        {
+          options: {
+            title: title,
+            story_url: story_url,
+            content: newsblurContent,
+            comments: "",
+          },
         },
-      },
+      ),
     );
 
     if (response.status === "success") {
@@ -1173,22 +1224,25 @@ async function handlePopupNewsblur(hasNewsblurToken) {
       showError("Shared to NewsBlur successfully!", false, NOTIFICATION_TIMEOUT_SUCCESS_MS);
     } else {
       const message = getIntegrationErrorMessage(response, "Unknown error");
-      showError(
-        `Failed to share to NewsBlur: ${message}`,
-      );
+      showError(`Failed to share to NewsBlur: ${message}`);
       if (DEBUG)
         console.error(
           "[LLM Content] Failed to share to NewsBlur:",
           response,
         );
+      newsblurShareInFlight = false;
+      setPopupActionsDisabled(false);
+      return;
     }
   } catch (error) {
-    ErrorHandler.handle(
-      error,
-      "handlePopupNewsblur",
-      ErrorSeverity.WARNING,
-      true
-    );
+    const message =
+      error?.code === "NEWSBLUR_SHARE_TIMEOUT"
+        ? NEWSBLUR_SHARE_TIMEOUT_MESSAGE
+        : error?.message || "Unknown error";
+    showError(`Failed to share to NewsBlur: ${message}`);
+    newsblurShareInFlight = false;
+    setPopupActionsDisabled(false);
+    return;
   }
 
   if (alsoSendToJoplin && hasJoplinToken) {
@@ -1200,6 +1254,7 @@ async function handlePopupNewsblur(hasNewsblurToken) {
     );
   }
 
+  newsblurShareInFlight = false;
   SummaryPopup.hidePopup();
   Highlighter.removeSelectionHighlight();
   FloatingIcon.removeFloatingIcon();

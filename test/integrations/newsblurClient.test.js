@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { normalizeIntegrationError } from "../../js/integrations/integrationErrors.js";
 import { shareToNewsblur } from "../../js/integrations/newsblurClient.js";
 
 const createJsonResponse = (body, { ok = true, status = 200, text = "" } = {}) => ({
@@ -18,6 +19,26 @@ const createShareOptions = (overrides = {}) => ({
   comments: "Summary comment",
   ...overrides,
 });
+
+const createAbortAwareFetch = () => {
+  let capturedSignal = null;
+
+  const fetchImpl = async (url, options) => {
+    capturedSignal = options.signal;
+    return await new Promise((resolve, reject) => {
+      capturedSignal.addEventListener("abort", () => {
+        const error = new Error("The operation was aborted.");
+        error.name = "AbortError";
+        reject(error);
+      });
+    });
+  };
+
+  return {
+    fetchImpl,
+    getSignal: () => capturedSignal,
+  };
+};
 
 describe("newsblurClient", () => {
   it("shares a story with the existing NewsBlur payload shape", async () => {
@@ -105,5 +126,66 @@ describe("newsblurClient", () => {
       code: -1,
       message: "HTTP error! status: 403 - {\"message\":\"Forbidden\"} (Parsed JSON: \"Forbidden\")",
     });
+  });
+
+  it("aborts NewsBlur fetches at the configured timeout", async () => {
+    const { fetchImpl, getSignal } = createAbortAwareFetch();
+    let timeoutCallback = null;
+    let timeoutDelay = null;
+    let clearedTimeoutId = null;
+
+    const resultPromise = shareToNewsblur(createShareOptions(), {
+      fetchImpl,
+      timeoutMs: 15000,
+      setTimeoutImpl: (callback, delay) => {
+        timeoutCallback = callback;
+        timeoutDelay = delay;
+        return 42;
+      },
+      clearTimeoutImpl: (timeoutId) => {
+        clearedTimeoutId = timeoutId;
+      },
+    });
+
+    assert.equal(timeoutDelay, 15000);
+    assert.equal(getSignal().aborted, false);
+
+    timeoutCallback();
+    const result = await resultPromise;
+
+    assert.deepEqual(result, {
+      code: -1,
+      message: "NewsBlur sharing timed out after 15 seconds. Network timeout.",
+    });
+    assert.equal(getSignal().aborted, true);
+    assert.equal(clearedTimeoutId, 42);
+
+    const normalized = normalizeIntegrationError("newsblur", result);
+    assert.equal(normalized.errorType, "network");
+    assert.equal(normalized.details, "NewsBlur sharing timed out after 15 seconds. Network timeout.");
+  });
+
+  it("returns a normalized error object when an external signal aborts the share", async () => {
+    const { fetchImpl, getSignal } = createAbortAwareFetch();
+    const controller = new AbortController();
+
+    const resultPromise = shareToNewsblur(createShareOptions(), {
+      fetchImpl,
+      signal: controller.signal,
+    });
+
+    assert.equal(getSignal().aborted, false);
+
+    controller.abort();
+    const result = await resultPromise;
+
+    assert.deepEqual(result, {
+      code: -1,
+      message: "NewsBlur sharing was aborted before completion. Network request aborted.",
+    });
+    assert.equal(getSignal().aborted, true);
+
+    const normalized = normalizeIntegrationError("newsblur", result);
+    assert.equal(normalized.errorType, "network");
   });
 });

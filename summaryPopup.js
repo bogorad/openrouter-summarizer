@@ -339,6 +339,15 @@ function getShadowElement(selector) {
   return shadow.querySelector(selector);
 }
 
+function getActionButtons() {
+  return {
+    chatBtn: getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`),
+    closeBtn: getShadowElement(`.${POPUP_CLOSE_BTN_CLASS}`),
+    copyBtn: getShadowElement(`.${POPUP_COPY_BTN_CLASS}`),
+    newsblurBtn: getShadowElement(`.${POPUP_NEWSBLUR_BTN_CLASS}`),
+  };
+}
+
 function createPopupButton({ label, title, className, disabled = false, onClick }) {
   const button = createButton({
     label,
@@ -507,12 +516,15 @@ export function showPopup(
         switch (key) {
           case "e":
           case "escape":
-            if (popupCallbacks.onClose) popupCallbacks.onClose();
+          {
+            const closeBtn = getShadowElement(`.${POPUP_CLOSE_BTN_CLASS}`);
+            if (closeBtn && !closeBtn.disabled && popupCallbacks.onClose) popupCallbacks.onClose();
+          }
             break;
           case "y":
           {
             const cBtn = getShadowElement(`.${POPUP_COPY_BTN_CLASS}`);
-            if (cBtn) cBtn.click();
+            if (cBtn && !cBtn.disabled) cBtn.click();
           }
           break;
           case "t":
@@ -524,7 +536,7 @@ export function showPopup(
           case "r":
           {
             const nBtn = getShadowElement(`.${POPUP_NEWSBLUR_BTN_CLASS}`);
-            if (nBtn && nBtn.style.display !== "none") nBtn.click();
+            if (nBtn && nBtn.style.display !== "none" && !nBtn.disabled) nBtn.click();
           }
           break;
         }
@@ -658,8 +670,12 @@ export function updatePopupContent(
 
 export function enableButtons(enable) {
   if (!host || !shadow) return;
-  const chatBtn = getShadowElement(`.${POPUP_CHAT_BTN_CLASS}`);
-  const copyBtn = getShadowElement(`.${POPUP_COPY_BTN_CLASS}`);
+  const {
+    chatBtn,
+    closeBtn,
+    copyBtn,
+    newsblurBtn,
+  } = getActionButtons();
 
   if (chatBtn) {
     if (isErrorState && chatBtn.textContent === "Options") {
@@ -672,6 +688,26 @@ export function enableButtons(enable) {
   if (copyBtn) {
     setButtonDisabled(copyBtn, !enable);
   }
+
+  if (newsblurBtn) {
+    setButtonDisabled(newsblurBtn, !enable);
+  }
+
+  if (closeBtn) {
+    setButtonDisabled(closeBtn, !enable);
+  }
+}
+
+export function setActionsDisabled(disabled) {
+  enableButtons(!disabled);
+}
+
+export function setAllActionsDisabled(disabled) {
+  setActionsDisabled(disabled);
+}
+
+export function setActionButtonsDisabled(disabled) {
+  setActionsDisabled(disabled);
 }
 
 export function initializePopupManager(options) {
