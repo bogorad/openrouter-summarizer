@@ -218,14 +218,15 @@ export const DEFAULT_CHAT_QUICK_PROMPTS = [
 // --- Default Models (Labels Removed) ---
 export const DEFAULT_MODEL_OPTIONS = [
   { id: "google/gemini-3.1-flash-lite-preview" },
-  { id: "google/gemini-3.1-pro-preview" },
-  { id: "openai/gpt-5.5-pro" },
-  { id: "openai/gpt-5.4-mini" },
-  { id: "anthropic/claude-haiku-4.5" },
-  { id: "anthropic/claude-opus-4.7" },
-  { id: "qwen/qwen3-max-thinking" },
+  { id: "~google/gemini-pro-latest" },
+  { id: "~openai/gpt-latest" },
+  { id: "~openai/gpt-mini-latest" },
+  { id: "~anthropic/claude-haiku-latest" },
+  { id: "~anthropic/claude-opus-latest" },
+  { id: "qwen/qwen3.6-flash" },
   { id: "x-ai/grok-4.20" },
   { id: "deepseek/deepseek-v4-pro" },
+  { id: "~moonshotai/kimi-latest" },
 ];
 
 // --- Default Languages for Pre-population ---
