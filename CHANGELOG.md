@@ -1,3 +1,5 @@
+- **Version 3.10.7:** Migrated the Joplin notebook popup and autocomplete styling into Shadow DOM isolation.
+
 - **Version 3.10.6:** Fixed Joplin notebook Enter handling to validate the visible notebook text before saving and rebuilt the content bundle.
 
 - **Version 3.10.5:** Centralized startup banner version logging through the runtime manifest version so script files no longer carry duplicated release strings.

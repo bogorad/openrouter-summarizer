@@ -97,6 +97,7 @@ const resolveItems = (source, query) => {
  * @param {Function} options.filterItems - Returns matching items for a query.
  * @param {Function} options.renderItem - Returns custom option child content.
  * @param {HTMLElement} options.positioningAnchor - Element used to position listbox.
+ * @param {Function} options.positionListbox - Custom listbox positioning hook.
  * @param {HTMLElement} options.listboxParent - Parent receiving the listbox.
  * @param {string} options.listboxId - Stable listbox id.
  * @param {string} options.optionIdPrefix - Prefix for generated option ids.
@@ -174,6 +175,11 @@ export const createAutocomplete = (options = {}) => {
   };
 
   const positionListbox = () => {
+    if (typeof options.positionListbox === "function") {
+      options.positionListbox({ listbox, input, positioningAnchor });
+      return;
+    }
+
     const rect = positioningAnchor.getBoundingClientRect();
     listbox.style.position = "absolute";
     listbox.style.top = `${rect.bottom + window.scrollY + 4}px`;

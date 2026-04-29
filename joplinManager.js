@@ -26,6 +26,192 @@ const JOPLIN_POPUP_ACTIONS_CLASS = "joplin-popup-actions";
 const JOPLIN_BTN_CLASS = "joplin-btn";
 const JOPLIN_SAVE_BTN_CLASS = "joplin-save-btn";
 const JOPLIN_CANCEL_BTN_CLASS = "joplin-cancel-btn";
+const JOPLIN_NOTEBOOK_INPUT_WRAPPER_CLASS = "joplin-notebook-input-wrapper";
+const JOPLIN_NOTEBOOK_INPUT_CLASS = "joplin-notebook-search-input";
+const JOPLIN_POPUP_STATUS_CLASS = "joplin-popup-status";
+const JOPLIN_AUTOCOMPLETE_DROPDOWN_CLASS = "joplin-autocomplete-dropdown";
+const JOPLIN_AUTOCOMPLETE_ITEM_CLASS = "joplin-autocomplete-item";
+
+const JOPLIN_POPUP_STYLES = `
+  :host {
+    all: initial;
+    display: block;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif !important;
+  }
+
+  .${JOPLIN_POPUP_CLASS} {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 2147483647;
+    width: 300px;
+    font-family: inherit;
+    font-size: 14px;
+    color: #333333;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    box-sizing: border-box;
+    overflow: visible;
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .${JOPLIN_POPUP_CLASS}.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+  }
+
+  .${JOPLIN_POPUP_HEADER_CONTAINER_CLASS} {
+    padding: 14px 20px;
+    background-color: #2196F3;
+    color: #ffffff;
+    flex-shrink: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 8px 8px 0 0;
+    box-sizing: border-box;
+  }
+
+  .${JOPLIN_POPUP_HEADER_CLASS} {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 0;
+    text-align: center;
+    color: #ffffff;
+  }
+
+  .${JOPLIN_POPUP_BODY_CLASS} {
+    order: 2;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    min-height: 80px;
+    box-sizing: border-box;
+  }
+
+  .${JOPLIN_POPUP_BODY_CLASS}.placeholder-content,
+  .${JOPLIN_POPUP_STATUS_CLASS} {
+    color: #888888;
+    font-style: italic;
+  }
+
+  .${JOPLIN_POPUP_BODY_CLASS} p,
+  .${JOPLIN_POPUP_STATUS_CLASS} {
+    margin: 0;
+  }
+
+  .${JOPLIN_POPUP_BODY_CLASS} p {
+    color: #555555;
+  }
+
+  .${JOPLIN_NOTEBOOK_INPUT_WRAPPER_CLASS} {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .${JOPLIN_NOTEBOOK_INPUT_CLASS} {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    font: inherit;
+    margin-top: 10px;
+    box-sizing: border-box;
+    color: #333333;
+    background-color: #ffffff;
+  }
+
+  .${JOPLIN_POPUP_ACTIONS_CLASS} {
+    order: 1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eeeeee;
+    box-sizing: border-box;
+  }
+
+  .${JOPLIN_BTN_CLASS} {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+    transition: background-color 0.2s ease;
+  }
+
+  .${JOPLIN_SAVE_BTN_CLASS} {
+    background-color: #4CAF50;
+    color: #ffffff;
+  }
+
+  .${JOPLIN_SAVE_BTN_CLASS}:hover:not(:disabled) {
+    background-color: #45a049;
+  }
+
+  .${JOPLIN_CANCEL_BTN_CLASS} {
+    background-color: #f44336;
+    color: #ffffff;
+  }
+
+  .${JOPLIN_CANCEL_BTN_CLASS}:hover:not(:disabled) {
+    background-color: #da190b;
+  }
+
+  .${JOPLIN_BTN_CLASS}:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+
+  .${JOPLIN_AUTOCOMPLETE_DROPDOWN_CLASS} {
+    position: absolute;
+    border: 1px solid #dddddd;
+    background-color: #ffffff;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+
+  .${JOPLIN_AUTOCOMPLETE_ITEM_CLASS} {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 0.95em;
+    color: #333333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid #eeeeee;
+    box-sizing: border-box;
+  }
+
+  .${JOPLIN_AUTOCOMPLETE_ITEM_CLASS}:last-child {
+    border-bottom: none;
+  }
+
+  .${JOPLIN_AUTOCOMPLETE_ITEM_CLASS}:hover,
+  .${JOPLIN_AUTOCOMPLETE_ITEM_CLASS}.selected {
+    background-color: #f0f0f0;
+  }
+`;
 
 // Accessibility IDs
 const JOPLIN_POPUP_TITLE_ID = "llm-joplin-popup-title";
@@ -76,6 +262,9 @@ function createJoplinPopupBase() {
     }).element;
 
     joplinPopupController = createPopup({
+        id: "joplin-popup-host",
+        useShadowRoot: true,
+        styles: JOPLIN_POPUP_STYLES,
         titleNode: createElement("div", {
             className: JOPLIN_POPUP_HEADER_CLASS,
             attrs: { id: JOPLIN_POPUP_TITLE_ID },
@@ -93,6 +282,16 @@ function createJoplinPopupBase() {
         trapFocus: true,
         restoreFocus: true,
         autoFocus: false,
+        hostAttrs: {
+            style: `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 0;
+                height: 0;
+                z-index: 2147483647;
+            `,
+        },
         onCleanup: () => {
             notebookAutocompleteController?.cleanup();
             notebookAutocompleteController = null;
@@ -127,18 +326,17 @@ function createJoplinPopupParagraph(text) {
 function createNotebookSelectionContent() {
     const fragment = document.createDocumentFragment();
     const label = createJoplinPopupParagraph("Type to search or select a notebook:");
-    const inputWrapper = createElement("div");
+    const inputWrapper = createElement("div", {
+        className: JOPLIN_NOTEBOOK_INPUT_WRAPPER_CLASS,
+    });
     const input = createElement("input", {
-        className: "joplin-notebook-search-input",
+        className: JOPLIN_NOTEBOOK_INPUT_CLASS,
         attrs: {
             type: "text",
             placeholder: "Search notebooks...",
             "aria-label": "Search notebooks",
         },
     });
-
-    inputWrapper.style.position = "relative";
-    inputWrapper.style.width = "100%";
 
     inputWrapper.appendChild(input);
     fragment.appendChild(label);
@@ -160,7 +358,7 @@ function updateJoplinPopupBodyContent(content, isPlaceholder = false) {
             : createStatusMessage({
                 message: String(content || ""),
                 type: isPlaceholder ? STATUS_TYPES.INFO : STATUS_TYPES.ERROR,
-                className: "joplin-popup-status",
+                className: JOPLIN_POPUP_STATUS_CLASS,
             });
         joplinPopupController.render(renderedContent);
         bodyDiv.classList.toggle('placeholder-content', isPlaceholder); // Add/remove class for placeholder styling
@@ -351,9 +549,10 @@ function renderNotebookSelectionPopup(folders) {
     updateJoplinPopupBodyContent(createNotebookSelectionContent());
     enableJoplinButtons(false); // Disable save button initially, it will be enabled on selection
 
-    const notebookSearchInput = joplinPopupElement.querySelector('.joplin-notebook-search-input');
+    const notebookSearchInput = joplinPopupElement.querySelector(`.${JOPLIN_NOTEBOOK_INPUT_CLASS}`);
     const saveBtn = joplinPopupElement.querySelector(`.${JOPLIN_SAVE_BTN_CLASS}`);
     const cancelBtn = joplinPopupElement.querySelector(`.${JOPLIN_CANCEL_BTN_CLASS}`);
+    const notebookInputWrapper = notebookSearchInput?.parentElement;
 
     if (notebookSearchInput) {
         notebookSearchInput.setAttribute('aria-label', 'Search notebooks');
@@ -396,12 +595,22 @@ function renderNotebookSelectionPopup(folders) {
             getItemLabel: folder => folder.title,
             getItemValue: folder => folder.title,
             filterItems: filterNotebooks,
+            listboxParent: notebookInputWrapper,
+            positioningAnchor: notebookSearchInput,
+            positionListbox: ({ listbox, input }) => {
+                const parentRect = notebookInputWrapper.getBoundingClientRect();
+                const inputRect = input.getBoundingClientRect();
+                listbox.style.position = "absolute";
+                listbox.style.top = `${inputRect.bottom - parentRect.top + 4}px`;
+                listbox.style.left = `${inputRect.left - parentRect.left}px`;
+                listbox.style.width = `${inputRect.width}px`;
+            },
             listboxId: JOPLIN_AUTOCOMPLETE_LISTBOX_ID,
             optionIdPrefix: JOPLIN_AUTOCOMPLETE_OPTION_ID_PREFIX,
             listboxLabel: "Notebook suggestions",
             classNames: {
-                listbox: "joplin-autocomplete-dropdown",
-                option: "joplin-autocomplete-item",
+                listbox: JOPLIN_AUTOCOMPLETE_DROPDOWN_CLASS,
+                option: JOPLIN_AUTOCOMPLETE_ITEM_CLASS,
                 selected: "selected",
             },
             maxItems: 10,

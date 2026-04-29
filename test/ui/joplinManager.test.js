@@ -21,7 +21,21 @@ const installDom = () => {
     "https://reader.example/joplin",
   );
   const { document } = window;
+  const querySelector = document.querySelector.bind(document);
+  Object.defineProperty(document, "querySelector", {
+    configurable: true,
+    value: (selector) => querySelector(selector) ?? null,
+  });
 
+  window.HTMLElement.prototype.attachShadow = function attachShadow() {
+    const root = document.createElement("div");
+    this.__joplinPopupShadowRoot = root;
+    Object.defineProperty(this, "shadowRoot", {
+      configurable: true,
+      value: root,
+    });
+    return root;
+  };
   window.HTMLElement.prototype.replaceChildren = function replaceChildren(...children) {
     while (this.firstChild) {
       this.removeChild(this.firstChild);
@@ -52,6 +66,20 @@ const createKeydownEvent = (key) => {
 };
 
 const waitForAsyncWork = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const getJoplinPopupShadowRoot = () => {
+  const host = document.getElementById("joplin-popup-host");
+  assert.ok(host);
+  const root = host.shadowRoot || host.__joplinPopupShadowRoot;
+  assert.ok(root);
+  return root;
+};
+
+const getJoplinNotebookInput = () => {
+  const input = getJoplinPopupShadowRoot().querySelector(".joplin-notebook-search-input");
+  assert.ok(input);
+  return input;
+};
 
 describe("joplinManager", () => {
   let chromeMock;
@@ -99,8 +127,8 @@ describe("joplinManager", () => {
   it("saves Enter to the notebook shown in the input instead of a stale selection", async () => {
     await fetchAndShowNotebookSelection("<p>Story body</p>", "https://reader.example/story");
 
-    const input = document.querySelector(".joplin-notebook-search-input");
-    assert.ok(input);
+    assert.equal(document.querySelector(".joplin-notebook-search-input"), null);
+    const input = getJoplinNotebookInput();
     assert.equal(input.value, "Alpha");
 
     input.value = "Beta";
