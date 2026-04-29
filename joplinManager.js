@@ -69,7 +69,7 @@ function createJoplinPopupBase() {
         disabled: true,
     }).element;
     const cancelButton = createButton({
-        label: "Cancel",
+        label: "Back (no action)",
         className: JOPLIN_BTN_CLASS,
         classes: [JOPLIN_CANCEL_BTN_CLASS],
         onClick: () => hideJoplinPopup(),
@@ -230,7 +230,8 @@ function handleNotebookEnter(event, inputElement, folders) {
     if (event.defaultPrevented) return;
     event.preventDefault();
 
-    const exactMatch = findNotebookByTitle(inputElement.value, folders);
+    const currentText = inputElement.value.trim();
+    const exactMatch = findNotebookByTitle(currentText, folders);
     if (exactMatch) {
         selectNotebook(exactMatch);
         sendNoteToJoplin(exactMatch.id, exactMatch.title);
@@ -306,7 +307,6 @@ export async function fetchAndShowNotebookSelection(content, sourceUrl) {
     const cancelBtn = popup.querySelector(`.${JOPLIN_CANCEL_BTN_CLASS}`);
     if (cancelBtn) {
         cancelBtn.onclick = () => hideJoplinPopup();
-        cancelBtn.focus();
     }
 
     try {

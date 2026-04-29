@@ -1,3 +1,5 @@
+- **Version 3.10.6:** Fixed Joplin notebook Enter handling to validate the visible notebook text before saving and rebuilt the content bundle.
+
 - **Version 3.10.5:** Centralized startup banner version logging through the runtime manifest version so script files no longer carry duplicated release strings.
 
 - **Version 3.10.4:** Fixed NewsBlur sharing in-flight behavior by disabling popup actions during share, preventing duplicate submissions, and adding 15-second UI and network timeouts with retry-safe failure handling.

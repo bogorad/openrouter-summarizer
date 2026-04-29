@@ -78,6 +78,7 @@
 }
 
 .joplin-popup-body {
+    order: 2;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -108,11 +109,12 @@
 }
 
 .joplin-popup-actions {
+    order: 1;
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #eee;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
 }
 
 .joplin-btn {
