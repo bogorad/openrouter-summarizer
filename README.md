@@ -1,16 +1,21 @@
-# OpenRouter Summarizer v3.9.42
+# OpenRouter Summarizer v3.10.11
 
 **Summarize any web page content and chat with the context using OpenRouter.ai APIs**
 _Featuring interactive chat, native HTML summaries, flexible options, and robust CSS isolation!_
 
 ---
 
-## What's New in v3.9.42
+## What's New in v3.10.11
 
-- **Customizable Chat Quick Buttons:**
-    - Added a quick-button row in chat between model selection and the message input.
-    - Buttons are configurable in Options with per-button title and prompt.
-    - Clicking a quick button sends its mapped prompt immediately.
+Highlights since the previous GitHub release, v3.9.42:
+
+- **Free Model Summaries:** Exact `:free` model IDs use their own prices. Missing or dynamic prices show a clear error instead of being treated as free.
+- **Reliable Model Selection:** Options keeps your selected free models through refresh, Save, and reload. Free input pricing displays “No limit,” and older pricing replies cannot overwrite a newer selection.
+- **Consistent Summary Requests:** A summary uses the model that was priced, even if you change the default while the request is in progress.
+- **Joplin Improvements:** The notebook popup uses Shadow DOM to isolate its styles, and Enter saves to the notebook shown in the input.
+- **NewsBlur Improvements:** Optional summary prefaces, duplicate-share prevention, and timeout handling improve the sharing flow.
+
+After updating, reload the extension and refresh existing web-page tabs.
 
 ---
 
@@ -26,6 +31,7 @@ _Featuring interactive chat, native HTML summaries, flexible options, and robust
   - `:nitro` - Fastest inference speed
   - `:floor` - Lowest cost provider
   - `:auto` - Automatic routing
+  - `:free` - Free variant, when listed in the OpenRouter model catalog
   - `:online` - Real-time web search (see [Web-Enabled Chat](#web-enabled-chat))
 - **Configurable Languages for Chat Flags:** Manage a list of preferred languages in the Options. Corresponding flag icons will appear on the chat popup. Clicking a flag initiates a request to translate the latest message.
 - **Languages can now be reordered** by dragging them in the Options list.
@@ -89,7 +95,7 @@ _Source: [`docs/schematic.typ`](docs/schematic.typ)_
 ## How It Works
 
 1.  **Install & Setup:**
-    - Install the extension.
+    - Download [openrouter-summarizer-3.10.11.zip](https://github.com/bogorad/openrouter-summarizer/releases/download/v3.10.11/openrouter-summarizer-3.10.11.zip) and extract it. Open `chrome://extensions`, enable **Developer mode**, and use **Load unpacked** to select the extracted folder.
     - The Options page opens on first install. Enter your [OpenRouter.ai API Key](https://openrouter.ai/keys).
     - Review default models/languages/settings. **Save Options**.
 2.  **Select Content:**
