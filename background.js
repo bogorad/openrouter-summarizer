@@ -8,6 +8,7 @@ import {
   DEFAULT_XML_PROMPT_TEMPLATE,
   STORAGE_KEY_NEWSBLUR_TOKEN,
   STORAGE_KEY_JOPLIN_TOKEN,
+  STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
 } from "./constants.js";
 
 import {
@@ -45,6 +46,7 @@ import {
 import { handleOpenChatTab, handleOpenOptionsPage } from "./js/uiActions.js";
 import { ErrorHandler, ErrorSeverity, handleLastError } from "./js/errorHandler.js";
 import { Logger, setDebugMode } from "./js/logger.js";
+import { STORAGE_KEY_MODEL_PRICING_CACHE } from "./js/state/settingsSchema.js";
 import {
   SECRET_JOPLIN_TOKEN,
   SECRET_NEWSBLUR_TOKEN,
@@ -176,8 +178,15 @@ async function migrateTokensToEncryptedStorage() {
   }
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
-  // Run migration first
+chrome.runtime.onInstalled.addListener(async (details = {}) => {
+  if (details.reason === "update") {
+    // Legacy cache writers could turn unavailable prices into numeric zero.
+    await chrome.storage.local.remove([
+      STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
+      STORAGE_KEY_MODEL_PRICING_CACHE,
+    ]);
+  }
+  // Run migrations before applying defaults.
   await migrateTokensToEncryptedStorage();
   const settingsMigration = await migrateSettings();
 

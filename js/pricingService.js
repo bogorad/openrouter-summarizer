@@ -1,22 +1,12 @@
-// js/pricingService.js
-import {
-  STORAGE_KEY_API_KEY_LOCAL,
-  STORAGE_KEY_KNOWN_MODELS_AND_PRICES,
-} from "../constants.js";
-import { decryptSensitiveData } from "./encryption.js";
+// Fetch and cache catalog records; return only available fixed input prices.
+import { STORAGE_KEY_KNOWN_MODELS_AND_PRICES } from "../constants.js";
+import { loadOpenRouterApiKey } from "./state/secretStore.js";
 import { Logger } from "./logger.js";
+import { findModelPricing, parsePricePerToken } from "./modelPricing.js";
 
 // These were originally in background.js, moving them here as they are specific to pricing logic.
 const MAX_PRICING_RETRIES = 2; // Max number of retries for fetching pricing
 const PRICING_RETRY_DELAY_MS = 3000; // Delay between retries in milliseconds
-
-function getBaseModelId(modelId) {
-  if (typeof modelId !== "string") return "";
-  const trimmed = modelId.trim();
-  if (trimmed === "") return "";
-  const colonIndex = trimmed.indexOf(":");
-  return colonIndex === -1 ? trimmed : trimmed.substring(0, colonIndex);
-}
 
 async function _fetchAndCacheModelsPricing(apiKey, DEBUG = false, attempt = 0) {
   Logger.debug("[LLM Pricing Service]", `Attempt ${attempt + 1} to fetch model and pricing data.`);
@@ -46,7 +36,7 @@ async function _fetchAndCacheModelsPricing(apiKey, DEBUG = false, attempt = 0) {
     let updatedCount = 0;
 
     data.data.forEach((model) => {
-      const pricePerToken = model.pricing?.prompt || 0;
+      const pricePerToken = parsePricePerToken(model.pricing?.prompt);
       knownModelsAndPrices[model.id] = {
         id: model.id,
         name: model.name || model.id,
@@ -87,27 +77,23 @@ export async function handleGetModelPricing(
   sendResponse,
   DEBUG = false,
 ) {
-  const baseModelId = getBaseModelId(request?.modelId);
+  const modelId = typeof request?.modelId === "string" ? request.modelId.trim() : "";
   Logger.debug(
     "[LLM Pricing Service]",
     "Handling getModelPricing request for model:",
-    request?.modelId,
-    baseModelId !== request?.modelId ? `(base: ${baseModelId})` : "",
+    modelId,
   );
-  if (!baseModelId) {
+  if (!modelId) {
     Logger.debug("[LLM Pricing Service]", "Invalid model ID provided for pricing request.");
     sendResponse({ status: "error", message: "Invalid model ID provided." });
     return;
   }
 
-  // Get encrypted API key from local storage and decrypt it
-  const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
-  const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
-  const decryptResult = await decryptSensitiveData(encryptedApiKey);
-  if (!decryptResult.success) {
-    Logger.error("[LLM Pricing Service]", "Failed to decrypt API key:", decryptResult.error);
+  const apiKeyResult = await loadOpenRouterApiKey();
+  if (!apiKeyResult.success) {
+    Logger.error("[LLM Pricing Service]", "Failed to load API key:", apiKeyResult.error);
   }
-  const apiKey = decryptResult.data;
+  const apiKey = apiKeyResult.data;
 
   const attemptGetPrice = async () => {
     const localCacheData = await new Promise((resolve) =>
@@ -118,18 +104,25 @@ export async function handleGetModelPricing(
     );
     const knownModelsAndPrices =
       localCacheData[STORAGE_KEY_KNOWN_MODELS_AND_PRICES] || {};
-    const cachedEntry = knownModelsAndPrices[baseModelId];
+    const cachedEntry = findModelPricing(modelId, knownModelsAndPrices);
     const currentTime = Date.now();
     const cacheExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days expiry
 
     if (cachedEntry && currentTime - cachedEntry.timestamp < cacheExpiry) {
+      const pricePerToken = parsePricePerToken(cachedEntry.pricePerToken);
+      if (pricePerToken === null) {
+        return {
+          status: "error",
+          message: `Input pricing is unavailable for model ${modelId}. Choose an explicitly priced model.`,
+        };
+      }
       Logger.debug(
         "[LLM Pricing Service]",
         "Using cached pricing data for model:",
-        baseModelId,
-        { pricePerToken: cachedEntry.pricePerToken },
+        modelId,
+        { pricePerToken },
       );
-      return { status: "success", pricePerToken: cachedEntry.pricePerToken };
+      return { status: "success", pricePerToken };
     }
     return null; // Indicates cache miss or stale
   };
@@ -145,7 +138,7 @@ export async function handleGetModelPricing(
   Logger.debug(
     "[LLM Pricing Service]",
     "Pricing cache miss for model:",
-    baseModelId,
+    modelId,
     "- Attempting refresh.",
   );
   if (!apiKey) {
@@ -166,7 +159,7 @@ export async function handleGetModelPricing(
       Logger.debug(
         "[LLM Pricing Service]",
         "Pricing cache refreshed successfully during getModelPricing. Re-checking for model:",
-        baseModelId,
+        modelId,
       );
       priceInfo = await attemptGetPrice(); // Try getting from cache again
       if (priceInfo) {
@@ -175,12 +168,12 @@ export async function handleGetModelPricing(
         Logger.debug(
           "[LLM Pricing Service]",
           "Model",
-          baseModelId,
+          modelId,
           "not found even after refresh.",
         );
         sendResponse({
           status: "error",
-          message: `Pricing data for model ${baseModelId} not found after refresh.`,
+          message: `Pricing data for model ${modelId} not found after refresh.`,
         });
       }
     } else {
@@ -212,14 +205,11 @@ export async function handleUpdateKnownModelsAndPricing(
   DEBUG = false,
 ) {
   Logger.debug("[LLM Pricing Service]", "Handling updateKnownModelsAndPricing request for all models.");
-  // Get encrypted API key from local storage and decrypt it
-  const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
-  const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
-  const decryptResult = await decryptSensitiveData(encryptedApiKey);
-  if (!decryptResult.success) {
-    Logger.error("[LLM Pricing Service]", "Failed to decrypt API key:", decryptResult.error);
+  const apiKeyResult = await loadOpenRouterApiKey();
+  if (!apiKeyResult.success) {
+    Logger.error("[LLM Pricing Service]", "Failed to load API key:", apiKeyResult.error);
   }
-  const apiKey = decryptResult.data;
+  const apiKey = apiKeyResult.data;
   if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
     Logger.debug("[LLM Pricing Service]", "API key missing for model and pricing request.");
     sendResponse({

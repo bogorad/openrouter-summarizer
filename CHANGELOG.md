@@ -1,3 +1,5 @@
+- **Version 3.10.8:** Fixed exact free-model pricing, rejected unavailable input prices, removed the content pricing bypass, and reset legacy derived pricing caches on upgrade.
+
 - **Version 3.10.7:** Migrated the Joplin notebook popup and autocomplete styling into Shadow DOM isolation.
 
 - **Version 3.10.6:** Fixed Joplin notebook Enter handling to validate the visible notebook text before saving and rebuilt the content bundle.

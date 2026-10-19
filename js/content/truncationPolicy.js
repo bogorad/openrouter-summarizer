@@ -4,6 +4,7 @@
  * This module returns explicit allow, truncate, or reject decisions so callers
  * do not own pricing math or direct content slicing.
  */
+import { parsePricePerToken } from "../modelPricing.js";
 
 export const TRUNCATION_DECISIONS = Object.freeze({
   ALLOW: "allow",
@@ -72,7 +73,7 @@ const createDecision = (decision, fields = {}) => ({
  * Applies max-price behavior to content prepared for an LLM request.
  * @param {object} input - Policy input.
  * @param {string} input.content - Content that will be sent to the LLM.
- * @param {number} input.pricePerToken - Prompt price per token.
+ * @param {number|string} input.pricePerToken - Available prompt price per token.
  * @param {number} input.maxRequestPrice - Maximum allowed request price.
  * @param {string} input.maxPriceBehavior - Either "fail" or "truncate".
  * @param {object} input.tokenEstimatePolicy - Token estimator implementation.
@@ -80,11 +81,18 @@ const createDecision = (decision, fields = {}) => ({
  */
 export const applyCostTruncationPolicy = (input = {}) => {
   const content = normalizeString(input.content);
-  const pricePerToken = normalizePrice(input.pricePerToken, 0);
+  const pricePerToken = parsePricePerToken(input.pricePerToken);
   const maxRequestPrice = normalizePrice(
     input.maxRequestPrice,
     DEFAULT_MAX_REQUEST_PRICE,
   );
+  if (pricePerToken === null) {
+    return createDecision(TRUNCATION_DECISIONS.REJECT, {
+      content,
+      error: "Input pricing is unavailable. Choose an explicitly priced model.",
+      maxRequestPrice,
+    });
+  }
   const maxPriceBehavior = normalizeBehavior(input.maxPriceBehavior);
   const tokenEstimatePolicy = resolveTokenEstimatePolicy(input.tokenEstimatePolicy);
   const estimatedTokens = Math.max(

@@ -463,19 +463,9 @@ async function validateAndSendToLLM(content) {
           return;
         }
 
-        const pricePerToken = priceResponse.pricePerToken || 0;
-        if (pricePerToken === 0) {
-          if (DEBUG)
-            console.log(
-              `[LLM Content] Free model detected (${summaryModelId}), skipping cost validation.`,
-            );
-          sendRequestToBackground(content, requestId, hasNewsblurToken);
-          return;
-        }
-
         const truncationDecision = applyCostTruncationPolicy({
           content,
-          pricePerToken,
+          pricePerToken: priceResponse.pricePerToken,
           maxRequestPrice,
           maxPriceBehavior,
           tokenEstimatePolicy,
