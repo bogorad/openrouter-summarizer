@@ -1,13 +1,10 @@
-// js/summaryHandler.js
+// Generate a summary with the exact configured model already priced by the content caller.
 import {
-  STORAGE_KEY_API_KEY_LOCAL,
-  STORAGE_KEY_SUMMARY_MODEL_ID,
   STORAGE_KEY_BULLET_COUNT,
   STORAGE_KEY_LANGUAGE_INFO,
   STORAGE_KEY_PROMPT_TEMPLATE,
   STORAGE_KEY_ALWAYS_USE_US_ENGLISH,
   STORAGE_KEY_MODELS,
-  DEFAULT_MODEL_OPTIONS,
   DEFAULT_XML_PROMPT_TEMPLATE,
   OPENROUTER_API_URL,
   REQUEST_TIMEOUT,
@@ -16,7 +13,8 @@ import {
   LANGUAGE_DETECTION_MODELS,
 } from "../constants.js";
 
-import { decryptSensitiveData } from "./encryption.js";
+import { loadOpenRouterApiKey } from "./state/secretStore.js";
+import { loadSettings } from "./state/settingsStore.js";
 import { isTabClosedError, getSystemPrompt } from "./backgroundUtils.js";
 import { ErrorHandler, ErrorSeverity } from "./errorHandler.js";
 import { Logger } from "./logger.js";
@@ -147,6 +145,14 @@ const detectLanguage = async (apiKey, contentSnippet, DEBUG = false) => {
   return "eng";
 };
 
+/**
+ * Validates the captured model and sends one acknowledgement plus a tab result.
+ * @param {object} request - Summary content, model, requestId, and sharing capability.
+ * @param {object} sender - Content-script sender with the destination tab.
+ * @param {Function} sendResponse - Callback for processing or error acknowledgement.
+ * @param {boolean} DEBUG - Whether to log request metadata.
+ * Called by the background requestSummary route.
+ */
 export async function handleRequestSummary(
   request,
   sender,
@@ -182,70 +188,13 @@ export async function handleRequestSummary(
     }
 
     const selectedHtml = request.selectedHtml;
-    const data = await chrome.storage.sync.get([
-      STORAGE_KEY_SUMMARY_MODEL_ID,
-      STORAGE_KEY_BULLET_COUNT,
-      STORAGE_KEY_LANGUAGE_INFO,
-      STORAGE_KEY_PROMPT_TEMPLATE,
-      STORAGE_KEY_ALWAYS_USE_US_ENGLISH,
-      STORAGE_KEY_MODELS,
-    ]);
-
-    // Get encrypted API key from local storage and decrypt it
-    const localData = await chrome.storage.local.get([STORAGE_KEY_API_KEY_LOCAL]);
-    const encryptedApiKey = localData[STORAGE_KEY_API_KEY_LOCAL];
-    const decryptResult = await decryptSensitiveData(encryptedApiKey);
-    if (!decryptResult.success) {
-      const errorMsg = "Stored API key could not be decrypted. Re-enter the API key in options.";
-      Logger.error("[LLM Summary Handler]", "Failed to decrypt API key:", decryptResult.error);
-      sendResponse({ status: "error", message: errorMsg });
-      sendSummaryResultToTab(sender, {
-        action: "summaryResult",
-        requestId,
-        error: errorMsg,
-        language_info,
-        hasNewsblurToken: hasNewsblurTokenStatus,
-      }, DEBUG);
-      return;
-    }
-    const apiKey = decryptResult.data;
-
-    if (DEBUG) {
-      Logger.info("[LLM Summary Handler]", "Data retrieved for summary request:", {
-        ...data,
-        apiKey: apiKey ? "[API Key Hidden]" : "undefined",
-      });
-    }
-    const summaryModelId = data[STORAGE_KEY_SUMMARY_MODEL_ID];
+    const summaryModelId = request.model;
+    const data = await loadSettings();
     const storedLanguageInfo = Array.isArray(data[STORAGE_KEY_LANGUAGE_INFO])
       ? data[STORAGE_KEY_LANGUAGE_INFO]
       : [];
     language_info.splice(0, language_info.length, ...storedLanguageInfo);
-    let models = DEFAULT_MODEL_OPTIONS;
-    if (
-      Array.isArray(data[STORAGE_KEY_MODELS]) &&
-      data[STORAGE_KEY_MODELS].length > 0 &&
-      data[STORAGE_KEY_MODELS].every(
-        (m) => typeof m === "object" && m !== null && typeof m.id === "string",
-      )
-    ) {
-      models = data[STORAGE_KEY_MODELS].map((m) => ({ id: m.id }));
-    }
-    const modelIds = models.map((m) => m.id);
-
-    if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
-      const errorMsg = "API key is required and must be a non-empty string.";
-      Logger.error("[LLM Summary Handler]", "API key is missing or invalid for summary request.");
-      sendResponse({ status: "error", message: errorMsg });
-      sendSummaryResultToTab(sender, {
-        action: "summaryResult",
-        requestId,
-        error: errorMsg,
-        language_info: language_info,
-        hasNewsblurToken: hasNewsblurTokenStatus,
-      }, DEBUG);
-      return;
-    }
+    const modelIds = data[STORAGE_KEY_MODELS].map((model) => model.id);
 
     if (
       !summaryModelId ||
@@ -253,7 +202,9 @@ export async function handleRequestSummary(
       summaryModelId.trim() === "" ||
       !modelIds.includes(summaryModelId)
     ) {
-      const errorMsg = `Default Summary Model ("${summaryModelId || "None"}") is not selected or is invalid.`;
+      const errorMsg = typeof summaryModelId !== "string" || summaryModelId.trim() === ""
+        ? "Summary model is missing or invalid. Refresh the page and try again."
+        : `Requested summary model "${summaryModelId}" is no longer configured. Select a configured model and try again.`;
       Logger.error("[LLM Summary Handler]", `${errorMsg} Available:`, modelIds);
       sendResponse({ status: "error", message: errorMsg });
       sendSummaryResultToTab(sender, {
@@ -264,6 +215,43 @@ export async function handleRequestSummary(
         hasNewsblurToken: hasNewsblurTokenStatus,
       }, DEBUG);
       return;
+    }
+
+    const apiKeyResult = await loadOpenRouterApiKey();
+    if (!apiKeyResult.success) {
+      const errorMsg = "Stored API key could not be decrypted. Re-enter the API key in options.";
+      Logger.error("[LLM Summary Handler]", "Failed to load API key:", apiKeyResult.error);
+      sendResponse({ status: "error", message: errorMsg });
+      sendSummaryResultToTab(sender, {
+        action: "summaryResult",
+        requestId,
+        error: errorMsg,
+        language_info,
+        hasNewsblurToken: hasNewsblurTokenStatus,
+      }, DEBUG);
+      return;
+    }
+    const apiKey = apiKeyResult.data;
+
+    if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
+      const errorMsg = "API key is required and must be a non-empty string.";
+      Logger.error("[LLM Summary Handler]", "API key is missing or invalid for summary request.");
+      sendResponse({ status: "error", message: errorMsg });
+      sendSummaryResultToTab(sender, {
+        action: "summaryResult",
+        requestId,
+        error: errorMsg,
+        language_info,
+        hasNewsblurToken: hasNewsblurTokenStatus,
+      }, DEBUG);
+      return;
+    }
+
+    if (DEBUG) {
+      Logger.info("[LLM Summary Handler]", "Data retrieved for summary request:", {
+        ...data,
+        apiKey: "[API Key Hidden]",
+      });
     }
 
     const alwaysUseUsEnglish = data[STORAGE_KEY_ALWAYS_USE_US_ENGLISH] ?? true;

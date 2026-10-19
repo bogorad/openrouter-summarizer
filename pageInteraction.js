@@ -486,6 +486,7 @@ async function validateAndSendToLLM(content) {
             truncationDecision.content,
             requestId,
             hasNewsblurToken,
+            summaryModelId,
           );
           return;
         }
@@ -510,6 +511,7 @@ async function validateAndSendToLLM(content) {
           truncationDecision.content,
           requestId,
           hasNewsblurToken,
+          summaryModelId,
         );
       }).catch((error) => {
         if (!isActiveSummaryRequest(requestId)) {
@@ -554,8 +556,14 @@ async function validateAndSendToLLM(content) {
 }
 
 // --- Send Request to Background ---
-function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
-  // Added hasNewsblurTokenStatus parameter
+/**
+ * Sends the content and exact priced model from validateAndSendToLLM.
+ * @param {string} content - Validated or truncated summary content.
+ * @param {string} requestId - Active request identifier.
+ * @param {boolean} hasNewsblurTokenStatus - Sharing capability flag.
+ * @param {string} summaryModelId - Full model ID used for pricing.
+ */
+function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus, summaryModelId) {
   if (DEBUG)
     console.log("[LLM Request] Sending summarization request to background.");
   const pageURL = window.location.href;
@@ -565,6 +573,7 @@ function sendRequestToBackground(content, requestId, hasNewsblurTokenStatus) {
     {
       requestId: requestId,
       selectedHtml: content,
+      model: summaryModelId,
       hasNewsblurToken: hasNewsblurTokenStatus,
     }, // Pass the token status
   ).then(({ response }) => {

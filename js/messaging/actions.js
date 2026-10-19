@@ -103,18 +103,26 @@ export const MessageActionSet = Object.freeze(new Set(MESSAGE_ACTIONS));
 
 /**
  * @typedef {object} SummaryRequestPayload
- * @property {string} content Cleaned content to summarize.
- * @property {string=} pageTitle Source page title.
- * @property {string=} pageURL Source page URL.
- * @property {string=} model Selected summary model id.
- * @property {string=} prompt User-configured summary prompt.
+ * @property {string} selectedHtml Cleaned content to summarize.
+ * @property {string} model Exact configured model ID used for pricing, including suffixes.
+ * @property {string} requestId Identifies this content request and its tab result.
+ * @property {boolean=} hasNewsblurToken Sharing capability flag.
+ */
+
+/**
+ * @typedef {object} SummaryRequestResponse
+ * @property {"processing"|"error"} status Acknowledgement; summary content uses the tab result.
+ * @property {string=} message Error details when status is "error".
  */
 
 /**
  * @typedef {object} SummaryResultPayload
- * @property {"chunk"|"complete"|"error"} status Streaming summary status.
- * @property {string=} text Chunk or final summary text.
- * @property {string=} message Error details when status is "error".
+ * @property {string} requestId Identifies the originating summary request.
+ * @property {string=} summary Final summary HTML on success.
+ * @property {string=} error Error details on failure.
+ * @property {string=} model Model returned by the API, or the requested model.
+ * @property {Array<object>=} language_info Configured language metadata.
+ * @property {boolean=} hasNewsblurToken Sharing capability flag.
  */
 
 /**
@@ -170,7 +178,7 @@ export const MessageContractCatalog = Object.freeze({
   [ACTION_REQUEST_SUMMARY]: {
     direction: "runtime",
     payload: "BaseMessage & SummaryRequestPayload",
-    response: "StatusResponse",
+    response: "SummaryRequestResponse",
   },
   [ACTION_SUMMARY_RESULT]: {
     direction: "tab",
