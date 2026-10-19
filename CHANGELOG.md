@@ -1,3 +1,5 @@
+- **Version 3.10.11:** Prevented older pricing calculations from replacing newer options data after switching back to the same model.
+
 - **Version 3.10.10:** Bound each summary request to its priced model, preventing default changes from switching models during a request. Invalid or removed models fail before API calls.
 
 - **Version 3.10.9:** Preserved configured free models through options refresh and save, corrected zero-price limits, and ignored pricing replies for a different selection.

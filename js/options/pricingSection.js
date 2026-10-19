@@ -89,6 +89,7 @@ export const createOptionsPricingSection = ({
   maxPriceInputDebounceMs = DEFAULT_MAX_PRICE_INPUT_DEBOUNCE_MS,
 } = {}) => {
   let maxPriceDebounceTimeoutId = null;
+  let latestCalculationId = 0;
 
   const debugEnabled = () => state?.debug === true;
 
@@ -138,6 +139,7 @@ export const createOptionsPricingSection = ({
   };
 
   const calculateKbLimitForSummary = async () => {
+    const calculationId = ++latestCalculationId;
     if (!maxKbDisplay) return;
     const summaryModelId = state.summaryModelId;
 
@@ -175,7 +177,7 @@ export const createOptionsPricingSection = ({
         RuntimeMessageActions.getModelPricing,
         { modelId: summaryModelId },
       );
-      if (state.summaryModelId !== summaryModelId) return;
+      if (calculationId !== latestCalculationId || state.summaryModelId !== summaryModelId) return;
 
       if (!response || response.status !== "success") {
         maxKbDisplay.textContent = `max price: ${state.maxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
@@ -202,7 +204,7 @@ export const createOptionsPricingSection = ({
       await saveStorageArea(SETTINGS_STORAGE_AREA_LOCAL, {
         [STORAGE_KEY_PRICING_CACHE]: state.pricingCache,
       });
-      if (state.summaryModelId !== summaryModelId) return;
+      if (calculationId !== latestCalculationId || state.summaryModelId !== summaryModelId) return;
       if (debugEnabled()) {
         logger.log(
           `[LLM Options] Updated pricing cache for ${state.summaryModelId}`,
@@ -216,7 +218,7 @@ export const createOptionsPricingSection = ({
       state.summaryKbLimit = stateValue;
       renderPriceTable(displayValue);
     } catch (error) {
-      if (state.summaryModelId !== summaryModelId) return;
+      if (calculationId !== latestCalculationId || state.summaryModelId !== summaryModelId) return;
       maxKbDisplay.textContent = `max price: ${state.maxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
       state.summaryKbLimit = "";
       if (debugEnabled()) {

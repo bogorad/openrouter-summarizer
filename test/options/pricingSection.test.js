@@ -212,6 +212,62 @@ describe("pricingSection", () => {
     assert.equal(stored["fixture/b"].pricePerToken, 0.000001);
   });
 
+  for (const [label, oldResponse] of [
+    ["error", { status: "error", message: "Old A price unavailable" }],
+    ["success", { status: "success", pricePerToken: 0.000001 }],
+    ["transport error", undefined],
+  ]) {
+    it(`discards an old ${label} after A to B to cached A`, async () => {
+      let respondForOldA;
+      chrome.runtime.onMessage.addListener((request, sender, respond) => {
+        if (request.modelId === "fixture/a:free") {
+          respondForOldA = respond;
+          return true;
+        }
+        respond({ status: "success", pricePerToken: 0.000001 });
+      });
+      const { state, controller } = createFixture({ summaryModelId: "fixture/a:free" });
+      const pendingOldA = controller.calculateKbLimitForSummary();
+      state.summaryModelId = "fixture/b";
+      await controller.calculateKbLimitForSummary();
+      state.knownModelsAndPrices = {
+        "fixture/a:free": { id: "fixture/a:free", pricePerToken: 0, timestamp: Date.now() },
+        "fixture/b": { id: "fixture/b", pricePerToken: 0.000001, timestamp: Date.now() },
+      };
+      state.summaryModelId = "fixture/a:free";
+      await controller.calculateKbLimitForSummary();
+      assert.equal(state.summaryKbLimit, "No limit");
+      if (label === "transport error") chrome.__mock.setLastError({ message: "Old A transport failure" });
+      respondForOldA(oldResponse);
+      await pendingOldA;
+      chrome.__mock.clearLastError();
+      assert.equal(state.summaryKbLimit, "No limit");
+      assert.match(document.getElementById("maxKbDisplay").textContent, /No limit/);
+      assert.equal(state.pricingCache["fixture/a:free"], undefined);
+      assert.equal(chrome.__mock.getStorageArea("local").modelPricingCache["fixture/a:free"], undefined);
+      assert.equal(chrome.__mock.calls.runtimeSendMessage.length, 2, "return to cached A does not refetch");
+    });
+  }
+
+  it("keeps the latest same-model response when an older calculation finishes later", async () => {
+    const responders = [];
+    chrome.runtime.onMessage.addListener((request, sender, respond) => {
+      responders.push(respond);
+      return true;
+    });
+    const { state, controller } = createFixture({ summaryModelId: "fixture/a:free" });
+    const older = controller.calculateKbLimitForSummary();
+    const latest = controller.calculateKbLimitForSummary();
+    responders[1]({ status: "success", pricePerToken: "0" });
+    await latest;
+    assert.equal(state.summaryKbLimit, "No limit");
+    responders[0]({ status: "success", pricePerToken: 0.000001 });
+    await older;
+    assert.equal(state.summaryKbLimit, "No limit");
+    assert.equal(state.pricingCache["fixture/a:free"].pricePerToken, 0);
+    assert.equal(chrome.__mock.getStorageArea("local").modelPricingCache["fixture/a:free"].pricePerToken, 0);
+  });
+
   it("keeps maximum-price blur validation for invalid and valid input", async () => {
     const { state, controller } = createFixture({ summaryModelId: "fixture/paid", knownModelsAndPrices: {
       "fixture/paid": { id: "fixture/paid", pricePerToken: 0, timestamp: Date.now() },
