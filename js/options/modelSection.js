@@ -2,6 +2,7 @@
 // Renders and manages the options page model list.
 
 import { createAutocomplete } from "../ui/autocomplete.js";
+import { findModelPricing } from "../modelPricing.js";
 import { addManagedEventListener, createElement } from "../ui/dom.js";
 import {
   createInputRow,
@@ -11,22 +12,6 @@ import {
 } from "../ui/formRows.js";
 
 const DEFAULT_MAX_MODELS = 10;
-
-/**
- * Removes OpenRouter model variant suffixes from a model ID.
- *
- * Call sites: options pricing and model validation paths.
- *
- * @param {string} modelId
- * @returns {string}
- */
-export const getBaseModelId = (modelId) => {
-  if (typeof modelId !== "string") return "";
-  const trimmed = modelId.trim();
-  if (trimmed === "") return "";
-  const colonIndex = trimmed.indexOf(":");
-  return colonIndex === -1 ? trimmed : trimmed.substring(0, colonIndex);
-};
 
 const getModelId = (model) => (typeof model?.id === "string" ? model.id : "");
 
@@ -278,13 +263,12 @@ export const createOptionsModelSection = ({
       return;
     }
 
-    const baseModelId = getBaseModelId(modelId);
-    if (!baseModelId.includes("/") || baseModelId.endsWith("/")) {
+    if (!modelId.includes("/") || modelId.endsWith("/")) {
       onPricingRecalculate();
       return;
     }
 
-    if (!state.knownModelsAndPrices[baseModelId] && hasApiKey()) {
+    if (!findModelPricing(modelId, state.knownModelsAndPrices) && hasApiKey()) {
       onRefreshKnownModels();
       return;
     }

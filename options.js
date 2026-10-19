@@ -22,8 +22,9 @@ import {
 } from "./js/state/settingsStore.js";
 import {
   createOptionsModelSection,
-  getBaseModelId,
+  normalizeModelDefaults,
 } from "./js/options/modelSection.js";
+import { findModelPricing } from "./js/modelPricing.js";
 import {
   createOptionsLanguageSection,
   loadLanguageMetadata,
@@ -208,46 +209,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   /**
-   * Validates current models against known_models_and_prices and updates UI if necessary.
+   * Keeps defaults in the configured list; missing catalog records only produce diagnostics.
    */
   function validateCurrentModels() {
-    if (Object.keys(optionsState.knownModelsAndPrices).length === 0) return;
-
-    const validModelIds = Object.keys(optionsState.knownModelsAndPrices);
-    let hasChanged = false;
-
-    // Check summary model
-    if (
-      optionsState.summaryModelId &&
-      !validModelIds.includes(getBaseModelId(optionsState.summaryModelId))
-    ) {
-      const newSummaryModel = validModelIds.length > 0 ? validModelIds[0] : "";
-      if (optionsState.debug)
-        console.log(
-          `[LLM Options] Summary model ${optionsState.summaryModelId} not compatible, switching to ${newSummaryModel}`,
-        );
-      optionsState.summaryModelId = newSummaryModel;
-      hasChanged = true;
-    }
-
-    // Check chat model (optional flexibility)
-    if (
-      optionsState.chatModelId &&
-      !validModelIds.includes(getBaseModelId(optionsState.chatModelId))
-    ) {
-      const newChatModel = validModelIds.length > 0 ? validModelIds[0] : "";
-      if (optionsState.debug)
-        console.log(
-          `[LLM Options] Chat model ${optionsState.chatModelId} not compatible, switching to ${newChatModel}`,
-        );
-      optionsState.chatModelId = newChatModel;
-      hasChanged = true;
-    }
+    const hasChanged = normalizeModelDefaults(optionsState);
 
     // Check all configured models and warn if some are not in the known list
     const unknownModels = optionsState.models.filter((model) => {
-      const baseModelId = getBaseModelId(model.id);
-      return baseModelId && !validModelIds.includes(baseModelId);
+      const modelId = model.id.trim();
+      return modelId && !findModelPricing(modelId, optionsState.knownModelsAndPrices);
     });
     if (unknownModels.length > 0) {
       if (optionsState.debug)

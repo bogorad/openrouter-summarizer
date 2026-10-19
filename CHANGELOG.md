@@ -1,3 +1,5 @@
+- **Version 3.10.9:** Preserved configured free models through options refresh and save, corrected zero-price limits, and ignored pricing replies for a different selection.
+
 - **Version 3.10.8:** Fixed exact free-model pricing, rejected unavailable input prices, removed the content pricing bypass, and reset legacy derived pricing caches on upgrade.
 
 - **Version 3.10.7:** Migrated the Joplin notebook popup and autocomplete styling into Shadow DOM isolation.

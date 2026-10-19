@@ -2,16 +2,20 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  getBaseModelId,
   normalizeModelDefaults,
 } from "../../js/options/modelSection.js";
 import { createOptionsState } from "../../js/options/optionsState.js";
 
 describe("modelSection", () => {
-  it("strips OpenRouter model variant suffixes", () => {
-    assert.equal(getBaseModelId("openai/gpt-4o:online"), "openai/gpt-4o");
-    assert.equal(getBaseModelId(" anthropic/claude-3.5-sonnet "), "anthropic/claude-3.5-sonnet");
-    assert.equal(getBaseModelId(""), "");
+  it("preserves configured free defaults independently of catalog availability", () => {
+    const state = createOptionsState({
+      models: [{ id: "fixture/paid" }, { id: "fixture/free:free" }],
+      summaryModelId: "fixture/free:free",
+      chatModelId: "fixture/free:free",
+    });
+    assert.equal(normalizeModelDefaults(state), false);
+    assert.equal(state.summaryModelId, "fixture/free:free");
+    assert.equal(state.chatModelId, "fixture/free:free");
   });
 
   it("normalizes invalid summary and chat defaults to the first configured model", () => {

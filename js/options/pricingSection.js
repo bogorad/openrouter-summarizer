@@ -13,7 +13,7 @@ import {
   saveStorageArea,
   SETTINGS_STORAGE_AREA_LOCAL,
 } from "../state/settingsStore.js";
-import { getBaseModelId } from "./modelSection.js";
+import { findModelPricing, parsePricePerToken } from "../modelPricing.js";
 
 const STORAGE_KEY_PRICING_CACHE = "modelPricingCache";
 const STORAGE_KEY_KNOWN_MODELS_AND_PRICES = "knownModelsAndPrices";
@@ -22,12 +22,16 @@ const DEFAULT_MAX_PRICE_INPUT_DEBOUNCE_MS = 1000;
 /**
  * Calculates the displayed KiB limit from price settings.
  * @param {number} maxRequestPrice - Maximum request price in USD.
- * @param {number} pricePerToken - Model input price per token.
+ * @param {number|string} pricePerToken - Model input price per token.
  * @returns {Object} Display and state values.
  * @example Called by createOptionsPricingSection().
  */
 export const calculateSummaryKbLimit = (maxRequestPrice, pricePerToken) => {
-  if (pricePerToken === 0) {
+  const price = parsePricePerToken(pricePerToken);
+  if (price === null) {
+    return { stateValue: "", displayValue: "Pricing unavailable" };
+  }
+  if (price === 0) {
     return { stateValue: "No limit", displayValue: "No limit" };
   }
 
@@ -35,8 +39,11 @@ export const calculateSummaryKbLimit = (maxRequestPrice, pricePerToken) => {
     return { stateValue: "0", displayValue: "0" };
   }
 
-  const maxTokens = maxRequestPrice / pricePerToken;
+  const maxTokens = maxRequestPrice / price;
   const maxKb = Math.round(maxTokens / TOKENS_PER_KB);
+  if (!Number.isFinite(maxKb)) {
+    return { stateValue: "", displayValue: "Pricing unavailable" };
+  }
   return { stateValue: String(maxKb), displayValue: `~${maxKb}` };
 };
 
@@ -132,25 +139,24 @@ export const createOptionsPricingSection = ({
 
   const calculateKbLimitForSummary = async () => {
     if (!maxKbDisplay) return;
+    const summaryModelId = state.summaryModelId;
 
     maxKbDisplay.textContent = `max price: ${state.maxRequestPrice.toFixed(3)} max KiB: Calculating...`;
     state.summaryKbLimit = "";
 
-    if (!state.summaryModelId) {
+    if (!summaryModelId) {
       renderPriceTable("No model selected");
       return;
     }
 
-    const baseSummaryModelId = getBaseModelId(state.summaryModelId);
-    const modelData = state.knownModelsAndPrices?.[baseSummaryModelId];
+    const modelData = findModelPricing(summaryModelId, state.knownModelsAndPrices);
     const currentTime = Date.now();
     const cacheExpiry = DEFAULT_CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
     if (modelData && currentTime - modelData.timestamp < cacheExpiry) {
-      const pricePerToken = modelData.pricePerToken || 0;
       const { stateValue, displayValue } = calculateSummaryKbLimit(
         state.maxRequestPrice,
-        pricePerToken,
+        modelData.pricePerToken,
       );
       state.summaryKbLimit = stateValue;
       renderPriceTable(displayValue);
@@ -167,8 +173,9 @@ export const createOptionsPricingSection = ({
     try {
       const { response } = await sendRuntimeAction(
         RuntimeMessageActions.getModelPricing,
-        { modelId: baseSummaryModelId },
+        { modelId: summaryModelId },
       );
+      if (state.summaryModelId !== summaryModelId) return;
 
       if (!response || response.status !== "success") {
         maxKbDisplay.textContent = `max price: ${state.maxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
@@ -182,14 +189,20 @@ export const createOptionsPricingSection = ({
         return;
       }
 
-      const pricePerToken = response.pricePerToken || 0;
-      state.pricingCache[state.summaryModelId] = {
+      const pricePerToken = parsePricePerToken(response.pricePerToken);
+      if (pricePerToken === null) {
+        state.summaryKbLimit = "";
+        renderPriceTable("Pricing unavailable");
+        return;
+      }
+      state.pricingCache[summaryModelId] = {
         pricePerToken,
         timestamp: currentTime,
       };
       await saveStorageArea(SETTINGS_STORAGE_AREA_LOCAL, {
         [STORAGE_KEY_PRICING_CACHE]: state.pricingCache,
       });
+      if (state.summaryModelId !== summaryModelId) return;
       if (debugEnabled()) {
         logger.log(
           `[LLM Options] Updated pricing cache for ${state.summaryModelId}`,
@@ -203,6 +216,7 @@ export const createOptionsPricingSection = ({
       state.summaryKbLimit = stateValue;
       renderPriceTable(displayValue);
     } catch (error) {
+      if (state.summaryModelId !== summaryModelId) return;
       maxKbDisplay.textContent = `max price: ${state.maxRequestPrice.toFixed(2)} max KiB: Pricing unavailable`;
       state.summaryKbLimit = "";
       if (debugEnabled()) {
