@@ -2,9 +2,6 @@
   "database": "dolt",
   "backend": "dolt",
   "dolt_mode": "server",
-  "dolt_server_host": "doltsrv.lan",
-  "dolt_server_port": 3307,
-  "dolt_server_user": "root",
   "dolt_database": "openrouter_summarizer",
   "project_id": "ae032731-8949-4aa1-ba01-d2da4417b9ad"
 }
